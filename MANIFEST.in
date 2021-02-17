@@ -1,0 +1,7 @@
+include README.md
+include LICENSE.md
+include requirements.txt
+graft dphtools
+recursive-exclude * *.py[co]
+include versioneer.py
+include dphtools/_version.py

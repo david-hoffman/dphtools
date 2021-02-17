@@ -1,0 +1,9 @@
+# conda env create -f environment.yml
+name: dphtools
+channels:
+  - defaults
+dependencies:
+  - python>=3.8
+  - numpy
+  - scipy
+  - tqdm
