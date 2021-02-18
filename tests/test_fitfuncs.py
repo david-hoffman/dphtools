@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # test_fitfuncs.py
 """
-Testing for utils
+Testing for fitfuncs
 
 Copyright (c) 2021, David Hoffman
 """
