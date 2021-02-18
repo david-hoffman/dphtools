@@ -113,11 +113,11 @@
 #     # sort by freqs
 #     usedroots = usedroots[np.imag(usedroots).argsort()]
 #     # Lets make a DataFrame with dimension labels to store all our parameters
-#     LPSVD_coefs = pd.DataFrame(columns=["amps", "freqs", "damps", "phase"])
+#     lpsvd_coefs = pd.DataFrame(columns=["amps", "freqs", "damps", "phase"])
 
 #     # We can directly convert our poles into estimated damping factors and frequencies
-#     LPSVD_coefs.damps = np.real(usedroots)
-#     LPSVD_coefs.freqs = np.imag(usedroots) / (2 * np.pi)
+#     lpsvd_coefs['damps'] = np.real(usedroots)
+#     lpsvd_coefs['freqs'] = np.imag(usedroots) / (2 * np.pi)
 
 #     # But we need to do a little more work to get the predicted amplitudes and phases
 #     # Here we generate our basis matrix
@@ -130,13 +130,13 @@
 #     # Amps here are complex meaning it has amplitude and phase information
 #     cAmps = pinvBasis.T.dot(signal)
 
-#     LPSVD_coefs.amps = np.abs(cAmps)
-#     LPSVD_coefs.phase = np.angle(cAmps)
+#     lpsvd_coefs.amps = np.abs(cAmps)
+#     lpsvd_coefs.phase = np.angle(cAmps)
 
 #     # Calculate the errors
-#     calc_LPSVD_error(LPSVD_coefs, signal)
+#     calc_LPSVD_error(lpsvd_coefs, signal)
 
-#     return LPSVD_coefs  # , Errors
+#     return lpsvd_coefs  # , Errors
 
 
 # def estimate_model_order(s, N, L):
@@ -308,6 +308,7 @@
 
 #     return time_domain
 
+# ### NOTE: old IgorPro code below
 
 # # Function/S Cadzow(signal, M, iters,[lfactor,q])
 # #     #Remove noise using the Cadzow composite property mapping method.
