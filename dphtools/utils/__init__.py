@@ -17,6 +17,7 @@ from numpy.fft import ifftshift, irfftn, rfftn
 from scipy.fft import next_fast_len
 from scipy.ndimage._ni_support import _normalize_sequence
 from scipy.ndimage.fourier import fourier_gaussian
+import scipy.signal
 
 logger = logging.getLogger(__name__)
 
