@@ -12,27 +12,19 @@ from functools import partial
 
 import matplotlib.font_manager as fm
 
-# fancy subplot layout
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
-from dphutils import fft_gaussian_filter
 from matplotlib import cbook
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Colormap, LogNorm, Normalize, PowerNorm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from numpy.fft import rfftfreq, rfftn
 
-try:
-    import pyfftw
-    from pyfftw.interfaces.numpy_fft import rfftfreq, rfftn
-
-    # Turn on the cache for optimum performance
-    pyfftw.interfaces.cache.enable()
-except ImportError:
-    from numpy.fft import rfftfreq, rfftn
-
+from .utils import fft_gaussian_filter
 
 # Topics: line, color, LineCollection, cmap, colorline, codex
 """
@@ -838,9 +830,3 @@ def make_rec_from_slice(yxslice, **kwargs):
     width = xslice.stop - xslice.start
 
     return plt.Rectangle(xy, width, height, **default_kwargs)
-
-
-# snippets
-# sc = fits.plot.scatter("x0", "y0", c="SNR", marker="o", norm=mpl.colors.LogNorm(), edgecolors="face", facecolors="None", ax=ax)
-# marks = sc.get_children()[0]
-# marks.set_facecolor("none")

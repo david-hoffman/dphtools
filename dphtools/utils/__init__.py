@@ -7,44 +7,21 @@ Various utility functions to be organized better
 Copyright (c) 2021, David Hoffman
 """
 
-import io
+import logging
 import os
-import re
 import subprocess
 
 import matplotlib.pyplot as plt
 import numpy as np
-import requests
 import scipy as sp
-import tifffile as tif
-import tqdm
-from scipy.fftpack.helper import next_fast_len
+from numpy.fft import ifftshift, irfftn, rfftn
+from scipy.fft import next_fast_len
 from scipy.ndimage._ni_support import _normalize_sequence
 from scipy.ndimage.fourier import fourier_gaussian
 from scipy.optimize import minimize, minimize_scalar
 from scipy.signal import signaltools as sig
 from scipy.special import zeta
 from scipy.stats import nbinom
-
-from .lm import curve_fit
-from .rolling_ball import rolling_ball_filter
-
-# from .llc import jit_filter_function, jit_filter1d_function
-
-try:
-    import pyfftw
-    from pyfftw.interfaces.numpy_fft import fftn, fftshift, ifftn, ifftshift, irfftn, rfftn
-
-    # Turn on the cache for optimum performance
-    pyfftw.interfaces.cache.enable()
-    FFTW = True
-except ImportError:
-    from numpy.fft import fftn, fftshift, ifftn, ifftshift, irfftn, rfftn
-
-    FFTW = False
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -333,25 +310,6 @@ def padding_slices(oldshape, newshape):
     return padding, slices
 
 
-# def easy_rfft(data, axes=None):
-#     """utility method that includes fft shifting"""
-#     return fftshift(
-#         rfftn(
-#             ifftshift(
-#                 data, axes=axes
-#             ), axes=axes
-#         ), axes=axes)
-
-
-# def easy_irfft(data, axes=None):
-#     """utility method that includes fft shifting"""
-#     return ifftshift(
-#         irfftn(
-#             fftshift(
-#                 data, axes=axes
-#             ), axes=axes
-#         ), axes=axes)
-
 # add np.pad docstring
 fft_pad.__doc__ += np.pad.__doc__
 
@@ -404,69 +362,6 @@ def _calc_pad(oldnum, newnum):
     else:
         pad1, pad2 = pad_b, pad_s
     return pad1, pad2
-
-
-# If we have fftw installed than make a better fftconvolve
-if FFTW:
-
-    def fftconvolve(in1, in2, mode="same", threads=1):
-        """Same as above but with pyfftw added in"""
-        in1 = np.asarray(in1)
-        in2 = np.asarray(in2)
-
-        if in1.ndim == in2.ndim == 0:  # scalar inputs
-            return in1 * in2
-        elif not in1.ndim == in2.ndim:
-            raise ValueError("in1 and in2 should have the same dimensionality")
-        elif in1.size == 0 or in2.size == 0:  # empty arrays
-            return np.array([])
-
-        s1 = np.array(in1.shape)
-        s2 = np.array(in2.shape)
-        complex_result = np.issubdtype(in1.dtype, complex) or np.issubdtype(in2.dtype, complex)
-        shape = s1 + s2 - 1
-
-        # Check that input sizes are compatible with 'valid' mode
-        if sig._inputs_swap_needed(mode, s1, s2):
-            # Convolution is commutative; order doesn't have any effect on output
-            in1, s1, in2, s2 = in2, s2, in1, s1
-
-        # Speed up FFT by padding to optimal size for FFTPACK
-        fshape = [next_fast_len(int(d)) for d in shape]
-        fslice = tuple([slice(0, int(sz)) for sz in shape])
-        # Pre-1.9 NumPy FFT routines are not threadsafe.  For older NumPys, make
-        # sure we only call rfftn/irfftn from one thread at a time.
-        if not complex_result and (sig._rfft_mt_safe or sig._rfft_lock.acquire(False)):
-            try:
-                sp1 = rfftn(in1, fshape, threads=threads)
-                sp2 = rfftn(in2, fshape, threads=threads)
-                ret = irfftn(sp1 * sp2, fshape, threads=threads)[fslice].copy()
-            finally:
-                if not sig._rfft_mt_safe:
-                    sig._rfft_lock.release()
-        else:
-            # If we're here, it's either because we need a complex result, or we
-            # failed to acquire _rfft_lock (meaning rfftn isn't threadsafe and
-            # is already in use by another thread).  In either case, use the
-            # (threadsafe but slower) SciPy complex-FFT routines instead.
-            sp1 = fftn(in1, fshape, threads=threads)
-            sp2 = fftn(in2, fshape, threads=threads)
-            ret = ifftn(sp1 * sp2, threads=threads)[fslice].copy()
-            if not complex_result:
-                ret = ret.real
-
-        if mode == "full":
-            return ret
-        elif mode == "same":
-            return sig._centered(ret, s1)
-        elif mode == "valid":
-            return sig._centered(ret, s1 - s2 + 1)
-        else:
-            raise ValueError("Acceptable mode flags are 'valid'," " 'same', or 'full'.")
-
-    # fftconvolve.__doc__ = "DPH Utils: " + sig.fftconvolve.__doc__
-else:
-    fftconvolve = sig.fftconvolve
 
 
 def fftconvolve_fast(data, kernel, **kwargs):
@@ -592,267 +487,6 @@ def fft_gaussian_filter(img, sigma):
     filt_kimg = fourier_gaussian(kimg, sigma, pad_img.shape[-1])
     # inverse FFT and return.
     return irfftn(filt_kimg, fshape)[fslice]
-
-
-def multi_exp(xdata, *args):
-    """Power and exponent"""
-    odd = len(args) % 2
-    if odd:
-        offset = args[-1]
-    else:
-        offset = 0
-    res = np.ones_like(xdata, dtype=float) * offset
-    for i in range(0, len(args) - odd, 2):
-        a, k = args[i : i + 2]
-        res += a * np.exp(-k * xdata)
-    return res
-
-
-def multi_exp_jac(xdata, *args):
-    """Power and exponent jacobian"""
-    odd = len(args) % 2
-
-    tostack = []
-
-    for i in range(0, len(args) - odd, 2):
-        a, k = args[i : i + 2]
-        tostack.append(np.exp(-k * xdata))
-        tostack.append(-a * xdata * tostack[-1])
-
-    if odd:
-        # there's an offset
-        tostack.append(np.ones_like(xdata))
-
-    return np.vstack(tostack).T
-
-
-def exponent(xdata, amp, rate, offset):
-    """Utility function to fit nonlinearly"""
-    return multi_exp(xdata, amp, rate, offset)
-
-
-def _estimate_exponent_params(data, xdata):
-    """utility to estimate exponent params"""
-    assert np.isfinite(data).all(), "data is not finite"
-    assert np.isfinite(xdata).all(), "xdata is not finite"
-    assert len(data) == len(xdata), "Lengths don't match"
-    assert len(data), "there is no data"
-    if data[0] >= data[-1]:
-        # decay
-        offset = np.nanmin(data)
-        data_corr = data - offset
-        log_data_corr = np.log(data_corr)
-        valid_pnts = np.isfinite(log_data_corr)
-        m, b = np.polyfit(xdata[valid_pnts], log_data_corr[valid_pnts], 1)
-        return np.nan_to_num((np.exp(b), -m, offset))
-    else:
-        amp, rate, offset = _estimate_exponent_params(-data, xdata)
-        return np.array((-amp, rate, -offset))
-
-
-def _estimate_components(data, xdata):
-    """"""
-    raise NotImplementedError
-
-
-def exponent_fit(data, xdata=None, offset=True):
-    """Utility function that fits data to the exponent function"""
-    return multi_exp_fit(data, xdata, components=1, offset=offset)
-
-
-def multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs):
-    """Utility function that fits data to the exponent function
-
-    Assumes evenaly spaced data.
-
-    Parameters
-    ----------
-    data : ndarray (1d)
-        data that can be modeled as a single exponential decay
-    xdata : numeric
-        x axis for fitting
-
-    Returns
-    -------
-    popt : ndarray
-        optimized parameters for the exponent wave
-        (a0, k0, a1, k1, ... , an, kn, offset)
-    pcov : ndarray
-        covariance of optimized paramters
-
-
-    label_base = "$y(t) = " + "{:+.3f} e^{{-{:.3g}t}}" * (len(popt) // 2) + " {:+.0f}$" * (len(popt) % 2)
-    """
-    # only deal with finite data
-    # NOTE: could use masked wave here.
-    if xdata is None:
-        xdata = np.arange(len(data))
-
-    if components is None:
-        components = _estimate_components(data, xdata)
-
-    finite_pnts = np.isfinite(data)
-    data_fixed = data[finite_pnts]
-    xdata_fixed = xdata[finite_pnts]
-    # we need at least 4 data points to fit
-    if len(data_fixed) > 3:
-        # we can't fit data with less than 4 points
-        # make guesses
-        if components > 1:
-            split_points = np.logspace(
-                np.log(xdata_fixed[xdata_fixed > 0].min()),
-                np.log(xdata_fixed.max()),
-                components + 1,
-                base=np.e,
-            )
-            # convert to indices
-            split_idxs = np.searchsorted(xdata_fixed, split_points)
-            # add endpoints, make sure we don't have 0 twice
-            split_idxs = [None] + list(split_idxs[1:-1]) + [None]
-            ranges = [slice(start, stop) for start, stop in zip(split_idxs[:-1], split_idxs[1:])]
-        else:
-            ranges = [slice(None)]
-        pguesses = [_estimate_exponent_params(data_fixed[s], xdata_fixed[s]) for s in ranges]
-        # clear out the offsets
-        pguesses = [pguess[:-1] for pguess in pguesses[:-1]] + pguesses[-1:]
-        # add them together
-        pguess = np.concatenate(pguesses)
-        if not offset:
-            # kill the offset component
-            pguess = pguess[:-1]
-        # The jacobian actually slows down the fitting my guess is there
-        # aren't generally enough points to make it worthwhile
-        return curve_fit(
-            multi_exp, xdata_fixed, data_fixed, p0=pguess, jac=multi_exp_jac, **kwargs
-        )
-    else:
-        raise RuntimeError("Not enough good points to fit.")
-
-
-def estimate_power_law(x, y, diagnostics=False):
-    """Estimate the best fit parameters for a power law by linearly fitting the loglog plot"""
-    # can't take log of negative points
-    valid_points = y > 0
-    # pull valid points and take log
-    xx = np.log(x[valid_points])
-    yy = np.log(y[valid_points])
-    # weight by sqrt of value, make sure we get the trend right
-    w = np.sqrt(y[valid_points])
-    # fit line to loglog
-    neg_b, loga = np.polyfit(np.log(x[valid_points]), np.log(y[valid_points]), 1, w=w)
-    if diagnostics:
-        plt.loglog(x[valid_points], y[valid_points])
-        plt.loglog(x, np.exp(loga) * x ** (neg_b))
-    return np.exp(loga), -neg_b
-
-
-def _test_pow_law(popt, xmin):
-    """Utility function for testing power law params"""
-    a, b = popt
-    assert a > 0, "Scale invalid"
-    assert b > 1, "Exponent invalid"
-    assert xmin > 0, "xmin invalid"
-
-
-def power_percentile(p, popt, xmin=1):
-    """Percentile of a single power law function"""
-    assert 0 <= p <= 1, "percentile invalid"
-    _test_pow_law(popt, xmin)
-    a, b = popt
-    x0 = (1 - p) ** (1 / (1 - b)) * xmin
-    return x0
-
-
-def power_percentile_inv(x0, popt, xmin=1):
-    """Given an x value what percentile of the power law function does it correspond to"""
-    _test_pow_law(popt, xmin)
-    a, b = popt
-    p = 1 - (x0 / xmin) ** (1 - b)
-    return p
-
-
-def power_intercept(popt, value=1):
-    """At what x value does the function reach value"""
-    a, b = popt
-    assert a > 0, f"a = {value}"
-    assert value > 0, f"value = {value}"
-    return (a / value) ** (1 / b)
-
-
-def power_law(xdata, *args):
-    """An multi-power law function"""
-    odd = len(args) % 2
-    if odd:
-        offset = float(args[-1])
-    else:
-        offset = 0.0
-    res = np.ones_like(xdata) * offset
-    lx = np.log(xdata)
-    for i in range(0, len(args) - odd, 2):
-        res += args[i] * np.exp(-args[i + 1] * lx)
-    return res
-
-
-def power_law_jac(xdata, *args):
-    """Jacobian for a multi-power law function"""
-    odd = len(args) % 2
-    tostack = []
-    lx = np.log(xdata)
-    for i in range(0, len(args) - odd, 2):
-        a, b = args[i : i + 2]
-        # dydai
-        tostack.append(np.exp(-b * lx))
-        # dydki
-        tostack.append(-lx * a * tostack[-1])
-
-    if odd:
-        # there's an offset
-        tostack.append(np.ones_like(xdata))
-
-    return np.vstack(tostack).T
-
-
-def get_tif_urls(baseurl):
-    """Return all the links from a webpage with .tif"""
-    r = requests.get(baseurl)
-    links = re.findall('"([^"]*\.tif)"', r.content.decode())
-    head = "/".join(r.url.split("/")[:3])
-    return [head + l for l in links]
-
-
-def url_tifread(url):
-    """Read a tif into memory from a url"""
-    r = requests.get(url)
-    return tif.imread(io.BytesIO(r.content))
-
-
-def imread_bioformats(path):
-    """Thin wrapper around bioformats, slow and shitty,
-    but works in a pinch, only reads z stack -- no time"""
-    # import modules tp ise
-    import gc
-    import itertools
-
-    import bioformats
-    import javabridge
-
-    # start the jave VM with the appropriate classes loaded
-    javabridge.start_vm(class_path=bioformats.JARS)
-    # init the reader
-    with bioformats.ImageReader(path) as reader:
-        # init container
-        data = []
-        for i in itertool.count():
-            try:
-                data.append(reader.read(z=i, rescale=False))
-            except javabridge.JavaException:
-                # reached end of file, break
-                break
-    # clean up a little
-    javabridge.kill_vm()
-    gc.collect()
-    # return ndarray
-    return np.asarray(data)
 
 
 def powerlaw_prng(alpha, xmin=1, xmax=1e7):
@@ -1012,7 +646,7 @@ class PowerLaw(object):
         ks_data = self._KS_test_discrete()
         # normalizing constant
         ks_tests = []
-        for i in tqdm.trange(num):
+        for i in range(num):
             fake_data = self.gen_power_law()
             power = PowerLaw(fake_data)
             power.fit(self.xmin)
@@ -1262,20 +896,6 @@ def latex_format_e(num, pre=2):
     s = ("{:." + "{:d}".format(pre) + "e}").format(num)
     fp, xp = s.split("e+")
     return "{} \\times 10^{{{}}}".format(fp, int(xp))
-
-
-def amira_bbox_str(*, bbox=None, resolution=None, shape=None, offset=None):
-    """Correctly calculates the bounding box and makes a string to be stuffed into
-    the image description tag of a tiff"""
-    if bbox is not None:
-        z0, z1, y0, y1, x0, x1 = bbox
-    else:
-        z0, y0, x0 = offset
-        z1, y1, x1 = np.asarray(resolution) * (np.asarray(shape) - 1) + offset
-
-    fmt_str = "BoundingBox {x0:} {x1:} {y0:} {y1:} {z0:} {z1:}"
-    fmt_dict = dict(z0=z0, z1=z1, y0=y0, y1=y1, x0=x0, x1=x1)
-    return fmt_str.format(**fmt_dict)
 
 
 def localize_peak(data):
