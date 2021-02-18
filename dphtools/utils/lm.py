@@ -22,6 +22,7 @@ import logging
 import numpy as np
 import scipy.optimize
 from numpy import linalg as la
+from scipy.linalg import solve_triangular
 
 logger = logging.getLogger(__name__)
 
@@ -289,8 +290,8 @@ def lm(
     #     raise TypeError('Improper input: N=%s must not exceed M=%s' % (n, m))
     if Dfun is None:
         raise NotImplementedError
-        if epsfcn is None:
-            epsfcn = np.finfo(dtype).eps
+        # if epsfcn is None:
+        #     epsfcn = np.finfo(dtype).eps
     else:
         if col_deriv:
             pass
@@ -484,7 +485,7 @@ def lm(
 
     if info not in [1, 2, 3, 4] and not full_output:
         if info in [5, 6, 7, 8]:
-            warnings.warn(errors[info][0], RuntimeWarning)
+            logger.warning(errors[info][0], RuntimeWarning)
         else:
             try:
                 raise errors[info][1](errors[info][0])
