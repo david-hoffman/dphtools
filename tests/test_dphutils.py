@@ -1,13 +1,33 @@
-from nose.tools import *
-import numpy as np
-from numpy.testing import assert_allclose, assert_almost_equal, assert_approx_equal
-from itertools import product
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# test_dphutils.py
+"""
+Testing for utils
+
+Copyright (c) 2021, David Hoffman
+"""
+
 import unittest
-from scipy.signal import signaltools as sig
-from scipy.ndimage.filters import gaussian_filter
+from itertools import product
+
+import numpy as np
+import pytest
 
 # import the package to test
-from dphutils import *
+from dphtools.utils import (
+    anscombe,
+    anscombe_inv,
+    fft_gaussian_filter,
+    fft_pad,
+    padding_slices,
+    radial_profile,
+    slice_maker,
+    win_nd,
+)
+from numpy.fft import fftshift, ifftshift
+from numpy.testing import assert_allclose, assert_almost_equal
+from scipy.fft import next_fast_len
+from scipy.ndimage.filters import gaussian_filter
 
 
 class TestFFTPad(unittest.TestCase):
@@ -19,9 +39,9 @@ class TestFFTPad(unittest.TestCase):
         specified, i.e. test auto padding"""
         oldshape = (2 * 17, 17)
         data = np.zeros(oldshape)
-        newshape = tuple(sig.fftpack.helper.next_fast_len(s) for s in oldshape)
+        newshape = tuple(next_fast_len(s) for s in oldshape)
         newdata = fft_pad(data)
-        assert_equal(newshape, newdata.shape)
+        assert newshape == newdata.shape
 
     def test_new_shape_one_size(self):
         """
@@ -31,7 +51,7 @@ class TestFFTPad(unittest.TestCase):
         data = np.random.randn(*oldshape)
         newsize = 50
         newdata = fft_pad(data, newsize)
-        assert_equal((newsize,) * newdata.ndim, newdata.shape)
+        assert (newsize,) * newdata.ndim == newdata.shape
 
     def test_new_shape_multiple(self):
         """
@@ -41,16 +61,16 @@ class TestFFTPad(unittest.TestCase):
         data = np.random.randn(*oldshape)
         newsize = (50, 40, 30, 100)
         newdata = fft_pad(data, newsize)
-        assert_equal(newsize, newdata.shape)
+        assert newsize == newdata.shape
 
     def test_smaller_shape(self):
         """Test that cropping works as expected"""
         oldshape = np.random.randint(10, 200)
         newshape = np.random.randint(5, oldshape)
         data = np.ones(oldshape)
-        assert_equal(data.shape, (oldshape,))
+        assert data.shape == (oldshape,)
         pad_data = fft_pad(data, newshape)
-        assert_equal(pad_data.shape, (newshape,))
+        assert pad_data.shape == (newshape,)
 
     def test_right_position_cases(self):
         """make sure that center stays centered (for ffts)
@@ -70,7 +90,7 @@ class TestFFTPad(unittest.TestCase):
             data[0] = 1
             data_centered = ifftshift(data)
             data_padded = fft_pad(data_centered, newshape)
-            assert_equal(fftshift(data_padded)[0], 1)
+            assert fftshift(data_padded)[0] == 1
 
     def test_right_position_multidimensional(self):
         """make sure that center stays centered (for ffts)
@@ -84,7 +104,7 @@ class TestFFTPad(unittest.TestCase):
             data[zero_loc] = 1
             data_centered = ifftshift(data)
             data_padded = fft_pad(data_centered, newshape)
-            assert_equal(fftshift(data_padded)[zero_loc], 1)
+            assert fftshift(data_padded)[zero_loc] == 1
 
 
 def test_radprof_complex():
@@ -100,7 +120,7 @@ def test_win_nd():
     """Testing the size of win_nd"""
     shape = (128, 65, 17)
     result = win_nd(shape)
-    assert_equal(shape, result.shape)
+    assert shape == result.shape
 
 
 def test_anscombe():
@@ -124,7 +144,7 @@ def test_fft_gaussian_filter():
     # and its inherently more accurate so we need to truncate
     # the kernel for the gaussian filter further out.
     fftc = gaussian_filter(data, sigmas, mode="wrap", truncate=32)
-    assert_allclose(fftg, fftc, err_msg="sigmas = {}".format(sigmas))
+    assert_allclose(fftg, fftc, rtol=1e-4, err_msg="sigmas = {}".format(sigmas))
 
 
 def _turn_slices_into_list(slice_list):
@@ -138,7 +158,7 @@ def _turn_slices_into_list(slice_list):
 def test_slice_maker_negative():
     """Make sure slice_maker doesn't return negative indices"""
     slices = _turn_slices_into_list(slice_maker((10, -10), 10))
-    assert_true((slices >= 0).all(), slices)
+    assert (slices >= 0).all(), slices
 
 
 def test_slice_maker_complex_input():
@@ -146,7 +166,8 @@ def test_slice_maker_complex_input():
     for y0, x0, width in product(*(((10, 10j),) * 3)):
         if np.isrealobj((y0, x0, width)):
             continue
-        assert_raises(TypeError, slice_maker, (y0, x0), width)
+        with pytest.raises(TypeError):
+            slice_maker((y0, x0), width)
 
 
 def test_slice_maker_float_input():
@@ -154,7 +175,7 @@ def test_slice_maker_float_input():
     for i in range(10):
         y0, x0, width = np.random.random(3) * 100
         slice_list = _turn_slices_into_list(slice_maker((y0, x0), width))
-        assert_true(np.issubdtype(slice_list.dtype, int))
+        assert np.issubdtype(slice_list.dtype, int)
 
 
 def test_slice_maker_center():
@@ -168,7 +189,7 @@ def test_slice_maker_center():
         data_crop = data[slices]
         print(data_crop)
         print(ifftshift(data_crop))
-        assert_equal(ifftshift(data_crop)[0, 0], 1, ifftshift(data_crop))
+        assert ifftshift(data_crop)[0, 0] == 1, ifftshift(data_crop)
 
 
 def test_padding_slices():
@@ -180,24 +201,3 @@ def test_padding_slices():
     padding, slices = padding_slices(newshape, oldshape)
     assert np.all(data == new_data[slices])
 
-
-class TestFFTPad(unittest.TestCase):
-    """This is not even close to testing edge cases"""
-
-    def setUp(self):
-        self.x = np.linspace(0, 10)
-        self.params = (10, 3, 5)
-        self.data = exponent(self.x, *self.params)
-        self.data_noisy = np.random.randn(self.x.size)
-
-    def test_positive(self):
-        """Test a decaying signal"""
-        popt, pcov = exponent_fit(self.data, self.x)
-        assert_allclose(popt, self.params, rtol=1e-3)
-
-    def test_negative(self):
-        """Test a rising signal"""
-        popt, pcov = exponent_fit(-self.data, self.x)
-        amp, k, offset = self.params
-        new_params = -amp, k, -offset
-        assert_allclose(popt, new_params, rtol=1e-3)

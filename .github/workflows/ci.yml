@@ -4,17 +4,16 @@
 name: ci
 
 on:
-  [never]
-  # push:
-  #   branches: [master]
-  #   paths:
-  #     # only run tests if package has changed
-  #     - "dphtools/**"
-  #     - "tests/**"
-  #     - "requirements.txt"
-  #     - ".github/workflows/ci.yml"
-  # pull_request:
-  #   branches: [master]
+  push:
+    branches: [master]
+    paths:
+      # only run tests if package has changed
+      - "dphtools/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [master]
 
 jobs:
   build:
