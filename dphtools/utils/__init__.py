@@ -168,7 +168,7 @@ def radial_profile(data, center=None, binsize=1.0):
     Examples
     --------
     >>> radial_profile(np.ones((11, 11)))
-    (array([ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.]), array([ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]))
+    (array([1., 1., 1., 1., 1., 1., 1., 1.]), array([0., 0., 0., 0., 0., 0., 0., 0.]))
     """
     # test if the data is complex
     if np.iscomplexobj(data):
@@ -247,10 +247,10 @@ def slice_maker(xs, ws):
 
     Examples
     --------
-    >>> slice_maker((30,20),10)
-    [slice(25, 35, None), slice(15, 25, None)]
-    >>> slice_maker((30,20),25)
-    [slice(18, 43, None), slice(8, 33, None)]
+    >>> slice_maker((30, 20), 10)
+    (slice(25, 35, None), slice(15, 25, None))
+    >>> slice_maker((30, 20), 25)
+    (slice(18, 43, None), slice(8, 33, None))
     """
     # normalize inputs
     xs = np.asarray(xs)
@@ -285,10 +285,14 @@ def fft_pad(array, newshape=None, mode="median", **kwargs):
         # update each dimension to a 5-smooth hamming number
         newshape = tuple(next_fast_len(n) for n in oldshape)
     else:
-        if isinstance(newshape, int):
+        if hasattr(newshape, "__iter__"):
+            # are we iterable?
+            newshape = tuple(newshape)
+        elif isinstance(newshape, int) or np.issubdtype(newshape, np.integer):
+            # test for regular python int, then numpy ints
             newshape = tuple(newshape for n in oldshape)
         else:
-            newshape = tuple(newshape)
+            raise ValueError(f"{newshape} is not a recognized shape")
     # generate padding and slices
     padding, slices = padding_slices(oldshape, newshape)
     return np.pad(array[slices], padding, mode=mode, **kwargs)

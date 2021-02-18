@@ -30,6 +30,9 @@ from scipy.fft import next_fast_len
 from scipy.ndimage.filters import gaussian_filter
 
 
+rng = np.random.default_rng(12345)
+
+
 class TestFFTPad(unittest.TestCase):
     def setUp(self):
         pass
@@ -48,7 +51,7 @@ class TestFFTPad(unittest.TestCase):
         Make sure the new shape has the same dimensions when one is given
         """
         oldshape = (10, 20, 30)
-        data = np.random.randn(*oldshape)
+        data = rng.standard_normal(oldshape)
         newsize = 50
         newdata = fft_pad(data, newsize)
         assert (newsize,) * newdata.ndim == newdata.shape
@@ -58,19 +61,19 @@ class TestFFTPad(unittest.TestCase):
         Make sure the new shape has the same dimensions when one is given
         """
         oldshape = (10, 20, 30, 40)
-        data = np.random.randn(*oldshape)
+        data = rng.standard_normal(oldshape)
         newsize = (50, 40, 30, 100)
         newdata = fft_pad(data, newsize)
         assert newsize == newdata.shape
 
     def test_smaller_shape(self):
         """Test that cropping works as expected"""
-        oldshape = np.random.randint(10, 200)
-        newshape = np.random.randint(5, oldshape)
+        oldshape = rng.integers(10, 200)
+        newshape = rng.integers(5, oldshape)
         data = np.ones(oldshape)
-        assert data.shape == (oldshape,)
+        assert data.shape == oldshape
         pad_data = fft_pad(data, newshape)
-        assert pad_data.shape == (newshape,)
+        assert pad_data.shape == newshape
 
     def test_right_position_cases(self):
         """make sure that center stays centered (for ffts)
@@ -96,9 +99,9 @@ class TestFFTPad(unittest.TestCase):
         """make sure that center stays centered (for ffts)
         fuzzy test to see if I missed anything"""
         for i in range(10):
-            dims = np.random.randint(1, 4)
-            oldshape = np.random.randint(10, 100, dims)
-            newshape = np.random.randint(10, 100, dims)
+            dims = rng.integers(1, 4)
+            oldshape = rng.integers(10, 100, dims)
+            newshape = rng.integers(10, 100, dims)
             data = np.zeros(oldshape)
             zero_loc = (0,) * dims
             data[zero_loc] = 1
@@ -126,7 +129,7 @@ def test_win_nd():
 def test_anscombe():
     """Test anscombe function"""
     # https://en.wikipedia.org/wiki/Anscombe_transform
-    data = np.random.poisson(100, (128, 128, 128))
+    data = rng.poisson(100, (128, 128, 128))
     assert_almost_equal(data.mean(), 100, 1), "Data not generated properly!"
     ans_data = anscombe(data)
     assert_almost_equal(ans_data.var(), 1, 2)
@@ -137,14 +140,14 @@ def test_anscombe():
 # need to move these into a test class
 def test_fft_gaussian_filter():
     """Test the gaussian filter"""
-    data = np.random.randn(128, 128, 128)
-    sigmas = (np.random.random(data.ndim) + 1) * 2
+    data = rng.standard_normal((128, 128, 128))
+    sigmas = (rng.random(data.ndim) + 1) * 2
     fftg = fft_gaussian_filter(data, sigmas)
     # The fft_convolution is equivalent to wrapping around
     # and its inherently more accurate so we need to truncate
     # the kernel for the gaussian filter further out.
     fftc = gaussian_filter(data, sigmas, mode="wrap", truncate=32)
-    assert_allclose(fftg, fftc, rtol=1e-4, err_msg="sigmas = {}".format(sigmas))
+    assert_allclose(fftg, fftc, atol=1e-8, rtol=1e-6, err_msg="sigmas = {}".format(sigmas))
 
 
 def _turn_slices_into_list(slice_list):
@@ -173,7 +176,7 @@ def test_slice_maker_complex_input():
 def test_slice_maker_float_input():
     """Make sure floats are rounded properly"""
     for i in range(10):
-        y0, x0, width = np.random.random(3) * 100
+        y0, x0, width = rng.random(3) * 100
         slice_list = _turn_slices_into_list(slice_maker((y0, x0), width))
         assert np.issubdtype(slice_list.dtype, int)
 
@@ -182,9 +185,9 @@ def test_slice_maker_center():
     """Make sure slices center y0, x0 at fft center"""
     for i in range(10):
         data = np.zeros((256, 256))
-        center_loc = tuple(np.random.randint(64, 256 - 64, 2))
+        center_loc = tuple(rng.integers(64, 256 - 64, 2))
         data[center_loc] = 1
-        width = np.random.randint(16, 32)
+        width = rng.integers(16, 32)
         slices = slice_maker(center_loc, width)
         data_crop = data[slices]
         print(data_crop)
@@ -194,9 +197,9 @@ def test_slice_maker_center():
 
 def test_padding_slices():
     """Make sure we can reverse things"""
-    oldshape = tuple(np.random.randint(64, 256 - 64, 2))
-    newshape = tuple(np.random.randint(s, s * 2) for s in oldshape)
-    data = np.random.randn(*oldshape)
+    oldshape = tuple(rng.integers(64, 256 - 64, 2))
+    newshape = tuple(rng.integers(s, s * 2) for s in oldshape)
+    data = rng.standard_normal(oldshape)
     new_data = fft_pad(data, newshape)
     padding, slices = padding_slices(newshape, oldshape)
     assert np.all(data == new_data[slices])

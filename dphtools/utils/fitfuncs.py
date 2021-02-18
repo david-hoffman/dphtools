@@ -60,7 +60,8 @@ def _estimate_exponent_params(data, xdata):
         # decay
         offset = np.nanmin(data)
         data_corr = data - offset
-        log_data_corr = np.log(data_corr)
+        with np.errstate(divide="ignore"):
+            log_data_corr = np.log(data_corr)
         valid_pnts = np.isfinite(log_data_corr)
         m, b = np.polyfit(xdata[valid_pnts], log_data_corr[valid_pnts], 1)
         return np.nan_to_num((np.exp(b), -m, offset))

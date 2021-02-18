@@ -49,4 +49,4 @@ jobs:
           black --check . -l 99
       - name: Test with pytest
         run: |
-          pytest --cov-report=term-missing --cov=dphtools
+          pytest --cov-report=term-missing --cov=dphtools --doctest-module
