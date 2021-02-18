@@ -203,4 +203,3 @@ def test_padding_slices():
     new_data = fft_pad(data, newshape)
     padding, slices = padding_slices(newshape, oldshape)
     assert np.all(data == new_data[slices])
-
