@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # test_dphutils.py
 """
-Testing for utils
+Testing for utils.
 
 Copyright (c) 2021, David Hoffman
 """
@@ -38,8 +38,7 @@ class TestFFTPad(unittest.TestCase):
         pass
 
     def test_new_shape_no_size(self):
-        """Test the make a new shape with even and odd numbers when no size is
-        specified, i.e. test auto padding"""
+        """Test the make a new shape with even and odd numbers when no size is specified, i.e. test auto padding."""
         oldshape = (2 * 17, 17)
         data = np.zeros(oldshape)
         newshape = tuple(next_fast_len(s) for s in oldshape)
@@ -48,7 +47,7 @@ class TestFFTPad(unittest.TestCase):
 
     def test_new_shape_one_size(self):
         """
-        Make sure the new shape has the same dimensions when one is given
+        Make sure the new shape has the same dimensions when one is given.
         """
         oldshape = (10, 20, 30)
         data = rng.standard_normal(oldshape)
@@ -58,7 +57,7 @@ class TestFFTPad(unittest.TestCase):
 
     def test_new_shape_multiple(self):
         """
-        Make sure the new shape has the same dimensions when one is given
+        Make sure the new shape has the same dimensions when one is given.
         """
         oldshape = (10, 20, 30, 40)
         data = rng.standard_normal(oldshape)
@@ -67,7 +66,7 @@ class TestFFTPad(unittest.TestCase):
         assert newsize == newdata.shape
 
     def test_smaller_shape(self):
-        """Test that cropping works as expected"""
+        """Test that cropping works as expected."""
         oldshape = rng.integers(10, 200)
         newshape = rng.integers(5, oldshape)
         data = np.ones(oldshape)
@@ -76,8 +75,7 @@ class TestFFTPad(unittest.TestCase):
         assert pad_data.shape == newshape
 
     def test_right_position_cases(self):
-        """make sure that center stays centered (for ffts)
-        all cases"""
+        """make sure that center stays centered (for ffts) all cases."""
         cases = (
             (14, 34),  # even -> even
             (14, 35),  # even -> odd
@@ -96,8 +94,7 @@ class TestFFTPad(unittest.TestCase):
             assert fftshift(data_padded)[0] == 1
 
     def test_right_position_multidimensional(self):
-        """make sure that center stays centered (for ffts)
-        fuzzy test to see if I missed anything"""
+        """make sure that center stays centered (for ffts) fuzzy test to see if I missed anything."""
         for i in range(10):
             dims = rng.integers(1, 4)
             oldshape = rng.integers(10, 100, dims)
@@ -111,7 +108,7 @@ class TestFFTPad(unittest.TestCase):
 
 
 def test_radprof_complex():
-    """Testing rad prof for complex values"""
+    """Testing rad prof for complex values."""
     result = radial_profile(np.ones((11, 11)) + np.ones((11, 11)) * 1j)
     avg = np.ones(8) + np.ones(8) * 1j
     assert_allclose(result[0], avg)
@@ -120,14 +117,14 @@ def test_radprof_complex():
 
 
 def test_win_nd():
-    """Testing the size of win_nd"""
+    """Testing the size of win_nd."""
     shape = (128, 65, 17)
     result = win_nd(shape)
     assert shape == result.shape
 
 
 def test_anscombe():
-    """Test anscombe function"""
+    """Test anscombe function."""
     # https://en.wikipedia.org/wiki/Anscombe_transform
     data = rng.poisson(100, (128, 128, 128))
     assert_almost_equal(data.mean(), 100, 1), "Data not generated properly!"
@@ -139,7 +136,7 @@ def test_anscombe():
 
 # need to move these into a test class
 def test_fft_gaussian_filter():
-    """Test the gaussian filter"""
+    """Test the gaussian filter."""
     data = rng.standard_normal((128, 128, 128))
     sigmas = (rng.random(data.ndim) + 1) * 2
     fftg = fft_gaussian_filter(data, sigmas)
@@ -151,7 +148,7 @@ def test_fft_gaussian_filter():
 
 
 def _turn_slices_into_list(slice_list):
-    """Take output of slice_maker and turn into list for testing"""
+    """Take output of slice_maker and turn into list for testing."""
     result = []
     for s in slice_list:
         result += [s.start, s.stop]
@@ -159,13 +156,13 @@ def _turn_slices_into_list(slice_list):
 
 
 def test_slice_maker_negative():
-    """Make sure slice_maker doesn't return negative indices"""
+    """Make sure slice_maker doesn't return negative indices."""
     slices = _turn_slices_into_list(slice_maker((10, -10), 10))
     assert (slices >= 0).all(), slices
 
 
 def test_slice_maker_complex_input():
-    """test complex in all positions"""
+    """test complex in all positions."""
     for y0, x0, width in product(*(((10, 10j),) * 3)):
         if np.isrealobj((y0, x0, width)):
             continue
@@ -174,7 +171,7 @@ def test_slice_maker_complex_input():
 
 
 def test_slice_maker_float_input():
-    """Make sure floats are rounded properly"""
+    """Make sure floats are rounded properly."""
     for i in range(10):
         y0, x0, width = rng.random(3) * 100
         slice_list = _turn_slices_into_list(slice_maker((y0, x0), width))
@@ -182,7 +179,7 @@ def test_slice_maker_float_input():
 
 
 def test_slice_maker_center():
-    """Make sure slices center y0, x0 at fft center"""
+    """Make sure slices center y0, x0 at fft center."""
     for i in range(10):
         data = np.zeros((256, 256))
         center_loc = tuple(rng.integers(64, 256 - 64, 2))
@@ -196,7 +193,7 @@ def test_slice_maker_center():
 
 
 def test_padding_slices():
-    """Make sure we can reverse things"""
+    """Make sure we can reverse things."""
     oldshape = tuple(rng.integers(64, 256 - 64, 2))
     newshape = tuple(rng.integers(s, s * 2) for s in oldshape)
     data = rng.standard_normal(oldshape)

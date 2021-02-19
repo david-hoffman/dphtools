@@ -28,17 +28,18 @@ logger = logging.getLogger(__name__)
 
 
 def _chi2_ls(f):
-    """Sum of the squares of the residuals
+    """Sum of the squares of the residuals.
 
     Assumes that f returns residuals.
 
     Minimizing this will maximize the likelihood for a
-    data model with gaussian deviates."""
+    data model with gaussian deviates.
+    """
     return 0.5 * (f ** 2).sum(0)
 
 
 def _update_ls(x0, f, Dfun):
-    """Hessian and gradient calculations for gaussian deviates"""
+    """Hessian and gradient calculations for gaussian deviates."""
     # calculate the jacobian
     # j shape (ndata, nparams)
     j = Dfun(x0)
@@ -52,10 +53,11 @@ def _update_ls(x0, f, Dfun):
 
 
 def _chi2_mle(f):
-    """The equivalent "chi2" for poisson deviates
+    """Equivalent "chi2" for poisson deviates.
 
     Minimizing this will maximize the likelihood for a data
-    model with gaussian deviates."""
+    model with gaussian deviates.
+    """
     f, y = f
     if f.min() < 0:
         logger.debug("function has dropped below zero {}, this shouldn't happen".format(f.min()))
@@ -77,7 +79,7 @@ def _chi2_mle(f):
 
 
 def _update_mle(x0, f, Dfun):
-    """Hessian and gradient calculations for poisson deviates"""
+    """Hessian and gradient calculations for poisson deviates."""
     # calculate the jacobian
     # j shape (ndata, nparams)
     f, y = f
@@ -102,13 +104,14 @@ def _update_mle(x0, f, Dfun):
 
 
 def _ensure_positive(data):
-    """Make sure data is positive and has no zeros
+    """Make sure data is positive and has no zeros.
 
     For numerical stability
 
     If we realize that mutating data is not a problem
     and that changing in place could lead to signifcant
-    speed ups we can lose the data.copy() line"""
+    speed ups we can lose the data.copy() line
+    """
     # make a copy of the data
     data = data.copy()
     data[data <= 0] = 0
@@ -116,9 +119,10 @@ def _ensure_positive(data):
 
 
 def _wrap_func_mle(func, xdata, ydata, transform):
-    """Returns f and xdata
+    """Return f and xdata.
 
-    This is the cost function as defined by Transtrum and Sethna"""
+    This is the cost function as defined by Transtrum and Sethna
+    """
     # add non-negativity constraint to data
     ydata_nn = _ensure_positive(ydata)
     if transform is None:
@@ -156,7 +160,7 @@ def _wrap_jac_mle(jac, xdata, transform):
 
 
 def _wrap_func_ls(func, xdata, ydata, transform):
-    """This is the cost function as defined by Transtrum and Sethna"""
+    """Cost function as defined by Transtrum and Sethna."""
     if transform is None:
 
         def func_wrapped(params):
@@ -202,9 +206,10 @@ def _wrap_jac_ls(jac, xdata, transform):
 
 
 def make_lambda(j, d0):
-    """Make the diagonal matrix which takes care of scaling
+    """Make the diagonal matrix which takes care of scaling.
 
-    according to J. J. Moré's paper"""
+    according to J. J. Moré's paper
+    """
     # Calculate the norm of the jacobian columns
     ds = la.norm(j, axis=0)
     ds[0] = d0
@@ -229,8 +234,8 @@ def lm(
     diag=None,
     method="ls",
 ):
-    """A more thorough implementation of levenburg-marquet
-    for gaussian Noise
+    """Thorough implementation of levenburg-marquet for gaussian Noise.
+
     ::
         x = arg min(sum(func(y)**2,axis=0))
                  y
@@ -351,14 +356,14 @@ def lm(
         maxfev = 100 * (len(x0) + 1)
 
     def gtest(g):
-        """test if the gradient has converged"""
+        """Test if the gradient has converged."""
         if gtol:
             return np.abs(g).max() <= gtol
         else:
             return False
 
     def xtest(dx, x):
-        """see if the parameters have converged"""
+        """Check if the parameters have converged."""
         return la.norm(dx) <= xtol * (la.norm(x) + xtol)
 
     # set up update and chi2 for use
@@ -515,9 +520,10 @@ def curve_fit(
     jac=None,
     **kwargs
 ):
-    """
-    Use non-linear least squares to fit a function, f, to data.
+    """Use non-linear least squares to fit a function, f, to data.
+    
     Assumes ``ydata = poisson(f(xdata, *params))``
+    
     Parameters
     ----------
     f : callable
@@ -591,8 +597,8 @@ def curve_fit(
         .. versionadded:: 0.18
     kwargs
         Keyword arguments passed to `leastsq` for ``method='lm'`` or
-        `least_squares` otherwise."""
-
+        `least_squares` otherwise.
+    """
     # fix kwargs
     return_full = kwargs.pop("full_output", False)
     can_full_output = method not in {"trf", "dogbox"} and np.array_equal(bounds, (-np.inf, np.inf))

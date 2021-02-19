@@ -33,7 +33,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # black 19 ---> 20 is incompatible
-          pip install black==19.10b0 flake8 pytest pytest-cov
+          pip install black==19.10b0 flake8 pytest pytest-cov pydocstyle
           # install requirements
           pip install -r requirements.txt
           # install package
@@ -47,6 +47,9 @@ jobs:
       - name: Check formatting with black
         run: |
           black --check . -l 99
+      - name: Check docstrings
+        run: |
+          pydocstyle dphtools/
       - name: Test with pytest
         run: |
           pytest --cov-report=term-missing --cov=dphtools --doctest-modules

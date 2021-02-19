@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # __init__.py
 """
-Tools for optics and image analysis
+Tools for optics and image analysis.
 
 Copyright (c) 2021, David Hoffman
 """

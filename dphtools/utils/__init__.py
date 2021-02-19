@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # __init__.py
 """
-Various utility functions to be organized better
+Various utility functions to be organized better.
 
 Copyright (c) 2021, David Hoffman
 """
@@ -25,6 +25,7 @@ eps = np.finfo(float).eps
 
 
 def get_git(path="."):
+    """Get git description."""
     try:
         # we slice to remove trailing new line.
         cmd = ["git", "--git-dir=" + os.path.join(path, ".git"), "describe", "--long", "--always"]
@@ -35,14 +36,8 @@ def get_git(path="."):
         return "Unknown"
 
 
-def generate_meta_data():
-    pass
-
-
 def bin_ndarray(ndarray, new_shape=None, bin_size=None, operation="sum"):
-    """
-    Bins an ndarray in all axes based on the target shape, by summing or
-        averaging.
+    """Bins an ndarray in all axes based on the target shape, by summing or averaging.
 
     Number of output dimensions must match number of input dimensions and
         new axes must divide old ones.
@@ -88,9 +83,7 @@ def bin_ndarray(ndarray, new_shape=None, bin_size=None, operation="sum"):
 
 
 def scale(data, dtype=None):
-    """
-    Scales data to [0.0, 1.0] range, unless an integer dtype is specified
-    in which case the data is scaled to fill the bit depth of the dtype.
+    """Scale data to [0.0, 1.0] range, unless an integer dtype is specified in which case the data is scaled to fill the bit depth of the dtype.
 
     Parameters
     ----------
@@ -133,12 +126,12 @@ def scale(data, dtype=None):
 
 
 def scale_uint16(data):
-    """Convenience function to scale data to the uint16 range."""
+    """Scale data to the uint16 range."""
     return scale(data, np.uint16)
 
 
 def radial_profile(data, center=None, binsize=1.0):
-    """Take the radial average of a 2D data array
+    """Take the radial average of a 2D data array.
 
     Adapted from http://stackoverflow.com/a/21242776/5030014
 
@@ -207,20 +200,20 @@ def radial_profile(data, center=None, binsize=1.0):
 
 
 def mode(data):
-    """Quickly find the mode of data
+    """Get mode of non-negative integer data.
 
     up to 1000 times faster than scipy mode
     but not nearly as feature rich
 
     Note: we can vectorize this to work on different
-    axes with numba"""
+    axes with numba
+    """
     # will not work with negative numbers (for now)
     return np.bincount(data.ravel()).argmax()
 
 
 def slice_maker(xs, ws):
-    """
-    A utility function to generate slices for later use.
+    """Generate a tuple of slices to cut out a sub-array centered on `xs` with widths `ws`.
 
     Parameters
     ----------
@@ -274,7 +267,7 @@ def slice_maker(xs, ws):
 
 
 def fft_pad(array, newshape=None, mode="median", **kwargs):
-    """Pad an array to prep it for fft"""
+    """Pad an array to prep it for FFT."""
     # pull the old shape
     oldshape = array.shape
     if newshape is None:
@@ -295,10 +288,10 @@ def fft_pad(array, newshape=None, mode="median", **kwargs):
 
 
 def padding_slices(oldshape, newshape):
-    """This function takes the old shape and the new shape and calculates
-    the required padding or cropping.newshape
+    """Calculate the required padding or cropping based on the old shape and the new shape.
 
-    Can be used to generate the slices needed to undo fft_pad above"""
+    Can be used to generate the slices needed to undo fft_pad above
+    """
     # generate pad widths from new shape
     padding = tuple(
         _calc_pad(o, n) if n is not None else _calc_pad(o, o) for o, n in zip(oldshape, newshape)
@@ -315,14 +308,14 @@ fft_pad.__doc__ += np.pad.__doc__
 
 
 def _calc_crop(s1, s2):
-    """Calc the cropping from the padding"""
+    """Calc the cropping from the padding."""
     a1 = abs(s1) if s1 < 0 else None
     a2 = s2 if s2 < 0 else None
     return slice(a1, a2, None)
 
 
 def _calc_pad(oldnum, newnum):
-    """ Calculate the proper padding for fft_pad
+    """Calculate the proper padding for fft_pad.
 
     We have three cases:
     old number even new number even
@@ -365,7 +358,7 @@ def _calc_pad(oldnum, newnum):
 
 
 def fftconvolve_fast(data, kernel, **kwargs):
-    """A faster version of fft convolution
+    """FFT convolution, a faster version than scipy.
 
     In this case the kernel ifftshifted before FFT but the data is not.
     This can be done because the effect of fourier convolution is to 
@@ -401,8 +394,7 @@ def fftconvolve_fast(data, kernel, **kwargs):
 
 
 def win_nd(size, win_func=scipy.signal.hann, **kwargs):
-    """
-    A function to make a multidimensional version of a window function
+    """Make a multidimensional version of a window function.
 
     Parameters
     ----------
@@ -434,7 +426,7 @@ def win_nd(size, win_func=scipy.signal.hann, **kwargs):
 
 
 def anscombe(data):
-    """Apply Anscombe transform to data
+    """Apply Anscombe transform to data.
 
     https://en.wikipedia.org/wiki/Anscombe_transform
     """
@@ -442,7 +434,7 @@ def anscombe(data):
 
 
 def anscombe_inv(data):
-    """Apply inverse Anscombe transform to data
+    """Apply inverse Anscombe transform to data.
 
     https://en.wikipedia.org/wiki/Anscombe_transform
     """
@@ -454,7 +446,7 @@ def anscombe_inv(data):
 
 
 def fft_gaussian_filter(img, sigma):
-    """FFT gaussian convolution
+    """FFT gaussian convolution.
 
     Parameters
     ----------
@@ -490,7 +482,7 @@ def fft_gaussian_filter(img, sigma):
 
 
 def find_prime_facs(n):
-    """Find the prime factors of n"""
+    """Find the prime factors of n."""
     list_of_factors = []
     i = 2
     while n > 1:
@@ -503,7 +495,7 @@ def find_prime_facs(n):
 
 
 def montage(stack):
-    """Take a stack and a new shape and cread a montage"""
+    """Take a stack and a new shape and cread a montage."""
     # assume data is ordered as color, tiles, ny, nx
     ntiles, ny, nx = stack.shape[:3]
     # Find the prime factor that makes the montage most square
@@ -524,7 +516,7 @@ def montage(stack):
 
 
 def square_montage(stack):
-    """Turn a 3D stack into a square montage"""
+    """Turn a 3D stack into a square montage."""
     # calculate nearest square
     new_num = int(np.ceil(np.sqrt(len(stack))) ** 2)
     # if square return montage
@@ -539,16 +531,17 @@ def square_montage(stack):
 
 
 def latex_format_e(num, pre=2):
-    """Format a number for nice latex presentation, the number will *not* be enclosed in $"""
+    """Format a number for nice latex presentation, the number will *not* be enclosed in "$"."""
     s = ("{:." + "{:d}".format(pre) + "e}").format(num)
     fp, xp = s.split("e+")
     return "{} \\times 10^{{{}}}".format(fp, int(xp))
 
 
 def localize_peak(data):
-    """Small utility function to localize a peak center. Assumes passed data has
-    peak at center and that data.shape is odd and symmetric. Then fits a
-    parabola through each line passing through the center. This is optimized
+    """Small utility function to localize a peak center.
+    
+    Assumes passed data has peak at center and that data.shape is odd and symmetric.
+    Then fits a parabola through each line passing through the center. This is optimized
     for FFT data which has a non-circularly symmetric shaped peaks.
     """
     # make sure passed data is symmetric along all dimensions
@@ -578,14 +571,14 @@ def localize_peak(data):
 
 
 def get_max(xdata, ydata, axis=0):
-    """Get the x value that corresponds to the max y value"""
+    """Get the x value that corresponds to the max y value."""
     idx_max = ydata.argmax(axis)
     max_x = np.take_along_axis(xdata, np.expand_dims(idx_max, axis), axis).squeeze()
     return max_x
 
 
 def edf(stack):
-    """Simple extended depth of focus, take the value with the max gradient"""
+    """Calculate extended depth of focus, simple algo, take the value with the max gradient."""
     img = stack.astype("float32")
     gradient_x = scipy.ndimage.sobel(img, 2)
     gradient_y = scipy.ndimage.sobel(img, 1)

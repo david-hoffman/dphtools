@@ -1,22 +1,24 @@
-# #!/usr/bin/env python
-# # -*- coding: utf-8 -*-
-# # lpsvd.py
-# """
-# LPSVD was developed by Tufts and Kumaresan (Tufts, D.; Kumaresan, R. IEEE Transactions on Acoustics,
-# Speech and signal Processing 1982, 30, 671 – 675.) as a method of harmonic inversion, i.e. decomposing
-# a time signal into a linear combination of (decaying) sinusoids.
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# lpsvd.py
+"""
+Conversion of old IgorPro code.
 
-# A great reference that is easy to read for the non-EECS user is:
-# Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
+LPSVD was developed by Tufts and Kumaresan (Tufts, D.; Kumaresan, R. IEEE Transactions on Acoustics,
+Speech and signal Processing 1982, 30, 671 – 675.) as a method of harmonic inversion, i.e. decomposing
+a time signal into a linear combination of (decaying) sinusoids.
 
-# This particular implementation was adapted, in part, from matNMR by Jacco van Beek
-# http://matnmr.sourceforge.net/
-# and  Complex Exponential Analysis by Greg Reynolds
-# http://www.mathworks.com/matlabcentral/fileexchange/12439-complex-exponential-analysis/
+A great reference that is easy to read for the non-EECS user is:
+Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
 
-# Author: David Hoffman (dave.p.hoffman@gmail.com)
-# Date: Aug, 2015
-# """
+This particular implementation was adapted, in part, from matNMR by Jacco van Beek
+http://matnmr.sourceforge.net/
+and  Complex Exponential Analysis by Greg Reynolds
+http://www.mathworks.com/matlabcentral/fileexchange/12439-complex-exponential-analysis/
+
+Author: David Hoffman (dave.p.hoffman@gmail.com)
+Date: Aug, 2015
+"""
 
 # import numpy as np
 # import pandas as pd

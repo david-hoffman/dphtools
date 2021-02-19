@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # display.py
 """
-Plotting utilities
+Plotting utilities.
 
 Copyright (c) 2021, David Hoffman
 """
@@ -12,15 +12,13 @@ from functools import partial
 
 import matplotlib.font_manager as fm
 
-import matplotlib as mpl
 import matplotlib.gridspec as gridspec
-import matplotlib.patches as patches
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cbook
 from matplotlib.collections import LineCollection
-from matplotlib.colors import Colormap, LogNorm, Normalize, PowerNorm
+from matplotlib.colors import Colormap, Normalize
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from numpy.fft import rfftfreq, rfftn
 
@@ -46,11 +44,10 @@ See also: plt.streamplot
 
 
 def make_segments(x, y):
+    """Create list of line segments from x and y coordinates, in the correct format for LineCollection.
+    
+    Returns an array of the form numlines x (points per line) x 2 (x and y) array
     """
-    Create list of line segments from x and y coordinates, in the correct format for LineCollection:
-    an array of the form   numlines x (points per line) x 2 (x and y) array
-    """
-
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
@@ -71,12 +68,11 @@ def colorline(
     ax=None,
     autoscale=True,
 ):
-    """
-    Plot a colored line with coordinates x and y
+    """Plot a colored line with coordinates x and y.
+
     Optionally specify colors in the array z
     Optionally specify a colormap, a norm function and a line width
     """
-
     if not isinstance(cmap, Colormap):
         cmap = plt.get_cmap(cmap)
 
@@ -118,8 +114,7 @@ def display_grid(
     sharey=False,
     **kwargs,
 ):
-    """
-    Display a dictionary of images in a nice grid
+    """Display a dictionary of images in a nice grid.
 
     Parameters
     ----------
@@ -172,7 +167,7 @@ def display_grid(
 
 
 def wrap_name(dirname, figsize):
-    """wrap name to fit in subfig"""
+    """Wrap name to fit in subfig."""
     fontsize = plt.rcParams["font.size"]
     # 1/120 = inches/(fontsize*character)
     num_chars = int(figsize / fontsize * 72)
@@ -180,6 +175,7 @@ def wrap_name(dirname, figsize):
 
 
 def make_grid(numitems, nrows=None, figsize=3, grid_aspect=1, **kwargs):
+    """Make a grid of axes."""
     if numitems == 0:
         raise ValueError("numitems can't be zero.")
     if nrows is None:
@@ -201,6 +197,7 @@ def make_grid(numitems, nrows=None, figsize=3, grid_aspect=1, **kwargs):
 
 
 def clean_grid(fig, axs):
+    """Clean up a grid of axes by removing unused axes."""
     for ax in axs.ravel():
         if not (len(ax.images) or len(ax.lines) or len(ax.patches)):
             fig.delaxes(ax)
@@ -208,7 +205,7 @@ def clean_grid(fig, axs):
 
 
 def take_slice(data, axis, midpoint=None):
-    """Small utility to be able to take slices"""
+    """Take slices."""
     if midpoint is None:
         midpoint = np.array(data.shape, dtype=np.int) // 2
     my_slice = [slice(None, None, None) for i in range(data.ndim)]
@@ -217,15 +214,13 @@ def take_slice(data, axis, midpoint=None):
 
 
 def slice_plot(data, center=None, allaxes=False, **kwargs):
-    """A slice plot, displays slices through data at `center`"""
+    """Display slices through data at `center`."""
     take_slice2 = partial(take_slice, midpoint=center)
     return mip(data, func=take_slice2, allaxes=allaxes, **kwargs)
 
 
 def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
-    """
-    Recolor the lines in ax with the cmap
-    """
+    """Recolor the lines in ax with the cmap."""
     if isinstance(cmap, str):
         # user has passed a string
         # presumably the name of a registered color map
@@ -259,8 +254,7 @@ def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
 def drift_plot(
     fit, title=None, dt=0.1, dx=130, lf=-np.inf, hf=np.inf, log=False, cmap="magma", xc="b", yc="r"
 ):
-    """
-    Plotting utility to show drift curves nicely
+    """Show drift curves nicely.
 
     Parameters
     ----------
@@ -346,8 +340,7 @@ def drift_plot(
 
 
 def mip(data, zaspect=1, func=np.amax, allaxes=False, plt_kwds=None, **kwargs):
-    """
-    Plot max projection of data
+    """Plot max projection of data.
 
     Parameters
     ----------------
@@ -369,7 +362,6 @@ def mip(data, zaspect=1, func=np.amax, allaxes=False, plt_kwds=None, **kwargs):
     axs : ndarray of axes objects
         axes handles in a flat ndarray
     """
-
     # set default properly for dict
     if plt_kwds is None:
         plt_kwds = {}
@@ -430,8 +422,7 @@ def mip(data, zaspect=1, func=np.amax, allaxes=False, plt_kwds=None, **kwargs):
 
 
 def auto_adjust(img):
-    """
-    Python translation of ImageJ autoadjust function
+    """Python translation of ImageJ autoadjust function.
 
     Parameters
     ----------
@@ -483,10 +474,10 @@ def auto_adjust(img):
 
 # @np.vectorize
 def wavelength_to_rgb(wavelength, gamma=0.8):
-    """This converts a given wavelength of light to an
-    approximate RGB color value. The wavelength must be given
-    in nanometers in the range from 380 nm through 750 nm
-    (789 THz through 400 THz).
+    """Convert a given wavelength of light to an approximate RGB color value.
+    
+    The wavelength must be given in nanometers in the range from 380 nm through 750 nm (789 THz through 400 THz).
+
     Based on code by Dan Bruton
     http://www.physics.sfasu.edu/astro/color/spectra.html
     """
@@ -524,17 +515,8 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
     return (R, G, B)
 
 
-def max_min(n, d):
-    return np.array((-n // 2, (n - 1) // 2 + n % 2)) * d
-
-
-def fft_max_min(n, d):
-    step_size = 1 / d / n
-    return max_min(n, step_size)
-
-
 def add_scalebar(ax, scalebar_size, pixel_size, unit="µm", edgecolor=None, **kwargs):
-    """Add a scalebar to the axis"""
+    """Add a scalebar to the axis."""
     scalebar_length = scalebar_size / pixel_size
     default_scale_bar_kwargs = dict(
         loc="lower right",
@@ -562,157 +544,11 @@ def add_scalebar(ax, scalebar_size, pixel_size, unit="µm", edgecolor=None, **kw
     return scalebar
 
 
-def z_squeeze(n1, n2, na=0.85):
-    """Amount z expands or contracts when using an objective designed
-    for one index (n1) to image into a medium with another index (n2)"""
-
-    if n1 == n2:
-        return 1
-
-    def func(n):
-        return n - np.sqrt(max(0, n ** 2 - na ** 2))
-
-    return func(n1) / func(n2)
-
-
-def psf_plot(
-    psf,
-    *,
-    na=0.85,
-    nobj=1.0,
-    nsample=None,
-    zstep=0.25,
-    pixel_size=0.13,
-    fig=None,
-    loc=111,
-    mip=True,
-    **kwargs,
-):
-    """"""
-    if nsample is None:
-        nsample = nobj
-    # expand z step
-    zstep *= z_squeeze(nobj, nsample, na)
-    # update our default kwargs for plotting
-    dkwargs = dict(interpolation="nearest", cmap="inferno")
-    dkwargs.update(kwargs)
-    # make the fig if one isn't passed
-    if fig is None:
-        fig = plt.figure(None, (8.0, 8.0))
-
-    grid = mpl.ImageGrid(fig, loc, nrows_ncols=(2, 2), axes_pad=0.3)
-    # calc extents
-    nz, ny, nx = psf.shape
-    kz, ky, kx = [max_min(n, d) for n, d in zip(psf.shape, (zstep, pixel_size, pixel_size))]
-
-    # do plotting
-    if mip:
-        grid[3].imshow(psf.max(0), **dkwargs, extent=(*kx, *ky))
-        grid[2].imshow(psf.max(1).T, **dkwargs, extent=(*kz, *ky))
-        grid[1].imshow(psf.max(2), **dkwargs, extent=(*kx, *kz))
-    else:
-        grid[3].imshow(psf[nz // 2, :, :], **dkwargs, extent=(*kx, *ky))
-        grid[2].imshow(psf[:, ny // 2, :].T, **dkwargs, extent=(*kz, *ky))
-        grid[1].imshow(psf[:, :, nx // 2], **dkwargs, extent=(*kx, *kz))
-    grid[0].axis("off")
-
-    fd = {"fontweight": "bold"}
-    # add titles
-    grid[3].set_title("$XY$", fd)
-    grid[2].set_title("$YZ$", fd)
-    grid[1].set_title("$XZ$", fd)
-    # remove ticks
-    for g in grid:
-        g.xaxis.set_major_locator(plt.NullLocator())
-        g.yaxis.set_major_locator(plt.NullLocator())
-    # add scalebar
-    add_scalebar(grid[3], 1, 1, None)
-    # return fig and axes
-    return fig, grid
-
-
-def otf_plot(
-    otf,
-    na=0.85,
-    wl=0.52,
-    nobj=1.0,
-    nsample=None,
-    zstep=0.25,
-    pixel_size=0.13,
-    fig=None,
-    loc=111,
-    **kwargs,
-):
-    """"""
-    if nsample is None:
-        nsample = nobj
-    # expand z step
-    zstep *= z_squeeze(nobj, nsample, na)
-    # update our default kwargs for plotting
-    dkwargs = dict(
-        norm=LogNorm(vmin=kwargs.pop("vmin", None), vmax=kwargs.pop("vmax", None)),
-        interpolation="nearest",
-        cmap="inferno",
-    )
-    dkwargs.update(kwargs)
-    # make the fig if one isn't passed
-    if fig is None:
-        fig = plt.figure(None, (8.0, 8.0))
-
-    grid = mpl.ImageGrid(fig, loc, nrows_ncols=(2, 2), axes_pad=0.3)
-
-    nz, ny, nx = otf.shape
-    assert nx == ny
-    kz, ky, kx = [fft_max_min(n, d) for n, d in zip(otf.shape, (zstep, pixel_size, pixel_size))]
-
-    grid[3].imshow(otf[nz // 2, :, :], **dkwargs, extent=(*kx, *ky))
-    grid[2].imshow(otf[:, ny // 2, :].T, **dkwargs, extent=(*kz, *ky))
-    grid[1].imshow(otf[:, :, nx // 2], **dkwargs, extent=(*kx, *kz))
-    grid[0].axis("off")
-
-    fd = {"fontweight": "bold"}
-    grid[3].set_title("$k_{XY}$", fd)
-    grid[2].set_title("$k_{YZ}$", fd)
-    grid[1].set_title("$k_{XZ}$", fd)
-
-    for g in grid:
-        g.xaxis.set_major_locator(plt.NullLocator())
-        g.yaxis.set_major_locator(plt.NullLocator())
-
-    # calculate the angle of the marginal rays
-    a = np.arcsin(min(1, na / nsample))
-    # make a circle of the OTF limits
-    c = patches.Circle((0, 0), 2 * na / wl, ec="w", lw=2, fill=None)
-    grid[3].add_patch(c)
-    # add bowties
-    n_l = nsample / wl
-    for b, g in zip((0, np.pi / 2), grid[1:3]):
-        for j in (0, np.pi):
-            for i in (0, np.pi):
-                c2 = patches.Wedge(
-                    (n_l * np.sin(a + b + j), n_l * np.cos(a + b + i)),
-                    n_l,
-                    np.rad2deg(-a - np.pi / 2 + i * np.cos(b) - (j + np.pi) * np.sin(b) + b),
-                    np.rad2deg(a - np.pi / 2 + i * np.cos(b) - (j + np.pi) * np.sin(b) + b),
-                    width=0,
-                    ec="w",
-                    lw=1,
-                    fill=None,
-                )
-                g.add_patch(c2)
-    # add scalebar
-    add_scalebar(grid[3], 1, 1, None)
-
-    return fig, grid
-
-
 class SymPowerNorm(Normalize):
-    """
-    Linearly map a given value to the 0-1 range and then apply
-    a power-law normalization over that range.
-    """
+    """Linearly map a given value to the 0-1 range and then apply a power-law normalization over that range."""
 
     def __init__(self, gamma, vmin=None, vmax=None, clip=False):
+        """Initialize SymPowerNorm scaling."""
         Normalize.__init__(self, vmin, vmax, clip)
         self.gamma = gamma
 
@@ -723,6 +559,7 @@ class SymPowerNorm(Normalize):
         return np.sign(value) * np.abs(value) ** (1 / self.gamma)
 
     def __call__(self, value, clip=None):
+        """Do scaling."""
         if clip is None:
             clip = self.clip
 
@@ -751,6 +588,7 @@ class SymPowerNorm(Normalize):
         return result
 
     def inverse(self, value):
+        """Invert scale."""
         if not self.scaled():
             raise ValueError("Not invertible until scaled")
         gamma = self.gamma
@@ -766,14 +604,12 @@ class SymPowerNorm(Normalize):
             return self._transform_inv(value * (vmax - vmin) + vmin)
 
     def autoscale(self, A):
-        """
-        Set *vmin*, *vmax* to min, max of *A*.
-        """
+        """Set *vmin*, *vmax* to min, max of *A*."""
         self.vmin = np.ma.min(A)
         self.vmax = np.ma.max(A)
 
     def autoscale_None(self, A):
-        """autoscale only None-valued vmin or vmax."""
+        """Autoscale only None-valued vmin or vmax."""
         A = np.asanyarray(A)
         if self.vmin is None and A.size:
             self.vmin = A.min()
@@ -782,6 +618,7 @@ class SymPowerNorm(Normalize):
 
 
 def hist_and_cumulative(data, ax=None, log=False):
+    """Make a plot with both a histogram and cumulative distribution."""
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -811,15 +648,14 @@ def hist_and_cumulative(data, ax=None, log=False):
 
 
 def make_rec(y, x, width, height, linewidth):
-    """Make a rectangle of width and height _centered_ on (y, x)"""
+    """Make a rectangle of width and height _centered_ on (y, x)."""
     return plt.Rectangle(
         (x - width / 2, y - height / 2), width, height, color="w", linewidth=linewidth, fill=False
     )
 
 
 def make_rec_from_slice(yxslice, **kwargs):
-    """Make a rectangle of width and height _centered_ on (y, x)"""
-
+    """Make a rectangle of width and height _centered_ on (y, x)."""
     default_kwargs = dict(color="w", linewidth=1, fill=False)
     default_kwargs.update(kwargs)
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # fitfuncs.py
 """
-Various functions for fitting things
+Various functions for fitting things.
 
 Copyright (c) 2021, David Hoffman
 """
@@ -18,7 +18,10 @@ from .lm import curve_fit
 
 
 def multi_exp(xdata, *args):
-    """Power and exponent"""
+    r"""Sum of exponentials.
+    
+    .. math:: y = bias + \sum_n A_i e^{-k_i x}
+    """
     odd = len(args) % 2
     if odd:
         offset = args[-1]
@@ -32,7 +35,7 @@ def multi_exp(xdata, *args):
 
 
 def multi_exp_jac(xdata, *args):
-    """Power and exponent jacobian"""
+    """Jacopian for multi_exp."""
     odd = len(args) % 2
 
     tostack = []
@@ -50,12 +53,15 @@ def multi_exp_jac(xdata, *args):
 
 
 def exponent(xdata, amp, rate, offset):
-    """Utility function to fit nonlinearly"""
+    """Single exponential function.
+    
+    .. math:: y = amp e^{-rate xdata} + offset
+    """
     return multi_exp(xdata, amp, rate, offset)
 
 
 def _estimate_exponent_params(data, xdata):
-    """utility to estimate exponent params"""
+    """Estimate exponent params."""
     assert np.isfinite(data).all(), "data is not finite"
     assert np.isfinite(xdata).all(), "xdata is not finite"
     assert len(data) == len(xdata), "Lengths don't match"
@@ -75,17 +81,17 @@ def _estimate_exponent_params(data, xdata):
 
 
 def _estimate_components(data, xdata):
-    """"""
+    """Not implemented."""
     raise NotImplementedError
 
 
 def exponent_fit(data, xdata=None, offset=True):
-    """Utility function that fits data to the exponent function"""
+    """Fit data to a single exponential function."""
     return multi_exp_fit(data, xdata, components=1, offset=offset)
 
 
 def multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs):
-    """Utility function that fits data to the exponent function
+    """Fit data to a multi-exponential function.
 
     Assumes evenaly spaced data.
 
@@ -154,7 +160,7 @@ def multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs):
 
 
 def estimate_power_law(x, y, diagnostics=False):
-    """Estimate the best fit parameters for a power law by linearly fitting the loglog plot"""
+    """Estimate the best fit parameters for a power law by linearly fitting the loglog plot."""
     # can't take log of negative points
     valid_points = y > 0
     # pull valid points and take log
@@ -171,7 +177,7 @@ def estimate_power_law(x, y, diagnostics=False):
 
 
 def _test_pow_law(popt, xmin):
-    """Utility function for testing power law params"""
+    """Test power law params."""
     a, b = popt
     assert a > 0, "Scale invalid"
     assert b > 1, "Exponent invalid"
@@ -179,7 +185,7 @@ def _test_pow_law(popt, xmin):
 
 
 def power_percentile(p, popt, xmin=1):
-    """Percentile of a single power law function"""
+    """Percentile of a single power law function."""
     assert 0 <= p <= 1, "percentile invalid"
     _test_pow_law(popt, xmin)
     a, b = popt
@@ -188,7 +194,7 @@ def power_percentile(p, popt, xmin=1):
 
 
 def power_percentile_inv(x0, popt, xmin=1):
-    """Given an x value what percentile of the power law function does it correspond to"""
+    """Given an x value what percentile of the power law function does it correspond to."""
     _test_pow_law(popt, xmin)
     a, b = popt
     p = 1 - (x0 / xmin) ** (1 - b)
@@ -196,7 +202,7 @@ def power_percentile_inv(x0, popt, xmin=1):
 
 
 def power_intercept(popt, value=1):
-    """At what x value does the function reach value"""
+    """At what x value does the function reach value."""
     a, b = popt
     assert a > 0, f"a = {value}"
     assert value > 0, f"value = {value}"
@@ -204,7 +210,7 @@ def power_intercept(popt, value=1):
 
 
 def power_law(xdata, *args):
-    """An multi-power law function"""
+    """Multi-power law function."""
     odd = len(args) % 2
     if odd:
         offset = float(args[-1])
@@ -218,7 +224,7 @@ def power_law(xdata, *args):
 
 
 def power_law_jac(xdata, *args):
-    """Jacobian for a multi-power law function"""
+    """Jacobian for a multi-power law function."""
     odd = len(args) % 2
     tostack = []
     lx = np.log(xdata)
@@ -237,14 +243,12 @@ def power_law_jac(xdata, *args):
 
 
 def powerlaw_prng(alpha, xmin=1, xmax=1e7):
-    """Function to calculate a psuedo random variable drawn from a discrete power law distribution
-    with scale parameter alpha and xmin"""
-
+    """Calculate a psuedo random variable drawn from a discrete power law distribution with scale parameter alpha and xmin."""
     # don't want to waste time recalculating this
     bottom = zeta(alpha, xmin)
 
     def P(x):
-        """Cumulative distribution function"""
+        """Cumulative distribution function."""
         try:
             return zeta(alpha, x) / bottom
         except TypeError as e:
@@ -279,23 +283,26 @@ def powerlaw_prng(alpha, xmin=1, xmax=1e7):
 
 
 class PowerLaw(object):
-    """A class for fitting and testing power law distributions"""
+    """Class for fitting and testing power law distributions."""
 
     def __init__(self, data):
-        """Pass in data, it will be automagically determined to be
-        continuous (float/inexact datatype) or discrete (integer datatype)"""
+        """Object representing power law data.
+        
+        Pass in data, it will be automagically determined to be
+        continuous (float/inexact datatype) or discrete (integer datatype)
+        """
         self.data = data
         # am I discrete data
         self._discrete = np.issubdtype(data.dtype, np.integer)
 
     def fit(self, xmin=None, xmin_max=200, opt_max=False):
-        """Fit the data, if xmin is none then estimate it"""
+        """Fit the data, if xmin is none then estimate it."""
         if self._discrete:
             # discrete fitting
             if opt_max:
                 # we should optimize the maximum x
                 def func(m):
-                    """an optimization function, m is max value"""
+                    """Optimization function, m is max value."""
                     test_data = self.data[self.data < m]
                     power_sub = PowerLaw(test_data)
                     power_sub.fit(xmin=None, xmin_max=xmin_max, opt_max=False)
@@ -322,7 +329,7 @@ class PowerLaw(object):
 
                 # utility function to test KS
                 def KS_test(alpha, xmin):
-                    """Update self then run KS_test"""
+                    """Update self then run KS_test."""
                     # set internal variables
                     self.alpha = alpha
                     self.xmin = xmin
@@ -352,19 +359,19 @@ class PowerLaw(object):
 
     @property
     def clipped_data(self):
-        """Return data clipped to xmin"""
+        """Return data clipped to xmin."""
         return self.data[self.data >= self.xmin]
 
     def intercept(self, value=1):
-        """Return the intercept calculated from power law values"""
+        """Return the intercept calculated from power law values."""
         return power_intercept((self.C * len(self.data), self.alpha), value)
 
     def percentile(self, value):
-        """Return the intercept calculated from power law values"""
+        """Return the intercept calculated from power law values."""
         return power_percentile(value, (self.C * len(self.data), self.alpha), self.xmin)
 
     def gen_power_law(self):
-        """x.append(xmin*pow(1.-random(),-1./(alpha-1.)))"""
+        """x.append(xmin*pow(1.-random(),-1./(alpha-1.)))."""
         clipped_data = self.clipped_data
 
         # approximate
@@ -389,7 +396,7 @@ class PowerLaw(object):
         return np.asarray(fake_data)
 
     def calculate_p(self, num=1000):
-        """Make a bunch of fake data and run the KS_test on it"""
+        """Make a bunch of fake data and run the KS_test on it."""
         ks_data = self._KS_test_discrete()
         # normalizing constant
         ks_tests = []
@@ -405,7 +412,7 @@ class PowerLaw(object):
         return (ks_tests > ks_data).sum() / len(ks_tests)
 
     def _convert_to_probability_discrete(self):
-        """"""
+        """Convert to a probability distribution."""
         y = np.bincount(self.data)
         x = np.arange(len(y))
 
@@ -415,11 +422,11 @@ class PowerLaw(object):
         return x, y, N
 
     def _power_law_fit_discrete(self, x):
-        """Compute the power_law fit"""
+        """Compute the power_law fit."""
         return x ** (-self.alpha) / zeta(self.alpha, self.xmin)
 
     def _KS_test_discrete(self):
-        """Kolmogorov–Smirnov or KS statistic"""
+        """Kolmogorov–Smirnov or KS statistic."""
         x, y, N = self._convert_to_probability_discrete()
         # clip at xmin
         x, y = x[self.xmin :], y[self.xmin :]
@@ -432,7 +439,7 @@ class PowerLaw(object):
         return (abs(expt_cdf - power_law_cdf) / np.sqrt(power_law_cdf * (1 - power_law_cdf))).max()
 
     def _fit_discrete(self, xmin=1):
-        """Fit a discrete power-law to data"""
+        """Fit a discrete power-law to data."""
         # update internal xmin
         self.xmin = xmin
 
@@ -445,7 +452,7 @@ class PowerLaw(object):
         n = len(data)
 
         def nll(alpha, xmin):
-            """negative log-likelihood of discrete power law"""
+            """Negative log-likelihood of discrete power law."""
             return n * np.log(zeta(alpha, xmin)) + alpha * lsum
 
         # find best result
@@ -464,7 +471,7 @@ class PowerLaw(object):
         return C, alpha
 
     def _fit_continuous(self, xmin=1):
-        """Fit a continuous power-law to data"""
+        """Fit a continuous power-law to data."""
         data = self.data
 
         data = data[data >= xmin]
@@ -479,7 +486,7 @@ class PowerLaw(object):
         return C, alpha
 
     def plot(self, ax=None, density=True, norm=False):
-        """plot data"""
+        """Plot data."""
         x, y, N = self._convert_to_probability_discrete()
 
         x, y = x[1:], y[1:]
@@ -536,14 +543,14 @@ class PowerLaw(object):
 
 
 def fit_ztp(data):
-    """Fit the data assuming it follows a zero-truncated Poisson model"""
+    """Fit the data assuming it follows a zero-truncated Poisson model."""
     n = len(data)
     sum_x = data.sum()
     # ignore the constant offset
     # sum_log_x_fac = np.log(gamma(data)).sum()
 
     def negloglikelihood(lam):
-        """Negative log-likelihood of ZTP"""
+        """Negative log-likelihood of ZTP."""
         # ignore the constant offset
         return n * np.log(np.exp(lam) - 1) - np.log(lam) * sum_x  # + sum_log_x_fac
 
@@ -557,21 +564,21 @@ def fit_ztp(data):
 
 
 def NegBinom(a, m):
-    """convert scipy's definition to mean and shape"""
+    """Convert scipy's definition to mean and shape."""
     r = a
     p = m / (m + r)
     return nbinom(r, 1 - p)
 
 
 def negloglikelihoodNB(args, x):
-    """Negative log likelihood for negative binomial"""
+    """Negative log likelihood for negative binomial."""
     a, m = args
     numerator = NegBinom(a, m).pmf(x)
     return -np.log(numerator).sum()
 
 
 def negloglikelihoodZTNB(args, x):
-    """Negative log likelihood for zero truncated negative binomial"""
+    """Negative log likelihood for zero truncated negative binomial."""
     a, m = args
     denom = 1 - NegBinom(a, m).pmf(0)
 
@@ -579,8 +586,7 @@ def negloglikelihoodZTNB(args, x):
 
 
 def fit_ztnb(data, x0=(0.5, 0.5)):
-    """Fit the data assuming it follows a zero-truncated Negative Binomial model"""
-
+    """Fit the data assuming it follows a zero-truncated Negative Binomial model."""
     opt = minimize(negloglikelihoodZTNB, x0, (data,), bounds=((0, np.inf), (0, np.inf)))
 
     if not opt.success:

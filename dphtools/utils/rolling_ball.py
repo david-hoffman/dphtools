@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # rolling_ball.py
 """
-Rolling ball filter
+Implements a few algos for a Rolling ball filter.
 
 There are two separate implenetations in this file.
 
@@ -13,7 +13,6 @@ The other is an approximation based on top hat transforms https://en.wikipedia.o
 It is fast and relatively accurate so long as the slope is not too steep in the image.
 
 References
-
 - https://media.nature.com/original/nature-assets/srep/2016/160725/srep30179/extref/srep30179-s1.pdf
 - https://github.com/imagej/imagej1/blob/master/ij/plugin/filter/BackgroundSubtracter.java
 - http://ieeexplore.ieee.org/document/1654163/?reload=true
@@ -34,17 +33,18 @@ from scipy.ndimage._ni_support import _normalize_sequence
 
 
 def sq_norm(v):
-    """squared norm"""
+    """Squared norm."""
     return (v ** 2).sum(0)
 
 
 def circumcircle(points, simplex):
-    """Get the circumcenter and circum radius of all the simplices, works for 2D only
+    """Get the circumcenter and circum radius of all the simplices, works for 2D only.
 
     Compute the circumcenter and circumradius of a triangle (see their definitions
     https://en.wikipedia.org/wiki/Circumscribed_circle#Circumcircle_equations)
 
-    http://mathworld.wolfram.com/Circumcircle.html"""
+    http://mathworld.wolfram.com/Circumcircle.html
+    """
     d = len(simplex)
     A = [points[k] for k in simplex]
     M = [[1.0] * (d + 1)]
@@ -67,6 +67,7 @@ def circumcircle(points, simplex):
 
 
 def get_alpha_complex(alpha, points, simplices):
+    """Get alpha complex."""
     # find the centers and radii of all circumcircles
     centers, radii = np.array([circumcircle(points, s) for s in simplices]).T
     # convert centers to array
@@ -82,7 +83,9 @@ def get_alpha_complex(alpha, points, simplices):
 def rolling_ball_filter_accurate(
     data, ball_radius, roll_along=-1, top=True, interpolator=interpolate.interp1d, **kwargs
 ):
-    """Rolling ball filter implemented with alpha shapes
+    """Filter data via a rolling ball algorithm.
+    
+    Rolling ball filter implemented with alpha shapes
     
     Parameters
     ----------
@@ -119,7 +122,9 @@ def rolling_ball_filter_accurate(
 
 
 def rolling_ball_filter(data, ball_radius, spacing=None, top=False, **kwargs):
-    """Rolling ball filter implemented with morphology operations
+    """Filter data via a rolling ball algorithm.
+
+    Implemented with morphological operations
 
     This implenetation is very similar to that in ImageJ and uses a top hat transform
     with a ball shaped structuring element
