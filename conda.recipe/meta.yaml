@@ -33,5 +33,5 @@ test:
 about:
   home: {{ setupdata['url'] }}
   license: Apache License Version 2.0
-  license_file: LICENSE.md
+  license_file: LICENSE
   summary: {{ setupdata['description'] }}
