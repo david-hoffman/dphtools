@@ -13,6 +13,7 @@ The other is an approximation based on top hat transforms https://en.wikipedia.o
 It is fast and relatively accurate so long as the slope is not too steep in the image.
 
 References
+----------
 - https://media.nature.com/original/nature-assets/srep/2016/160725/srep30179/extref/srep30179-s1.pdf
 - https://github.com/imagej/imagej1/blob/master/ij/plugin/filter/BackgroundSubtracter.java
 - http://ieeexplore.ieee.org/document/1654163/?reload=true

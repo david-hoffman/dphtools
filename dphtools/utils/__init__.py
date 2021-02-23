@@ -182,7 +182,7 @@ def radial_profile(data, center=None, binsize=1.0):
     idx2 = idx - center[(Ellipsis,) + (np.newaxis,) * (data.ndim)]
     r = np.sqrt(np.sum([i ** 2 for i in idx2], 0))
     # convert to int
-    r = np.round(r / binsize).astype(np.int)
+    r = np.round(r / binsize).astype(int)
     # sum the values at equal r
     tbin = np.bincount(r.ravel(), data.ravel())
     # sum the squares at equal r

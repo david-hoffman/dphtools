@@ -10,8 +10,8 @@ Copyright (c) 2021, David Hoffman
 import textwrap
 from functools import partial
 
+import matplotlib as mpl
 import matplotlib.font_manager as fm
-
 import matplotlib.gridspec as gridspec
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
@@ -343,7 +343,7 @@ def mip(data, zaspect=1, func=np.amax, allaxes=False, plt_kwds=None, **kwargs):
     """Plot max projection of data.
 
     Parameters
-    ----------------
+    ----------
     data : 2 or 3 dimensional ndarray
         the data to be plotted
     func :  callable
@@ -356,7 +356,7 @@ def mip(data, zaspect=1, func=np.amax, allaxes=False, plt_kwds=None, **kwargs):
         passed to matshow
 
     Returns
-    ----------------
+    -------
     fig : mpl figure instanse
         figure handle
     axs : ndarray of axes objects
@@ -515,8 +515,16 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
     return (R, G, B)
 
 
-def add_scalebar(ax, scalebar_size, pixel_size, unit="µm", edgecolor=None, **kwargs):
+def add_scalebar(
+    ax: mpl.axes.Axes,
+    scalebar_size: float,
+    pixel_size: float,
+    unit: str = "µm",
+    edgecolor: str = None,
+    **kwargs,
+) -> None:
     """Add a scalebar to the axis."""
+    # NOTE: this is to be moved to dphtools when the package is ready
     scalebar_length = scalebar_size / pixel_size
     default_scale_bar_kwargs = dict(
         loc="lower right",
@@ -541,7 +549,6 @@ def add_scalebar(ax, scalebar_size, pixel_size, unit="µm", edgecolor=None, **kw
         )
     # add the scalebar
     ax.add_artist(scalebar)
-    return scalebar
 
 
 class SymPowerNorm(Normalize):

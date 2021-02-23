@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # histstats.py
 """
-This is for small utility functions for calculating histogram stats.
+Small utility functions for calculating histogram stats.
 
 https://en.wikipedia.org/wiki/Standardized_moment
 
