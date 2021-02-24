@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 eps = np.finfo(float).eps
 
 
-def get_git(path="."):
+def get_git(path="."):  # pragma: no cover
     """Get git description."""
     try:
         # we slice to remove trailing new line.
@@ -53,6 +53,18 @@ def bin_ndarray(ndarray, new_shape=None, bin_size=None, operation="sum"):
     Returns
     -------
     binned array.
+
+    Example
+    -------
+    >>> a = np.arange(16).reshape(4, 4)
+    >>> a
+    array([[ 0,  1,  2,  3],
+           [ 4,  5,  6,  7],
+           [ 8,  9, 10, 11],
+           [12, 13, 14, 15]])
+    >>> bin_ndarray(a, bin_size=2)
+    array([[10, 18],
+           [42, 50]])
     """
     if new_shape is None:
         # if new shape isn't passed then calculate it
@@ -199,7 +211,7 @@ def radial_profile(data, center=None, binsize=1.0):
     return radial_mean, radial_std
 
 
-def mode(data):
+def mode(data: np.ndarray) -> int:
     """Get mode of non-negative integer data.
 
     up to 1000 times faster than scipy mode
@@ -207,6 +219,22 @@ def mode(data):
 
     Note: we can vectorize this to work on different
     axes with numba
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to get mode of
+
+    Returns
+    -------
+    mode : int
+        Modal value
+
+    Example
+    -------
+    >>> a = np.array([0, 0, 0, 1, 2, 3, 4, 4, 4, 4, 10])
+    >>> mode(a)
+    4
     """
     # will not work with negative numbers (for now)
     return np.bincount(data.ravel()).argmax()
@@ -283,11 +311,11 @@ def fft_pad(array, newshape=None, mode="median", **kwargs):
         else:
             raise ValueError(f"{newshape} is not a recognized shape")
     # generate padding and slices
-    padding, slices = padding_slices(oldshape, newshape)
+    padding, slices = _padding_slices(oldshape, newshape)
     return np.pad(array[slices], padding, mode=mode, **kwargs)
 
 
-def padding_slices(oldshape, newshape):
+def _padding_slices(oldshape, newshape):
     """Calculate the required padding or cropping based on the old shape and the new shape.
 
     Can be used to generate the slices needed to undo fft_pad above

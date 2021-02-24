@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# test_dphutils.py
+# test_utils.py
 """
 Testing for utils.
 
@@ -19,7 +19,7 @@ from dphtools.utils import (
     anscombe_inv,
     fft_gaussian_filter,
     fft_pad,
-    padding_slices,
+    _padding_slices,
     radial_profile,
     slice_maker,
     win_nd,
@@ -198,5 +198,5 @@ def test_padding_slices():
     newshape = tuple(rng.integers(s, s * 2) for s in oldshape)
     data = rng.standard_normal(oldshape)
     new_data = fft_pad(data, newshape)
-    padding, slices = padding_slices(newshape, oldshape)
+    padding, slices = _padding_slices(newshape, oldshape)
     assert np.all(data == new_data[slices])
