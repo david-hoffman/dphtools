@@ -10,14 +10,15 @@ Copyright (c) 2021, David Hoffman
 import logging
 import os
 import subprocess
+from functools import partial
 
 import numpy as np
 import scipy
+import scipy.signal
 from numpy.fft import ifftshift, irfftn, rfftn
 from scipy.fft import next_fast_len
 from scipy.ndimage._ni_support import _normalize_sequence
 from scipy.ndimage.fourier import fourier_gaussian
-import scipy.signal
 
 logger = logging.getLogger(__name__)
 
@@ -137,9 +138,8 @@ def scale(data, dtype=None):
     return ((data - dmin) / (dmax - dmin) * (tmax - tmin) + tmin).astype(dtype)
 
 
-def scale_uint16(data):
-    """Scale data to the uint16 range."""
-    return scale(data, np.uint16)
+scale_uint8 = partial(scale, dtype="uint8")
+scale_uint16 = partial(scale, dtype="uint16")
 
 
 def radial_profile(data, center=None, binsize=1.0):
@@ -307,7 +307,7 @@ def fft_pad(array, newshape=None, mode="median", **kwargs):
             newshape = tuple(newshape)
         elif isinstance(newshape, int) or np.issubdtype(newshape, np.integer):
             # test for regular python int, then numpy ints
-            newshape = tuple(newshape for n in oldshape)
+            newshape = tuple(newshape for _ in oldshape)
         else:
             raise ValueError(f"{newshape} is not a recognized shape")
     # generate padding and slices
@@ -510,7 +510,13 @@ def fft_gaussian_filter(img, sigma):
 
 
 def find_prime_facs(n):
-    """Find the prime factors of n."""
+    """Find the prime factors of n.
+    
+    Example
+    -------
+    >>> find_prime_facs(10)
+    array([2, 5])
+    """
     list_of_factors = []
     i = 2
     while n > 1:

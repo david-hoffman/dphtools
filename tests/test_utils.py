@@ -17,11 +17,13 @@ import pytest
 from dphtools.utils import (
     anscombe,
     anscombe_inv,
+    bin_ndarray,
     fft_gaussian_filter,
     fft_pad,
     _padding_slices,
     radial_profile,
     slice_maker,
+    scale,
     win_nd,
 )
 from numpy.fft import fftshift, ifftshift
@@ -33,9 +35,43 @@ from scipy.ndimage.filters import gaussian_filter
 rng = np.random.default_rng(12345)
 
 
-class TestFFTPad(unittest.TestCase):
+class TestBinNdarray(unittest.TestCase):
+    """Test bin_ndarray."""
+
     def setUp(self):
-        pass
+        """Set up."""
+        self.data = np.arange(16).reshape(4, 4)
+
+    def test_shapes(self):
+        """Test exception raising."""
+        with pytest.raises(ValueError):
+            bin_ndarray(self.data)
+
+    def test_new_shape(self):
+        """Test exception raising."""
+        with pytest.raises(ValueError):
+            bin_ndarray(self.data, new_shape=(2, 2, 2))
+
+    def test_operation(self):
+        """Test exception raising."""
+        with pytest.raises(ValueError):
+            bin_ndarray(self.data, bin_size=2, operation="add")
+
+
+def test_scale_error():
+    """Test exception raising."""
+    with pytest.raises(TypeError):
+        scale(rng.standard_normal(10) + rng.standard_normal(10) * 1j)
+
+
+class TestFFTPad(unittest.TestCase):
+    """Test fft_pad."""
+
+    def test_wrong_newshape(self):
+        """Test newshape input."""
+        with pytest.raises(ValueError):
+            data = np.empty((12, 15))
+            fft_pad(data, object)
 
     def test_new_shape_no_size(self):
         """Test the make a new shape with even and odd numbers when no size is specified, i.e. test auto padding."""
@@ -46,9 +82,7 @@ class TestFFTPad(unittest.TestCase):
         assert newshape == newdata.shape
 
     def test_new_shape_one_size(self):
-        """
-        Make sure the new shape has the same dimensions when one is given.
-        """
+        """Make sure the new shape has the same dimensions when one is given."""
         oldshape = (10, 20, 30)
         data = rng.standard_normal(oldshape)
         newsize = 50
@@ -56,9 +90,7 @@ class TestFFTPad(unittest.TestCase):
         assert (newsize,) * newdata.ndim == newdata.shape
 
     def test_new_shape_multiple(self):
-        """
-        Make sure the new shape has the same dimensions when one is given.
-        """
+        """Make sure the new shape has the same dimensions when one is given."""
         oldshape = (10, 20, 30, 40)
         data = rng.standard_normal(oldshape)
         newsize = (50, 40, 30, 100)
@@ -75,7 +107,7 @@ class TestFFTPad(unittest.TestCase):
         assert pad_data.shape == newshape
 
     def test_right_position_cases(self):
-        """make sure that center stays centered (for ffts) all cases."""
+        """Make sure that center stays centered (for ffts) all cases."""
         cases = (
             (14, 34),  # even -> even
             (14, 35),  # even -> odd
@@ -94,7 +126,7 @@ class TestFFTPad(unittest.TestCase):
             assert fftshift(data_padded)[0] == 1
 
     def test_right_position_multidimensional(self):
-        """make sure that center stays centered (for ffts) fuzzy test to see if I missed anything."""
+        """Make sure that center stays centered (for ffts) fuzzy test to see if I missed anything."""
         for i in range(10):
             dims = rng.integers(1, 4)
             oldshape = rng.integers(10, 100, dims)
@@ -162,12 +194,18 @@ def test_slice_maker_negative():
 
 
 def test_slice_maker_complex_input():
-    """test complex in all positions."""
+    """Test complex in all positions."""
     for y0, x0, width in product(*(((10, 10j),) * 3)):
         if np.isrealobj((y0, x0, width)):
             continue
         with pytest.raises(TypeError):
             slice_maker((y0, x0), width)
+
+
+def test_slice_negative_width():
+    """Test negative width input."""
+    with pytest.raises(ValueError):
+        slice_maker((0, 1), (-1, 1))
 
 
 def test_slice_maker_float_input():
