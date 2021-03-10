@@ -618,3 +618,62 @@ def edf(stack):
     gradient_y = scipy.ndimage.sobel(img, 1)
     grad_img = gradient_x * gradient_x + gradient_y * gradient_y
     return get_max(stack, grad_img)
+
+
+def plane_fit(X, Y, Z):
+    """Fit a plane to data.
+    
+    Parameters
+    ----------
+    X : np.ndarray
+    Y : np.ndarray
+    Z : np.ndarray
+
+    Returns
+    -------
+    C : np.ndarray
+        Coefficients for plane fit
+    """
+
+    # build A matrix for plane
+    A = np.c_[X, Y, np.ones(len(Z))]
+
+    # calculate best fit coefs
+    C, _, _, _ = scipy.linalg.lstsq(A, Z)  # coefficients
+    return C
+
+
+def remove_tilt(X, Y, Z):
+    """Fit a plane to data and remove tilt (no rotation)."""
+    # build A matrix for plane
+    C = plane_fit(X, Y, Z)
+    return Z - C[0] * X - C[1] * Y
+
+
+def find_normal(X, Y, Z):
+    """Find the normal vector for a plane."""
+    C = plane_fit(X, Y, Z)
+    # calculate normal vector
+    normal = np.array((-C[0], -C[1], 1))
+
+    # return normalized normal vector
+    return normal / np.sqrt((normal ** 2).sum())
+
+
+def rot_matrix(source, target):
+    """Calculate the rotation matrix to rotate source to target."""
+    # https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+    v1, v2, v3 = np.cross(source, target)
+    c = np.inner(source, target)
+    vx = np.array(((0, -v3, v2), (v3, 0, -v1), (-v2, v1, 0)))
+    return np.eye(3) + vx + vx @ vx * 1 / (1 + c)
+
+
+def calc_angles(mat_b):
+    """Calculate angles based on rotation matrix."""
+    atan2 = np.arctan2
+    return (
+        atan2(mat_b[1, 2], mat_b[2, 2]),
+        atan2(-mat_b[2, 0], np.sqrt(mat_b[1, 2] ** 2 + mat_b[2, 2] ** 2)),
+        atan2(mat_b[0, 1], mat_b[0, 0]),
+    )
