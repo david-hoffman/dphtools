@@ -634,7 +634,6 @@ def plane_fit(X, Y, Z):
     C : np.ndarray
         Coefficients for plane fit
     """
-
     # build A matrix for plane
     A = np.c_[X, Y, np.ones(len(Z))]
 
