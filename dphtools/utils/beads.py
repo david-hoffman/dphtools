@@ -38,7 +38,8 @@ def calc_drift(
     
     Given a list of DataFrames with each DF containing the coordinates
     of a single fiducial calculate the mean or weighted mean of the coordinates
-    in each frame."""
+    in each frame.
+    """
     if len(fiducials_df) == 1:
         # if there is only one fiducial then return that
         logger.debug("Only on fiducial passed to calc_drift")
