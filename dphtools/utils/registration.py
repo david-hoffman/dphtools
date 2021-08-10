@@ -56,7 +56,7 @@ class BaseCPD(object):
         assert self.N, "X has no points"
         assert self.M, "Y has no points"
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         """Nice representation of the model."""
         basestr = "Model = {}, X = {},  Y = {}".format(self.__class__, self.X.shape, self.Y.shape)
         try:
@@ -66,6 +66,11 @@ class BaseCPD(object):
         except AttributeError:
             extrastr = ", registration not run"
         return basestr + extrastr
+
+    @property
+    def scale(self):
+        """Return the estimated scale of the transformation matrix"""
+        return self.B.mean(axis=1)
 
     @property
     def matches(self) -> np.ndarray:
@@ -255,6 +260,8 @@ class BaseCPD(object):
         self.tx = self.X.mean(0, keepdims=True)
         logger.debug("tx = {}, ty = {}".format(self.tx, self.ty))
         # move point clouds
+        self._Y_orig = self.Y
+        self._X_orig = self.X
         self.Y = self.Y - self.ty
         self.X = self.X - self.tx
         # calculate scale
@@ -269,7 +276,9 @@ class BaseCPD(object):
         self.X = self.X @ Sx
 
         self.translation = (self.ty @ self.B.T + self.translation - self.tx) @ Sx
+        logger.debug(f"B = {self.B}")
         self.B = Sx @ self.B @ Sy_1
+        logger.debug(f"B = {self.B}")
 
     def unnorm_data(self):
         """Undo the intial normalization."""
@@ -283,6 +292,8 @@ class BaseCPD(object):
         # the scale matrices are diagonal so S.T == S
         self.Y = self.Y @ Sy_1 + self.ty
         self.X = self.X @ Sx_1 + self.tx
+        assert np.allclose(self.Y, self._Y_orig), "Failed to revert"
+        assert np.allclose(self.X, self._X_orig), "Failed to revert"
         # B doesn't need to be transposed and
         self.B = Sx_1 @ self.B @ Sy
         self.translation = -self.ty @ self.B.T + self.translation @ Sx_1 + self.tx
@@ -413,9 +424,11 @@ class SimilarityCPD(BaseCPD):
         # we can prescale by the same anisotropic scaling factor we use in
         # TranslationCPD and then augment it by an isotropic scaling factor
         # for each point cloud.
-        anisotropic_scale = np.concatenate((self.X, self.Y)).std(0)
-        self.scale_x = anisotropic_scale / self.X.var()
-        self.scale_y = anisotropic_scale / self.Y.var()
+        anisotropic_scale = np.concatenate((self.X, self.Y)).std()
+        # self.scale_x = anisotropic_scale / self.X.var()
+        # self.scale_y = anisotropic_scale / self.Y.var()
+        # NOTE: the above doesn't work
+        self.scale_x = self.scale_y = 1 / np.array((anisotropic_scale, anisotropic_scale))
 
     def _umeyama(self):
         """Calculate Umeyama: for similarity we want to have scaling."""
