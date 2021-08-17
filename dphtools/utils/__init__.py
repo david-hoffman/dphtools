@@ -10,6 +10,7 @@ Copyright (c) 2021, David Hoffman
 import logging
 import os
 import subprocess
+import time
 from functools import partial
 
 import numpy as np
@@ -676,3 +677,69 @@ def calc_angles(mat_b):
         atan2(-mat_b[2, 0], np.sqrt(mat_b[1, 2] ** 2 + mat_b[2, 2] ** 2)),
         atan2(mat_b[0, 1], mat_b[0, 0]),
     )
+
+
+# TODO: refactor the below as methods of a point cloud object, maybe
+
+
+def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+    """Fit quadratic to point data."""
+    # assume data is on a regularly spaced grid
+
+    # flatten everything, just to be sure
+    X = x.ravel()
+    Y = y.ravel()
+    Z = z.ravel()
+
+    # build A matrix for quadratic function
+    A = np.c_[X * X, Y * Y, X, Y, X * Y, np.ones(len(Z))]
+
+    # calculate best fit coefs
+    C, _, _, _ = scipy.linalg.lstsq(A, Z)
+
+    return C
+
+
+def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+    """Find center of parabola.
+    
+    https://en.wikipedia.org/wiki/Quadratic_function#Minimum/maximum
+    """
+    # get fit coefs
+    aa, bb, cc, dd, ee, _ = fit_quadratic(x, y, z)
+    denom = 4 * aa * bb - ee * ee
+
+    # check if an extreme point is found
+    assert denom > 0, "No extrema found"
+
+    # calculate the maximum or minimum
+    x_m = -(2 * bb * cc - dd * ee) / denom
+    y_m = -(2 * aa * dd - cc * ee) / denom
+
+    return (y_m, x_m)
+
+
+class EasyTimer(object):
+    """Makes timing things easy with a `with` statement."""
+
+    def __init__(self, msg=""):
+        """Create an EasyTimer, choose the emit message."""
+        self.msg = msg
+
+    def __enter__(self):
+        """Start the timer."""
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Stop the timer and emit a well formatted message."""
+        self.stop = time.perf_counter()
+        elapsed = self.stop - self.start
+        if elapsed < 1e-3:
+            elapsed_str = f"{elapsed * 1e6:.1f} µs"
+        elif elapsed < 1:
+            elapsed_str = f"{elapsed * 1e3:.1f} ms"
+        else:
+            elapsed_str = f"{elapsed:.1f} s"
+        print(f"{self.msg}: Elapsed time {elapsed_str}")
+        return False
