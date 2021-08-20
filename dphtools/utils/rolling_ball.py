@@ -70,7 +70,7 @@ def circumcircle(points, simplex):
 def get_alpha_complex(alpha, points, simplices):
     """Get alpha complex."""
     # find the centers and radii of all circumcircles
-    centers, radii = np.array([circumcircle(points, s) for s in simplices]).T
+    centers, radii = np.array([circumcircle(points, s) for s in simplices], dtype=object).T
     # convert centers to array
     centers = np.vstack(centers)
     # find which points you want to keep
@@ -165,8 +165,9 @@ def rolling_ball_filter(data, ball_radius, spacing=None, top=False, **kwargs):
         np.meshgrid(*[np.arange(-r, r + s, s) for r, s in zip(radius, spacing)], indexing="ij")
     )
     # make the sphere and replace nan with 0
-    structure = 2 * np.sqrt(1 - ((mesh / radius.reshape(-1, *((1,) * ndim))) ** 2).sum(0))
-    structure[~np.isfinite(structure)] = 0
+    structure = 2 * np.sqrt(
+        np.fmax(0, 1 - ((mesh / radius.reshape(-1, *((1,) * ndim))) ** 2).sum(0))
+    )
     # roll ball on top or bottom dpending on request
     if not top:
         # ndi.white_tophat(y, structure=structure, output=background)
@@ -184,19 +185,24 @@ if __name__ == "__main__":
     # import plotting
     import matplotlib.pyplot as plt
 
+    from dphtools.utils import EasyTimer
+
     # remove randomness
     np.random.seed(42)
     # generate toy data
-    x = np.linspace(-2 * np.pi, 2 * np.pi, 256)
+    x = np.linspace(-2 * np.pi, 2 * np.pi, 2048)
     y = np.sin(10 * x)
     y *= np.exp(-2 * x ** 2)
     y += np.poly1d(np.random.randn(3))(x) * 0.01
 
     ball_r = 0.5
-    X_top, Y_top = rolling_ball_filter_accurate(np.array((x, y)).T, ball_r)
+    with EasyTimer("Accurate Algo"):
+        X_top, Y_top = rolling_ball_filter_accurate(np.array((x, y)).T, ball_r)
     X_bottom, Y_bottom = rolling_ball_filter_accurate(np.array((x, y)).T, ball_r, top=False)
     spacing = x[1] - x[0]
-    _, Yt_fast = rolling_ball_filter(y, ball_r, spacing, top=True)
+
+    with EasyTimer("Fast algo"):
+        _, Yt_fast = rolling_ball_filter(y, ball_r, spacing, top=True)
     _, Yb_fast = rolling_ball_filter(y, ball_r, spacing, top=False)
 
     fig, ax = plt.subplots()
