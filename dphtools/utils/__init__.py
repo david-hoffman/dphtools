@@ -704,6 +704,17 @@ def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
     """Find center of parabola.
     
     https://en.wikipedia.org/wiki/Quadratic_function#Minimum/maximum
+
+    Parameters
+    ----------
+    x, y, z : np.ndarrays
+        The x, y, and z coordinates of the data (assumes that x and y
+        are independent variables and z is dependent)
+
+    Returns
+    -------
+    (x_m, y_m) : floats
+        The center as determined by a parabolic fit
     """
     # get fit coefs
     aa, bb, cc, dd, ee, _ = fit_quadratic(x, y, z)
@@ -716,7 +727,7 @@ def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
     x_m = -(2 * bb * cc - dd * ee) / denom
     y_m = -(2 * aa * dd - cc * ee) / denom
 
-    return (y_m, x_m)
+    return (x_m, y_m)
 
 
 class EasyTimer(object):
