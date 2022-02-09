@@ -178,7 +178,7 @@ def radial_profile(data, center=None, binsize=1.0):
         # imaginary parts and return the complex sum.
         real_prof, real_std = radial_profile(np.real(data), center, binsize)
         imag_prof, imag_std = radial_profile(np.imag(data), center, binsize)
-        return real_prof + imag_prof * 1j, np.sqrt(real_std ** 2 + imag_std ** 2)
+        return real_prof + imag_prof * 1j, np.sqrt(real_std**2 + imag_std**2)
         # or do mag and phase
         # mag_prof, mag_std = radial_profile(np.abs(data), center, binsize)
         # phase_prof, phase_std = radial_profile(np.angle(data), center, binsize)
@@ -193,13 +193,13 @@ def radial_profile(data, center=None, binsize=1.0):
         center = np.asarray(center)
     # calculate the radius from center
     idx2 = idx - center[(Ellipsis,) + (np.newaxis,) * (data.ndim)]
-    r = np.sqrt(np.sum([i ** 2 for i in idx2], 0))
+    r = np.sqrt(np.sum([i**2 for i in idx2], 0))
     # convert to int
     r = np.round(r / binsize).astype(int)
     # sum the values at equal r
     tbin = np.bincount(r.ravel(), data.ravel())
     # sum the squares at equal r
-    tbin2 = np.bincount(r.ravel(), (data ** 2).ravel())
+    tbin2 = np.bincount(r.ravel(), (data**2).ravel())
     # find how many equal r's there are
     nr = np.bincount(r.ravel())
     # calculate the radial mean
@@ -207,7 +207,7 @@ def radial_profile(data, center=None, binsize=1.0):
     # have NaN for binsize != 1
     radial_mean = tbin / nr
     # calculate the radial std
-    radial_std = np.sqrt(tbin2 / nr - radial_mean ** 2)
+    radial_std = np.sqrt(tbin2 / nr - radial_mean**2)
     # return them
     return radial_mean, radial_std
 
@@ -390,7 +390,7 @@ def fftconvolve_fast(data, kernel, **kwargs):
     """FFT convolution, a faster version than scipy.
 
     In this case the kernel ifftshifted before FFT but the data is not.
-    This can be done because the effect of fourier convolution is to 
+    This can be done because the effect of fourier convolution is to
     "wrap" around the data edges so whether we ifftshift before FFT
     and then fftshift after it makes no difference so we can skip the
     step entirely.
@@ -467,10 +467,10 @@ def anscombe_inv(data):
 
     https://en.wikipedia.org/wiki/Anscombe_transform
     """
-    part0 = 1 / 4 * data ** 2
+    part0 = 1 / 4 * data**2
     part1 = 1 / 4 * np.sqrt(3 / 2) / data
-    part2 = -11 / 8 / (data ** 2)
-    part3 = 5 / 8 * np.sqrt(3 / 2) / (data ** 3)
+    part2 = -11 / 8 / (data**2)
+    part3 = 5 / 8 * np.sqrt(3 / 2) / (data**3)
     return part0 + part1 + part2 + part3 - 1 / 8
 
 
@@ -512,7 +512,7 @@ def fft_gaussian_filter(img, sigma):
 
 def find_prime_facs(n):
     """Find the prime factors of n.
-    
+
     Example
     -------
     >>> find_prime_facs(10)
@@ -574,7 +574,7 @@ def latex_format_e(num, pre=2):
 
 def localize_peak(data):
     """Small utility function to localize a peak center.
-    
+
     Assumes passed data has peak at center and that data.shape is odd and symmetric.
     Then fits a parabola through each line passing through the center. This is optimized
     for FFT data which has a non-circularly symmetric shaped peaks.
@@ -623,7 +623,7 @@ def edf(stack):
 
 def plane_fit(X, Y, Z):
     """Fit a plane to data.
-    
+
     Parameters
     ----------
     X : np.ndarray
@@ -657,7 +657,7 @@ def find_normal(X, Y, Z):
     normal = np.array((-C[0], -C[1], 1))
 
     # return normalized normal vector
-    return normal / np.sqrt((normal ** 2).sum())
+    return normal / np.sqrt((normal**2).sum())
 
 
 def rot_matrix(source, target):
@@ -702,7 +702,7 @@ def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
 
 def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
     """Find center of parabola.
-    
+
     https://en.wikipedia.org/wiki/Quadratic_function#Minimum/maximum
 
     Parameters

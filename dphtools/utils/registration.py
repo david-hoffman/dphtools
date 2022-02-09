@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class BaseCPD(object):
     """Base class for the coherent point drift algorithm.
-    
+
     Based on:
     Myronenko and Xubo Song - 2010 - Point Set Registration Coherent Point Drift
     DOI: 10.1109/TPAMI.2010.46
@@ -38,7 +38,7 @@ class BaseCPD(object):
 
     def __init__(self, X: np.ndarray, Y: np.ndarray):
         """Set up the registration class that will actually perform the CPD algorithm.
-        
+
         Parameters
         ----------
         X : ndarray (N, D)
@@ -195,7 +195,7 @@ class BaseCPD(object):
 
     def updateB(self):
         """Update B matrix.
-        
+
         This is the only method that needs to be overloaded for the various linear transformation subclasses,
         more will need to be done for non-rigid transformation models.
         """
@@ -203,7 +203,7 @@ class BaseCPD(object):
 
     def mstep(self):
         """Maximization step.
-        
+
         Update transformation and variance these are the transposes of the equations on p. 2265 and 2266
         """
         # calculate intermediate values
@@ -376,7 +376,7 @@ class TranslationCPD(BaseCPD):
 
     def updateB(self):
         """Update step.
-        
+
         Translation only means that B should be identity.
         """
         self.B = np.eye(self.D)

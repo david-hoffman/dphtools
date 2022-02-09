@@ -37,14 +37,14 @@ def hist_var(weights, bins=None):
 
 def hist_moment(weights, bins=None, k=3):
     """Generalized histogram moment.
-    
+
     Defaults to the third one
     """
     bins = _standard_bins(weights, bins)
     mean = hist_mean(weights, bins)
     std = np.sqrt(hist_var(weights, bins))
     mu_k = ((weights * (bins - mean)) ** k).sum() / weights.sum()
-    return mu_k / std ** k
+    return mu_k / std**k
 
 
 hist_skew = partial(hist_moment, k=3)

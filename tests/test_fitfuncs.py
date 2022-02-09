@@ -17,7 +17,7 @@ from numpy.testing import assert_allclose
 
 class TestExponentFit(unittest.TestCase):
     """Test exponent fit.
-    
+
     This is not even close to testing edge cases.
     """
 

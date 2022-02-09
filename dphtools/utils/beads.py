@@ -35,7 +35,7 @@ def calc_drift(
     frames_index=None
 ):
     """Calculate image drift from multiple emitters in a FOV.
-    
+
     Given a list of DataFrames with each DF containing the coordinates
     of a single fiducial calculate the mean or weighted mean of the coordinates
     in each frame.

@@ -45,7 +45,7 @@ See also: plt.streamplot
 
 def make_segments(x, y):
     """Create list of line segments from x and y coordinates, in the correct format for LineCollection.
-    
+
     Returns an array of the form numlines x (points per line) x 2 (x and y) array
     """
     points = np.array([x, y]).T.reshape(-1, 1, 2)
@@ -475,7 +475,7 @@ def auto_adjust(img):
 # @np.vectorize
 def wavelength_to_rgb(wavelength, gamma=0.8):
     """Convert a given wavelength of light to an approximate RGB color value.
-    
+
     The wavelength must be given in nanometers in the range from 380 nm through 750 nm (789 THz through 400 THz).
 
     Based on code by Dan Bruton

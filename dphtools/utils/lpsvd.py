@@ -195,7 +195,7 @@ def calc_LPSVD_error(LPSVD_coefs, data):
     res = data - recon
 
     # Calculate the RMS
-    RMS = np.sqrt((res ** 2).mean())
+    RMS = np.sqrt((res**2).mean())
 
     # Next we need to generate the Fisher matrix
     size = len(LPSVD_coefs) * 4
@@ -228,7 +228,7 @@ def calc_LPSVD_error(LPSVD_coefs, data):
             chi1 = np.real(res).sum()
             zeta1 = np.imag(res).sum()
 
-            res = p ** 2 * np.exp(
+            res = p**2 * np.exp(
                 p * complex(dampi + dampj, 2 * np.pi * (freqi - freqj))
                 + complex(0, 1) * (phasei - phasej)
             )
@@ -257,7 +257,7 @@ def calc_LPSVD_error(LPSVD_coefs, data):
             FisherMat[4 * i + 3][4 * j + 3] = ampi * ampj * chi0
 
     FisherMat = inv(FisherMat)  # Replace the Fisher matrix with its inverse
-    FisherMat *= 2 * RMS ** 2
+    FisherMat *= 2 * RMS**2
 
     LPSVD_coefs.insert(4, "amps_error", np.nan)
     LPSVD_coefs.insert(5, "freqs_error", np.nan)
@@ -295,7 +295,7 @@ def reconstruct_signal(LPSVD_coefs, signal, ampcutoff=0, freqcutoff=0, dampcutof
 
     for i, row in LPSVD_coefs.iterrows():
         damp = -row.damps / np.pi
-        if row.amps ** 2 > ampcutoff and damp >= dampcutoff:
+        if row.amps**2 > ampcutoff and damp >= dampcutoff:
             # Keep in mind that LPSVD_coefs were constructed agnostic to the actual sampling
             # frequency so we will reconstruct it in the same way
             amp = row.amps

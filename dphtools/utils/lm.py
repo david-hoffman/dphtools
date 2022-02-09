@@ -35,7 +35,7 @@ def _chi2_ls(f):
     Minimizing this will maximize the likelihood for a
     data model with gaussian deviates.
     """
-    return 0.5 * (f ** 2).sum(0)
+    return 0.5 * (f**2).sum(0)
 
 
 def _update_ls(x0, f, Dfun):
@@ -521,9 +521,9 @@ def curve_fit(
     **kwargs
 ):
     """Use non-linear least squares to fit a function, f, to data.
-    
+
     Assumes ``ydata = poisson(f(xdata, *params))``
-    
+
     Parameters
     ----------
     f : callable
@@ -674,7 +674,7 @@ def curve_fit(
     threshold = np.finfo(float).eps * max(infodict["fjac"].shape) * s[0]
     s = s[s > threshold]
     VT = VT[: s.size]
-    pcov = np.dot(VT.T / s ** 2, VT)
+    pcov = np.dot(VT.T / s**2, VT)
 
     if info not in [1, 2, 3, 4]:
         raise RuntimeError("Optimal parameters not found: " + errmsg)

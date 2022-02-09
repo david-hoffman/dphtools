@@ -35,7 +35,7 @@ from scipy.ndimage._ni_support import _normalize_sequence
 
 def sq_norm(v):
     """Squared norm."""
-    return (v ** 2).sum(0)
+    return (v**2).sum(0)
 
 
 def circumcircle(points, simplex):
@@ -85,9 +85,9 @@ def rolling_ball_filter_accurate(
     data, ball_radius, roll_along=-1, top=True, interpolator=interpolate.interp1d, **kwargs
 ):
     """Filter data via a rolling ball algorithm.
-    
+
     Rolling ball filter implemented with alpha shapes
-    
+
     Parameters
     ----------
     data : ndarray (n, d)
@@ -101,7 +101,7 @@ def rolling_ball_filter_accurate(
     interpolator : callable
         needs to take two arrays and return a callable
     kwargs : for interpolator
-    
+
     Returns
     -------
     data : ndarray (n, d)
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     # generate toy data
     x = np.linspace(-2 * np.pi, 2 * np.pi, 2048)
     y = np.sin(10 * x)
-    y *= np.exp(-2 * x ** 2)
+    y *= np.exp(-2 * x**2)
     y += np.poly1d(np.random.randn(3))(x) * 0.01
 
     ball_r = 0.5

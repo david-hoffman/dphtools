@@ -19,7 +19,7 @@ from .lm import curve_fit
 
 def multi_exp(xdata, *args):
     r"""Sum of exponentials.
-    
+
     .. math:: y = bias + \sum_n A_i e^{-k_i x}
     """
     odd = len(args) % 2
@@ -54,7 +54,7 @@ def multi_exp_jac(xdata, *args):
 
 def exponent(xdata, amp, rate, offset):
     """Single exponential function.
-    
+
     .. math:: y = amp e^{-rate xdata} + offset
     """
     return multi_exp(xdata, amp, rate, offset)
@@ -287,7 +287,7 @@ class PowerLaw(object):
 
     def __init__(self, data):
         """Object representing power law data.
-        
+
         Pass in data, it will be automagically determined to be
         continuous (float/inexact datatype) or discrete (integer datatype)
         """
