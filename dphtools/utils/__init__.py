@@ -572,6 +572,18 @@ def latex_format_e(num, pre=2):
     return "{} \\times 10^{{{}}}".format(fp, int(xp))
 
 
+def localize_peak_1d(data):
+    """Small utility function to localize a peak center."""
+    # pull center location
+    center = len(data) // 2
+    # fit along lines, consider the center to be 0
+    x = np.arange(len(data)) - center
+    fit = np.polyfit(x, data, 2)
+    # calculate center of each parabola
+    x0 = -fit[1] / (2 * fit[0])
+    return x0
+
+
 def localize_peak(data):
     """Small utility function to localize a peak center.
 
@@ -683,7 +695,11 @@ def calc_angles(mat_b):
 
 
 def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
-    """Fit quadratic to point data."""
+    """Fit quadratic to point data.
+
+    Parameters are:
+    C[0] * X ** 2 + C[1] * Y ** 2 + C[2] * X + C[3] * Y + C[4] * X * Y + C[5]
+    """
     # assume data is on a regularly spaced grid
 
     # flatten everything, just to be sure
@@ -717,7 +733,12 @@ def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         The center as determined by a parabolic fit
     """
     # get fit coefs
-    aa, bb, cc, dd, ee, _ = fit_quadratic(x, y, z)
+    quad_coefs = fit_quadratic(x, y, z)
+    return find_center_quad_coefs(quad_coefs)
+
+
+def find_center_quad_coefs(quad_coefs):
+    aa, bb, cc, dd, ee, _ = quad_coefs
     denom = 4 * aa * bb - ee * ee
 
     # check if an extreme point is found
