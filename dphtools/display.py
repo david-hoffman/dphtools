@@ -646,7 +646,7 @@ def hist_and_cumulative(data, ax=None, log=False):
 
     twin_ax = ax.twinx()
     color = ax._get_lines.get_next_color()
-    twin_ax.plot(sorted_data, b, color=color, ls="steps-mid")
+    twin_ax.plot(sorted_data, b, color=color, ds="steps-mid")
     twin_ax.tick_params(axis="y", labelcolor=color)
     twin_ax.set_ylabel("Cumulative Distribution Function (CDF)", color=color)
     twin_ax.set_ylim(bottom=0)
