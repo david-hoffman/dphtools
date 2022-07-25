@@ -25,6 +25,8 @@ from dphtools.utils import (
     slice_maker,
     scale,
     win_nd,
+    split_img,
+    crop_image_for_split,
 )
 from numpy.fft import fftshift, ifftshift
 from numpy.testing import assert_allclose, assert_almost_equal
@@ -238,3 +240,31 @@ def test_padding_slices():
     new_data = fft_pad(data, newshape)
     padding, slices = _padding_slices(newshape, oldshape)
     assert np.all(data == new_data[slices])
+
+
+def test_split_img():
+    """Test split_img."""
+    img = np.empty((4096, 1024))
+    side = 32
+    img_split, divisors = split_img(img, side)
+    assert 128 == divisors[0]
+    assert 32 == divisors[1]
+
+    assert img_split.shape == (128 * 32, side, side)
+
+
+rng = np.random.default_rng(12345)
+
+testdata = [(2048, 2048, 64)] + [
+    (rng.integers(128, 8192), rng.integers(128, 8192), rng.integers(2, 256)) for _ in range(10)
+]
+
+
+@pytest.mark.parametrize("ny,nx,side", testdata)
+def test_split_img_random(ny, nx, side):
+    """Test split_img across multiple sizes."""
+    data = np.empty((ny, nx))
+    print(data.shape)
+    data_crop = crop_image_for_split(data, side)
+    print(data_crop.shape)
+    split_img(data_crop, side)

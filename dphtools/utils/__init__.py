@@ -775,3 +775,49 @@ class EasyTimer(object):
             elapsed_str = f"{elapsed:.1f} s"
         print(f"{self.msg}: Elapsed time {elapsed_str}")
         return False
+
+
+def split_img(img, side):
+    """Split an image (or volume) into tiles.
+
+    taken from https://github.com/david-hoffman/scripts/blob/master/simrecon_utils.py
+    """
+    # Testing input
+    divisors = np.array(img.shape) // side
+    # Error checking
+    assert np.all(img.shape == side * divisors), "Side {}, not equal to {}/{}".format(
+        side, img.shape, divisors
+    )
+    assert np.all(np.array(img.shape) % divisors == 0)
+
+    # reshape array so that it's a tiled image
+    img_s0 = img.reshape(divisors[0], side, divisors[1], side)
+    # roll one axis so that the tile's y, x coordinates are next to each other
+    img_s1 = np.rollaxis(img_s0, -3, -1)
+    # combine the tile's y, x coordinates into one axis.
+    return img_s1.reshape(np.product(divisors), side, side), divisors
+
+
+def crop_image_for_split(img, side):
+    """Take an image and a side and crop it apropriately to ensure that split_img will work."""
+    # get dimensions of image
+    ny, nx = img.shape
+    # find how many pixels to be shaved
+    ry, rx = ny % side, nx % side
+    # find left amount
+    ryl, rxl = ry // 2, rx // 2
+    # find right amount
+    ryr, rxr = ry - ryl, rx - rxl
+
+    return img[ryl : ny - ryr, rxl : nx - rxr]
+
+
+def combine_img(stack):
+    """Combine tiled stack."""
+    length = len(stack)
+    ny = int(np.sqrt(length))
+
+    assert length % ny == 0
+    assert length // ny == ny
+
+    return stack.reshape(ny, ny)
