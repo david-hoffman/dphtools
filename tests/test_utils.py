@@ -245,26 +245,25 @@ def test_padding_slices():
 def test_split_img():
     """Test split_img."""
     img = np.empty((4096, 1024))
-    side = 32
-    img_split, divisors = split_img(img, side)
-    assert 128 == divisors[0]
-    assert 32 == divisors[1]
+    sides = 32, 32
+    img_split = split_img(img, sides)
 
-    assert img_split.shape == (128 * 32, side, side)
+    assert img_split.shape == (128 * 32, sides[0], sides[1])
 
 
 rng = np.random.default_rng(12345)
 
-testdata = [(2048, 2048, 64)] + [
-    (rng.integers(128, 8192), rng.integers(128, 8192), rng.integers(2, 256)) for _ in range(10)
+testdata = [(2048, 2048, (64, 64))] + [
+    (rng.integers(128, 8192), rng.integers(128, 8192), rng.integers(2, 256, size=2))
+    for _ in range(10)
 ]
 
 
-@pytest.mark.parametrize("ny,nx,side", testdata)
-def test_split_img_random(ny, nx, side):
+@pytest.mark.parametrize("ny,nx,sides", testdata)
+def test_split_img_random(ny, nx, sides):
     """Test split_img across multiple sizes."""
     data = np.empty((ny, nx))
     print(data.shape)
-    data_crop = crop_image_for_split(data, side)
+    data_crop = crop_image_for_split(data, sides)
     print(data_crop.shape)
-    split_img(data_crop, side)
+    split_img(data_crop, sides)

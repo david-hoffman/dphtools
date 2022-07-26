@@ -777,33 +777,31 @@ class EasyTimer(object):
         return False
 
 
-def split_img(img, side):
+def split_img(img, sides):
     """Split an image (or volume) into tiles.
 
     taken from https://github.com/david-hoffman/scripts/blob/master/simrecon_utils.py
     """
     # Testing input
-    divisors = np.array(img.shape) // side
+    divisors = img.shape // np.array(sides)
     # Error checking
-    assert np.all(img.shape == side * divisors), "Side {}, not equal to {}/{}".format(
-        side, img.shape, divisors
-    )
-    assert np.all(np.array(img.shape) % divisors == 0)
+    for dim, side, divisor in zip(img.shape, sides, divisors):
+        assert side == dim / divisor, "Side {}, not equal to {}/{}".format(side, dim, divisor)
 
     # reshape array so that it's a tiled image
-    img_s0 = img.reshape(divisors[0], side, divisors[1], side)
+    img_s0 = img.reshape(divisors[0], sides[0], divisors[1], sides[1])
     # roll one axis so that the tile's y, x coordinates are next to each other
     img_s1 = np.rollaxis(img_s0, -3, -1)
     # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.product(divisors), side, side), divisors
+    return img_s1.reshape(np.product(divisors), sides[0], sides[1])
 
 
-def crop_image_for_split(img, side):
+def crop_image_for_split(img, sides):
     """Take an image and a side and crop it apropriately to ensure that split_img will work."""
     # get dimensions of image
     ny, nx = img.shape
     # find how many pixels to be shaved
-    ry, rx = ny % side, nx % side
+    ry, rx = ny % sides[0], nx % sides[1]
     # find left amount
     ryl, rxl = ry // 2, rx // 2
     # find right amount
