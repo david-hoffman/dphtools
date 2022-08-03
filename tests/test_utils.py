@@ -12,27 +12,26 @@ from itertools import product
 
 import numpy as np
 import pytest
-
-# import the package to test
-from dphtools.utils import (
-    anscombe,
-    anscombe_inv,
-    bin_ndarray,
-    fft_gaussian_filter,
-    fft_pad,
-    _padding_slices,
-    radial_profile,
-    slice_maker,
-    scale,
-    win_nd,
-    split_img,
-    crop_image_for_split,
-)
 from numpy.fft import fftshift, ifftshift
 from numpy.testing import assert_allclose, assert_almost_equal
 from scipy.fft import next_fast_len
 from scipy.ndimage.filters import gaussian_filter
 
+# import the package to test
+from dphtools.utils import (
+    _padding_slices,
+    anscombe,
+    anscombe_inv,
+    bin_ndarray,
+    crop_image_for_split,
+    fft_gaussian_filter,
+    fft_pad,
+    radial_profile,
+    scale,
+    slice_maker,
+    split_img,
+    win_nd,
+)
 
 rng = np.random.default_rng(12345)
 

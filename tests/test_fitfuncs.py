@@ -11,8 +11,9 @@ Copyright (c) 2021, David Hoffman
 import unittest
 
 import numpy as np
-from dphtools.utils.fitfuncs import exponent, exponent_fit
 from numpy.testing import assert_allclose
+
+from dphtools.utils.fitfuncs import exponent, exponent_fit
 
 
 class TestExponentFit(unittest.TestCase):

@@ -12,18 +12,18 @@ Copyright (c) 2018, David Hoffman
 """
 
 import itertools
-import numpy as np
-import scipy.spatial as spatial
-import scipy.spatial.distance as distance
-import scipy.linalg as la
-from skimage.transform._geometric import _umeyama
-
-# plotting
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 # get a logger
 import logging
+
+# plotting
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.linalg as la
+import scipy.spatial as spatial
+import scipy.spatial.distance as distance
+from mpl_toolkits.mplot3d import Axes3D
+from skimage.transform._geometric import _umeyama
 
 logger = logging.getLogger(__name__)
 
