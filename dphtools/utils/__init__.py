@@ -713,7 +713,14 @@ def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
     # calculate best fit coefs
     C, _, _, _ = scipy.linalg.lstsq(A, Z)
 
-    return C
+    n, k = A.shape
+    res = Z - A @ C
+    VCV = 1 / (n - k) * (res.T @ res) * np.linalg.inv(A.T @ A)
+
+    ## Standard errors of the estimated coefficients
+    stderr = np.sqrt(np.diagonal(VCV))
+
+    return C, stderr
 
 
 def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
@@ -733,22 +740,64 @@ def find_center(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
         The center as determined by a parabolic fit
     """
     # get fit coefs
-    quad_coefs = fit_quadratic(x, y, z)
-    return find_center_quad_coefs(quad_coefs)
+    quad_coefs, stderr = fit_quadratic(x, y, z)
+    return find_center_quad_coefs(quad_coefs, stderr)
 
 
-def find_center_quad_coefs(quad_coefs):
+def find_center_quad_coefs(quad_coefs, stderr):
+    """Find the center of a quadratic fit given it's coefficients.
+
+    Parameters
+    ----------
+    quad_coefs : np.ndarray
+        Coefficients of the quadratic fit: see `fit_quadratic` for functional form.
+    stderr : np.ndarray
+        Standard error on those coefficients
+
+    Returns
+    -------
+    x0, y0 : tuple
+        Found center
+    x0_e, y0_e : tuple
+        standard error on the found center
+
+    NOTE: the error of the center is found using the normal simplification which may not
+    be applicable or desireable here (https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Simplification)
+    """
     aa, bb, cc, dd, ee, _ = quad_coefs
+    aa_e, bb_e, cc_e, dd_e, ee_e, _ = stderr
+
     denom = 4 * aa * bb - ee * ee
+    denom_e = np.sqrt((4 * bb * aa_e) ** 2 + (4 * aa * bb_e) ** 2 + (2 * ee * ee_e) ** 2)
 
     # check if an extreme point is found
     assert denom > 0, "No extrema found"
 
     # calculate the maximum or minimum
     x_m = -(2 * bb * cc - dd * ee) / denom
+    x_m_e = (
+        np.sqrt(
+            (2 * cc * bb_e) ** 2
+            + (2 * bb * cc_e) ** 2
+            + (ee * dd_e) ** 2
+            + (dd * ee_e) ** 2
+            + (x_m * denom_e) ** 2
+        )
+        / denom
+    )
     y_m = -(2 * aa * dd - cc * ee) / denom
+    y_m_e = (
+        np.sqrt(
+            (2 * dd * aa_e) ** 2
+            + (2 * aa * dd_e) ** 2
+            + (ee * cc_e) ** 2
+            + (cc * ee_e) ** 2
+            + (y_m * denom_e) ** 2
+        )
+        / denom
+    )
 
-    return (x_m, y_m)
+    return (x_m, y_m), (x_m_e, y_m_e)
 
 
 class EasyTimer(object):
