@@ -422,7 +422,7 @@ def fftconvolve_fast(data, kernel, **kwargs):
     return convolve_data[fslice]
 
 
-def win_nd(size, win_func=scipy.signal.hann, **kwargs):
+def win_nd(size, win_func=scipy.signal.windows.hann, **kwargs):
     """Make a multidimensional version of a window function.
 
     Parameters
