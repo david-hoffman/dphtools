@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def remove_coord_mean(df, *, coords=["x0", "y0"]):
     """Remove the mean value of the coordinates."""
     df_new = df.copy()
-    df_new[coords] = df_new[coords].astype(np.float)
+    df_new[coords] = df_new[coords].astype(float)
     coord_mean = df_new[coords].mean()
     df_new[coords] -= coord_mean
     return df_new.dropna()
