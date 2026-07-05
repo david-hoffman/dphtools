@@ -36,7 +36,7 @@ REQUIRED_TEMPLATE_SECTIONS = [
 ]
 
 LINKED_ISSUE_RE = re.compile(r"\b(?:Closes|Fixes|Refs)\s+#(?P<number>\d+)\b", re.I)
-PLACEHOLDERS = ["Closes #", "<explain>", "Paste exact commands"]
+PLACEHOLDERS = ["Closes #\n", "<explain>", "Paste exact commands"]
 
 PRODUCT_PREFIXES = ("dphtools/",)
 TEST_PREFIXES = ("tests/",)
@@ -80,11 +80,13 @@ def check_template(errors: list[str]) -> None:
             errors.append(f"PR template missing section: {section}")
 
 
-def extract_linked_issue(body: str) -> str | None:
-    match = LINKED_ISSUE_RE.search(body)
-    if not match:
-        return None
-    return match.group("number")
+def extract_linked_issues(body: str) -> list[str]:
+    issues: list[str] = []
+    for match in LINKED_ISSUE_RE.finditer(body):
+        number = match.group("number")
+        if number not in issues:
+            issues.append(number)
+    return issues
 
 
 def issue_exists(issue_number: str, errors: list[str]) -> None:
@@ -233,7 +235,7 @@ def required_roles(
     return roles
 
 
-def check_pr_body(body: str, errors: list[str]) -> str | None:
+def check_pr_body(body: str, errors: list[str]) -> list[str]:
     for section in REQUIRED_TEMPLATE_SECTIONS:
         if section not in body:
             errors.append(f"PR body missing template section: {section}")
@@ -241,12 +243,13 @@ def check_pr_body(body: str, errors: list[str]) -> str | None:
         if placeholder in body:
             errors.append(f"PR body still contains placeholder text: {placeholder}")
 
-    issue = extract_linked_issue(body)
-    if issue is None:
+    issues = extract_linked_issues(body)
+    if not issues:
         errors.append("PR body must link an issue with Closes #, Fixes #, or Refs #")
-        return None
-    issue_exists(issue, errors)
-    return issue
+        return []
+    for issue in issues:
+        issue_exists(issue, errors)
+    return issues
 
 
 def check_labels(labels: set[str], changed_files: list[str], errors: list[str]) -> None:
@@ -272,19 +275,18 @@ def check_human_decision(
         errors.append("risk:high changes require a human/admin decision note in the PR body")
 
 
-def check_phase2_evidence(
-    issue: str | None,
+def check_single_issue_phase2_evidence(
+    issue: str,
     labels: set[str],
     changed_files: list[str],
-    errors: list[str],
-) -> None:
-    if issue is None:
-        return
-
+    product_changed: bool,
+    numerical_changed: bool,
+) -> list[str]:
+    errors: list[str] = []
     product_changed = any(startswith_any(path, PRODUCT_PREFIXES) for path in changed_files)
     numerical_changed = any(startswith_any(path, NUMERICAL_PREFIXES) for path in changed_files)
     if not product_changed:
-        return
+        return []
 
     payloads = load_run_metadata(issue)
     present = roles_present(payloads)
@@ -297,6 +299,35 @@ def check_phase2_evidence(
     if not red_test_proof_exists(issue, payloads):
         errors.append(f"missing red-test proof for issue #{issue}")
     check_role_scopes(issue, payloads, errors)
+    return errors
+
+
+def check_phase2_evidence(
+    issues: list[str],
+    labels: set[str],
+    changed_files: list[str],
+    errors: list[str],
+) -> None:
+    product_changed = any(startswith_any(path, PRODUCT_PREFIXES) for path in changed_files)
+    numerical_changed = any(startswith_any(path, NUMERICAL_PREFIXES) for path in changed_files)
+    if not product_changed:
+        return
+    if not issues:
+        return
+
+    issue_errors: dict[str, list[str]] = {}
+    for issue in issues:
+        candidate_errors = check_single_issue_phase2_evidence(
+            issue, labels, changed_files, product_changed, numerical_changed
+        )
+        if not candidate_errors:
+            return
+        issue_errors[issue] = candidate_errors
+
+    errors.append("no linked issue has complete clean-context metadata for product source changes")
+    for issue, candidate_errors in issue_errors.items():
+        errors.append(f"issue #{issue} evidence problems:")
+        errors.extend(f"  {error}" for error in candidate_errors)
 
 
 def check_ci_event(errors: list[str]) -> None:
@@ -319,13 +350,13 @@ def check_ci_event(errors: list[str]) -> None:
 
     if not title.strip():
         errors.append("PR title is empty")
-    issue = check_pr_body(body, errors)
+    issues = check_pr_body(body, errors)
     check_labels(labels, changed_files, errors)
     check_human_decision(body, changed_files, labels, errors)
 
     enforcement = read_enforcement()
     if enforcement.get("clean_context_metadata_enforced"):
-        check_phase2_evidence(issue, labels, changed_files, errors)
+        check_phase2_evidence(issues, labels, changed_files, errors)
 
     if not changed_files:
         errors.append("could not determine changed files for PR validation")
