@@ -22,7 +22,7 @@ Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 - Claude skills validated: not installed
 - Clean-context metadata enforced: not yet
 - Reference manifest valid: yes
-- Branch protection configured: manual
+- Branch protection configured: yes, via GitHub API on 2026-07-04
 
 ## Known risks
 | Risk | Severity | Owner issue | Current mitigation |
@@ -31,4 +31,4 @@ Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 | Existing tests fail with NumPy 2.x because product code calls `np.product`. | Medium | follow-up required | Phase 0 documents the exact failure and does not change product behavior. |
 | Scientific/numerical behavior is under-documented. | Medium | follow-up required | Numerical tolerance, fixture, and oracle policies are now present. |
 | Release workflow publishes on tags using repository secrets. | High | follow-up required | Phase 0 leaves release semantics unchanged and documents required human/admin review. |
-| Branch protection cannot be configured from local files. | High | follow-up required | Manual checklist documents exact settings. |
+| Release environments are not configured. | High | follow-up required | Phase 1 configured branch protection; Phase 4 must harden release environments. |

@@ -3,27 +3,27 @@
 Repository: `david-hoffman/dphtools`
 Default branch: `main`
 Last verified: 2026-07-04
-Verified by: Codex local repository intake
+Verified by: Codex via GitHub API
 
 ## Required settings
 
-- [ ] Pull request required before merge
-- [ ] Required approvals enabled
-- [ ] Stale approvals dismissed on new commits
-- [ ] CODEOWNER review required for protected paths
-- [ ] Conversations must be resolved
-- [ ] Status checks required
-- [ ] `ci-required` selected as required check
-- [ ] Branch must be up to date before merge or merge queue enabled
-- [ ] Direct pushes blocked
-- [ ] Force pushes blocked
-- [ ] Branch deletion blocked
-- [ ] Admin bypass disabled after emergency path is confirmed
-- [ ] GitHub Actions default permissions set to read-only where possible
+- [x] Pull request required before merge
+- [x] Required approvals enabled
+- [x] Stale approvals dismissed on new commits
+- [x] CODEOWNER review required for protected paths
+- [x] Conversations must be resolved
+- [x] Status checks required
+- [x] `ci-required` selected as required check
+- [x] Branch must be up to date before merge or merge queue enabled
+- [x] Direct pushes blocked
+- [x] Force pushes blocked
+- [x] Branch deletion blocked
+- [x] Admin bypass disabled after emergency path is confirmed
+- [x] GitHub Actions default permissions set to read-only where possible
 - [ ] Dependency graph enabled, if available
-- [ ] Dependabot alerts enabled, if available
-- [ ] Dependabot security updates enabled, if available
-- [ ] Secret scanning and push protection enabled, if available
+- [x] Dependabot alerts enabled, if available
+- [x] Dependabot security updates enabled, if available
+- [x] Secret scanning and push protection enabled, if available
 - [ ] Release environments configured, if applicable
 
 ## Manual steps
@@ -39,4 +39,10 @@ Verified by: Codex local repository intake
 
 ## Notes
 
-Local repository files cannot configure branch protection, security settings, secrets, environments, trusted publishing, or the default branch. Treat this file as the Phase 1 manual checklist, not evidence that GitHub settings are complete.
+Phase 1 branch protection and security settings were configured through the GitHub API on 2026-07-04. See `docs/generated/phase1-github-protection.md`.
+
+Direct-push blocking is verified by branch protection settings, not by attempting a real direct push to `main`.
+
+The `CODEOWNERS` file is committed on the harness branch and takes full effect after that branch is merged to `main`.
+
+Release environments and trusted publishing remain Phase 4 work.
