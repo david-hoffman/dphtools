@@ -90,9 +90,17 @@ def extract_linked_issues(body: str) -> list[str]:
 
 
 def issue_exists(issue_number: str, errors: list[str]) -> None:
+    if not os.environ.get("GITHUB_REPOSITORY"):
+        return
+    issue = github_issue_metadata(issue_number)
+    if issue is None:
+        errors.append(f"linked issue #{issue_number} could not be read")
+
+
+def github_issue_metadata(issue_number: str) -> dict[str, Any] | None:
     repository = os.environ.get("GITHUB_REPOSITORY")
     if not repository:
-        return
+        return None
     url = f"https://api.github.com/repos/{repository}/issues/{issue_number}"
     request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
     token = os.environ.get("GITHUB_TOKEN")
@@ -101,11 +109,14 @@ def issue_exists(issue_number: str, errors: list[str]) -> None:
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             if response.status != 200:
-                errors.append(f"linked issue #{issue_number} returned HTTP {response.status}")
+                return None
+            payload = json.loads(response.read().decode("utf-8"))
+            return payload if isinstance(payload, dict) else None
     except urllib.error.HTTPError as exc:
-        errors.append(f"linked issue #{issue_number} could not be read: HTTP {exc.code}")
-    except urllib.error.URLError as exc:
-        errors.append(f"linked issue #{issue_number} could not be read: {exc.reason}")
+        print(f"GitHub issue metadata fetch failed for #{issue_number}: HTTP {exc.code}")
+    except (json.JSONDecodeError, urllib.error.URLError) as exc:
+        print(f"GitHub issue metadata fetch failed for #{issue_number}: {exc}")
+    return None
 
 
 def section_content(body: str, section: str) -> str:
@@ -122,6 +133,11 @@ def section_content(body: str, section: str) -> str:
 
 def label_names(pull_request: dict[str, Any]) -> set[str]:
     labels = pull_request.get("labels") or []
+    return {label.get("name", "") for label in labels if isinstance(label, dict)}
+
+
+def issue_label_names(issue: dict[str, Any]) -> set[str]:
+    labels = issue.get("labels") or []
     return {label.get("name", "") for label in labels if isinstance(label, dict)}
 
 
@@ -214,20 +230,21 @@ def check_role_scopes(issue: str, payloads: list[dict[str, Any]], errors: list[s
                     )
 
 
-def required_roles(
-    labels: set[str],
-    changed_files: list[str],
-    product_changed: bool,
-    numerical_changed: bool,
-) -> set[str]:
+def required_product_roles(product_changed: bool, numerical_changed: bool) -> set[str]:
     if not product_changed:
         return set()
 
     roles = {"test-author", "implementer", "adversarial-reviewer"}
     if numerical_changed:
         roles.add("numerics-reviewer")
+    return roles
+
+
+def required_pr_roles(labels: set[str], changed_files: list[str]) -> set[str]:
+    roles: set[str] = set()
     if "risk:high" in labels:
         roles.add("scout")
+        roles.add("adversarial-reviewer")
     if any(startswith_any(path, CI_PREFIXES) for path in changed_files):
         roles.add("ci-triager")
     if any(startswith_any(path, RELEASE_PREFIXES) for path in changed_files):
@@ -290,7 +307,7 @@ def check_single_issue_phase2_evidence(
 
     payloads = load_run_metadata(issue)
     present = roles_present(payloads)
-    needed = required_roles(labels, changed_files, product_changed, numerical_changed)
+    needed = required_product_roles(product_changed, numerical_changed)
     missing = sorted(needed - present)
     if missing:
         errors.append(
@@ -330,6 +347,28 @@ def check_phase2_evidence(
         errors.extend(f"  {error}" for error in candidate_errors)
 
 
+def check_pr_role_evidence(
+    issues: list[str],
+    labels: set[str],
+    changed_files: list[str],
+    errors: list[str],
+) -> None:
+    needed = required_pr_roles(labels, changed_files)
+    if not needed:
+        return
+
+    payloads: list[dict[str, Any]] = []
+    for issue in issues:
+        issue_payloads = load_run_metadata(issue)
+        payloads.extend(issue_payloads)
+        check_role_scopes(issue, issue_payloads, errors)
+
+    present = roles_present(payloads)
+    missing = sorted(needed - present)
+    if missing:
+        errors.append("missing passed PR-level agent run metadata: " + ", ".join(missing))
+
+
 def check_ci_event(errors: list[str]) -> None:
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -346,6 +385,13 @@ def check_ci_event(errors: list[str]) -> None:
     title = pull_request.get("title") or ""
     base_ref = (pull_request.get("base") or {}).get("ref")
     labels = label_names(pull_request)
+    pr_number = pull_request.get("number")
+    if pr_number:
+        current_pr = github_issue_metadata(str(pr_number))
+        if current_pr:
+            body = current_pr.get("body") or body
+            title = current_pr.get("title") or title
+            labels = issue_label_names(current_pr) or labels
     changed_files = changed_files_from_git(base_ref)
 
     if not title.strip():
@@ -356,6 +402,7 @@ def check_ci_event(errors: list[str]) -> None:
 
     enforcement = read_enforcement()
     if enforcement.get("clean_context_metadata_enforced"):
+        check_pr_role_evidence(issues, labels, changed_files, errors)
         check_phase2_evidence(issues, labels, changed_files, errors)
 
     if not changed_files:
