@@ -1,0 +1,28 @@
+{
+  "issue": "5",
+  "role": "test-author",
+  "agent_tool": "Codex",
+  "session_label": "issue-5-red-tests",
+  "base_sha": "53ef2e8",
+  "branch": "codex/agentic-harness",
+  "started_at": "2026-07-05T04:17:00Z",
+  "ended_at": "2026-07-05T04:18:00Z",
+  "allowed_paths": [
+    "tests/test_utils.py",
+    "docs/agent-harness/red-test-proofs/5.md",
+    "docs/exec-plans/active/5-red-test-design.md"
+  ],
+  "commands_run": [
+    {
+      "command": "python -m pytest -q tests/test_utils.py::test_split_img tests/test_utils.py::test_split_img_random",
+      "exit_code": 1,
+      "summary": "12 focused split_img tests failed on base because np.product is unavailable in NumPy 2.x."
+    }
+  ],
+  "artifacts": [
+    "docs/agent-harness/red-test-proofs/5.md",
+    "docs/exec-plans/active/5-red-test-design.md"
+  ],
+  "result": "passed",
+  "notes": "Existing tests served as the red tests; no tests were edited."
+}

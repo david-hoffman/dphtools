@@ -842,7 +842,7 @@ def split_img(img, sides):
     # roll one axis so that the tile's y, x coordinates are next to each other
     img_s1 = np.rollaxis(img_s0, -3, -1)
     # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.product(divisors), sides[0], sides[1])
+    return img_s1.reshape(np.prod(divisors), sides[0], sides[1])
 
 
 def crop_image_for_split(img, sides):
