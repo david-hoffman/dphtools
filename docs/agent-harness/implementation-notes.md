@@ -11,9 +11,15 @@
 
 ## Claude Code Artifacts
 
-`.claude/` artifacts are not added in Phase 0 because the installed Claude Code schema was not validated in this environment.
+`.claude/` artifacts are not added because the installed Claude Code schema was not validated in this environment.
 
 Future work may add skills, subagents, hooks, and workflows after validation against the installed Claude Code version. Until then, repository docs and CI are authoritative.
+
+## Phase 2 Enforcement
+
+`docs/agent-harness/enforcement.json` sets the active harness phase. Pull request validation now enforces clean-context metadata for product source changes during GitHub pull request events.
+
+Local `make harness-check` remains usable outside a pull request because local GitHub event metadata is unavailable.
 
 ## Known Follow-Up Issues
 

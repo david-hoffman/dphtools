@@ -1,6 +1,6 @@
 # QUALITY_SCORE.md
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 Default branch: `main`
 Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 
@@ -20,9 +20,10 @@ Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 ## Harness
 - `AGENTS.md` current: yes
 - Claude skills validated: not installed
-- Clean-context metadata enforced: not yet
+- Clean-context metadata enforced: yes for pull requests with product source changes
 - Reference manifest valid: yes
 - Branch protection configured: yes, via GitHub API on 2026-07-04
+- Required labels configured: yes, via GitHub CLI on 2026-07-05
 
 ## Known risks
 | Risk | Severity | Owner issue | Current mitigation |

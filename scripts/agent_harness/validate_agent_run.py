@@ -122,7 +122,7 @@ def main() -> int:
     if not paths:
         paths = sorted(RUNS_DIR.glob("*/*.json"))
     if not paths:
-        print("No agent run metadata files found; Phase 0 does not require them.")
+        print("No agent run metadata files found in local validation context.")
         return 0
 
     errors: list[str] = []

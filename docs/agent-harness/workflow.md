@@ -2,9 +2,9 @@
 
 ## Phase 0 Status
 
-Phase 0 is enabled. It covers repository intake, local harness docs, references, templates, validation scripts, and CI scaffolding.
+Phase 2 is enabled. Phase 0 bootstrap and Phase 1 branch protection have been completed.
 
-Phase 2 clean-context metadata enforcement is documented but not yet blocking.
+Clean-context metadata enforcement is blocking in CI for pull requests with product source changes.
 
 ## Normal Issue State Flow
 
@@ -79,6 +79,9 @@ area:hardware
 - State public API impact.
 - State scientific, hardware, or numerical impact as facts, assumptions, and guesses.
 - Do not mark a pull request ready if required harness evidence is missing.
+- Product source changes require `test-author`, `implementer`, and `adversarial-reviewer` run metadata.
+- Numerical, scientific, image-processing, fitting, or signal code changes require `numerics-reviewer` run metadata.
+- High-risk governance, release, security, or protected-file changes require `risk:high` and a human/admin decision note.
 
 ## Risk Defaults
 

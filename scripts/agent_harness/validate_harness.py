@@ -30,8 +30,10 @@ REQUIRED_FILES = [
     "docs/agent-harness/branch-protection.md",
     "docs/agent-harness/clean-context-protocol.md",
     "docs/agent-harness/agent-run-schema.json",
+    "docs/agent-harness/enforcement.json",
     "docs/agent-harness/coverage-policy.md",
     "docs/agent-harness/coverage-baseline.json",
+    "docs/agent-harness/metadata-policy.md",
     "docs/agent-harness/test-quality-rubric.md",
     "docs/agent-harness/review-rubric.md",
     "docs/agent-harness/implementation-notes.md",
@@ -174,7 +176,7 @@ def check_claude_artifacts(errors: list[str]) -> None:
     claude_dir = ROOT / ".claude"
     if not claude_dir.exists():
         notes = read_text("docs/agent-harness/implementation-notes.md")
-        if "not added in Phase 0" not in notes:
+        if "not added because" not in notes:
             errors.append("missing implementation note explaining absent .claude artifacts")
         return
 
@@ -220,6 +222,20 @@ def check_branch_protection_docs(errors: list[str]) -> None:
             errors.append(f"branch-protection.md missing: {snippet}")
 
 
+def check_enforcement_config(errors: list[str]) -> None:
+    path = ROOT / "docs/agent-harness/enforcement.json"
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    for snippet in [
+        '"phase": 2',
+        '"clean_context_metadata_enforced": true',
+        '"coverage_non_decrease_enforced": false',
+    ]:
+        if snippet not in text:
+            errors.append(f"enforcement.json missing required Phase 2 setting: {snippet}")
+
+
 def main() -> int:
     errors: list[str] = []
     check_required_files(errors)
@@ -231,6 +247,7 @@ def main() -> int:
     check_gitignore(errors)
     check_claude_artifacts(errors)
     check_branch_protection_docs(errors)
+    check_enforcement_config(errors)
 
     if errors:
         print("Harness validation failed:")

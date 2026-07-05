@@ -1,6 +1,6 @@
 # Clean-Context Protocol
 
-Phase 0 documents this protocol. Phase 2 will enforce metadata.
+Phase 2 enforces metadata for pull requests with product source changes.
 
 ## Roles
 

@@ -1,0 +1,8 @@
+{
+  "phase": 2,
+  "clean_context_metadata_enforced": true,
+  "coverage_non_decrease_enforced": false,
+  "diff_coverage_enforced": false,
+  "release_guard_enforced": false,
+  "notes": "Phase 2 enforces clean-context metadata for pull requests with product source changes. Later phases enable coverage ratchets and release guard checks."
+}
