@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible bug.
+title: "[Bug] "
+labels:
+  - agent-ready
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include exact commands, inputs, and versions.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Scientific, numerical, or public API impact
+      description: State facts, assumptions, and guesses separately.
+    validations:
+      required: true

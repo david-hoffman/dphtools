@@ -1,0 +1,8 @@
+{
+  "phase": 0,
+  "enforced": false,
+  "line_coverage": null,
+  "branch_coverage": null,
+  "updated_at": "2026-07-04",
+  "notes": "Phase 0 baseline placeholder. Run make coverage and update through an explicit follow-up issue."
+}

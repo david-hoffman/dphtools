@@ -1,0 +1,7 @@
+black==23.3.0
+build
+flake8
+pydocstyle
+pytest
+pytest-cov
+twine
