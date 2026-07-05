@@ -33,7 +33,9 @@ REQUIRED_FILES = [
     "docs/agent-harness/enforcement.json",
     "docs/agent-harness/coverage-policy.md",
     "docs/agent-harness/coverage-baseline.json",
+    "docs/agent-harness/downstream-policy.md",
     "docs/agent-harness/metadata-policy.md",
+    "docs/agent-harness/release-policy.md",
     "docs/agent-harness/test-quality-rubric.md",
     "docs/agent-harness/review-rubric.md",
     "docs/agent-harness/implementation-notes.md",
@@ -163,6 +165,23 @@ def check_ci(errors: list[str]) -> None:
         if snippet not in text:
             errors.append(f"ci.yml missing required snippet: {snippet}")
 
+    release_path = ROOT / ".github/workflows/make_release.yml"
+    if release_path.exists():
+        release_text = release_path.read_text(encoding="utf-8")
+        for snippet in [
+            "permissions:",
+            "contents: read",
+            "environment: test-pypi",
+            "environment: pypi",
+            "environment: anaconda",
+            "Smoke test installed wheel",
+            "twine check",
+            "actions/upload-artifact@v4",
+            "actions/download-artifact@v4",
+        ]:
+            if snippet not in release_text:
+                errors.append(f"make_release.yml missing required release hardening: {snippet}")
+
 
 def check_gitignore(errors: list[str]) -> None:
     path = ROOT / ".gitignore"
@@ -230,13 +249,14 @@ def check_enforcement_config(errors: list[str]) -> None:
         return
     text = path.read_text(encoding="utf-8")
     for snippet in [
-        '"phase": 3',
+        '"phase": 4',
         '"clean_context_metadata_enforced": true',
         '"coverage_non_decrease_enforced": true',
         '"diff_coverage_enforced": true',
+        '"release_guard_enforced": true',
     ]:
         if snippet not in text:
-            errors.append(f"enforcement.json missing required Phase 3 setting: {snippet}")
+            errors.append(f"enforcement.json missing required Phase 4 setting: {snippet}")
 
 
 def main() -> int:

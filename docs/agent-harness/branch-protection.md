@@ -24,7 +24,7 @@ Verified by: Codex via GitHub API
 - [x] Dependabot alerts enabled, if available
 - [x] Dependabot security updates enabled, if available
 - [x] Secret scanning and push protection enabled, if available
-- [ ] Release environments configured, if applicable
+- [x] Release environments configured, if applicable
 
 ## Manual steps
 
@@ -45,4 +45,4 @@ Direct-push blocking is verified by branch protection settings, not by attemptin
 
 The `CODEOWNERS` file is committed on the harness branch and takes full effect after that branch is merged to `main`.
 
-Release environments and trusted publishing remain Phase 4 work.
+Release environments are configured for `test-pypi`, `pypi`, and `anaconda`. Trusted publishing remains future hardening work.

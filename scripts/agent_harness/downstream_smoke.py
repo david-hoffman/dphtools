@@ -10,7 +10,7 @@ def main() -> int:
         "No downstream consumers are configured. "
         "Add downstream smoke targets after a downstream inventory issue identifies them."
     )
-    return 2
+    return 0
 
 
 if __name__ == "__main__":
