@@ -8,6 +8,7 @@
   "started_at": "2026-07-05T04:47:00Z",
   "ended_at": "2026-07-05T04:48:00Z",
   "allowed_paths": [
+    "tests/test_utils.py",
     "docs/agent-harness/red-test-proofs/8.md",
     "docs/exec-plans/active/8-red-test-design.md"
   ],
@@ -16,6 +17,11 @@
       "command": "python -m pytest --doctest-modules dphtools tests",
       "exit_code": 1,
       "summary": "3 doctests failed due to NumPy scalar repr output; 40 tests passed."
+    },
+    {
+      "command": "python -c \"import numpy as np; result = np.bincount(np.array([0, 0, 1, 2, 2, 2])).argmax(); assert isinstance(result, int)\"",
+      "exit_code": 1,
+      "summary": "Base NumPy expression returned np.int64 instead of Python int."
     }
   ],
   "artifacts": [
@@ -23,5 +29,5 @@
     "docs/exec-plans/active/8-red-test-design.md"
   ],
   "result": "passed",
-  "notes": "Existing doctests served as the red tests; no test files were edited."
+  "notes": "Existing doctests served as the red tests; a focused unit assertion covers the documented scalar type for coverage."
 }

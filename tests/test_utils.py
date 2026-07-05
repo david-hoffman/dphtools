@@ -26,6 +26,7 @@ from dphtools.utils import (
     crop_image_for_split,
     fft_gaussian_filter,
     fft_pad,
+    mode,
     radial_profile,
     scale,
     slice_maker,
@@ -63,6 +64,16 @@ def test_scale_error():
     """Test exception raising."""
     with pytest.raises(TypeError):
         scale(rng.standard_normal(10) + rng.standard_normal(10) * 1j)
+
+
+def test_mode_returns_python_int():
+    """Test mode value and documented scalar type."""
+    data = np.array([0, 0, 1, 2, 2, 2])
+
+    result = mode(data)
+
+    assert result == 2
+    assert isinstance(result, int)
 
 
 class TestFFTPad(unittest.TestCase):
