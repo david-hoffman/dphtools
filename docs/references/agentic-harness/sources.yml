@@ -1,0 +1,121 @@
+sources:
+  - id: claude-code-skills-blog
+    title: "Lessons from building Claude Code: How we use skills"
+    publisher: "Anthropic"
+    url: "https://claude.com/blog/lessons-from-building-claude-code-how-we-use-skills"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0001-claude-code-skills.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: claude-code-dynamic-workflows-blog
+    title: "Introducing dynamic workflows in Claude Code"
+    publisher: "Anthropic"
+    url: "https://claude.com/blog/introducing-dynamic-workflows-in-claude-code"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0002-claude-code-dynamic-workflows.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: openai-symphony
+    title: "An open-source spec for Codex orchestration: Symphony"
+    publisher: "OpenAI"
+    url: "https://openai.com/index/open-source-codex-orchestration-symphony/"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0003-openai-symphony.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: openai-harness-engineering
+    title: "Harness engineering: leveraging Codex in an agent-first world"
+    publisher: "OpenAI"
+    url: "https://openai.com/index/harness-engineering/"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0004-openai-harness-engineering.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-branch-protection
+    title: "About protected branches"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0005-github-branch-protection.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-status-checks
+    title: "About status checks"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0006-github-status-checks.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-actions-python
+    title: "Building and testing Python"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/actions/tutorials/build-and-test-code/python"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0007-github-actions-python.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-dependabot-options
+    title: "Dependabot options reference"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0008-github-dependabot-options.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-dependency-security
+    title: "Managing your dependency security"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0009-github-dependency-security.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-environments
+    title: "Managing environments for deployment"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0010-github-environments.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."
+
+  - id: github-codeowners
+    title: "About code owners"
+    publisher: "GitHub Docs"
+    url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners"
+    accessed_at: "2026-07-04"
+    note_path: "docs/references/agentic-harness/notes/0011-github-codeowners.md"
+    snapshot_path: null
+    snapshot_sha256: null
+    no_snapshot_reason: "Terms for committing full text were not verified."
+    terms_note: "Project note only; full text not redistributed."

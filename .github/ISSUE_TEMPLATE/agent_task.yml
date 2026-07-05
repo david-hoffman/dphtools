@@ -1,0 +1,99 @@
+name: Agent task
+description: Scoped task for agent implementation.
+title: "[Agent] "
+labels:
+  - agent-ready
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What is wrong or missing?
+    validations:
+      required: true
+  - type: textarea
+    id: desired
+    attributes:
+      label: Desired behavior
+      description: What should be true after the change?
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What must not change?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List testable criteria.
+    validations:
+      required: true
+  - type: input
+    id: modules
+    attributes:
+      label: Affected modules
+      placeholder: "dphtools/utils/fitfuncs.py, tests/test_fitfuncs.py"
+    validations:
+      required: true
+  - type: dropdown
+    id: public_api
+    attributes:
+      label: Public API impact
+      options:
+        - "No public API change"
+        - "Public API behavior change"
+        - "New public API"
+        - "Unknown"
+    validations:
+      required: true
+  - type: textarea
+    id: scientific
+    attributes:
+      label: Hardware/scientific assumptions
+      description: State facts, assumptions, and guesses separately.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data or fixture requirements
+      description: Include provenance, seeds, units, and checksums when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Expected tests
+      description: What tests should prove the change?
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk label
+      options:
+        - "risk:low"
+        - "risk:medium"
+        - "risk:high"
+    validations:
+      required: true
+  - type: textarea
+    id: downstream
+    attributes:
+      label: Downstream impact
+      description: Known consumers, notebooks, package users, or integrations.
+    validations:
+      required: true
+  - type: dropdown
+    id: approval
+    attributes:
+      label: Human approval required
+      options:
+        - "no"
+        - "yes"
+    validations:
+      required: true

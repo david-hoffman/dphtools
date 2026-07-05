@@ -116,14 +116,14 @@ def scale(data, dtype=None):
     >>> from numpy.random import randn
     >>> a = randn(10)
     >>> b = scale(a)
-    >>> b.max()
+    >>> float(b.max())
     1.0
-    >>> b.min()
+    >>> float(b.min())
     0.0
     >>> b = scale(a, dtype = np.uint16)
-    >>> b.max()
+    >>> int(b.max())
     65535
-    >>> b.min()
+    >>> int(b.min())
     0
     """
     if np.issubdtype(data.dtype, np.complexfloating):
@@ -238,7 +238,7 @@ def mode(data: np.ndarray) -> int:
     4
     """
     # will not work with negative numbers (for now)
-    return np.bincount(data.ravel()).argmax()
+    return int(np.bincount(data.ravel()).argmax())
 
 
 def slice_maker(xs, ws):
@@ -284,8 +284,8 @@ def slice_maker(xs, ws):
     toreturn = []
     for x, w in zip(xs, ws):
         half2, half1 = _calc_pad(0, w)
-        xstart = x - half1
-        xend = x + half2
+        xstart = int(x - half1)
+        xend = int(x + half2)
         assert xstart <= xend, "xstart > xend"
         if xend <= 0:
             xstart, xend = 0, 0
@@ -842,7 +842,7 @@ def split_img(img, sides):
     # roll one axis so that the tile's y, x coordinates are next to each other
     img_s1 = np.rollaxis(img_s0, -3, -1)
     # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.product(divisors), sides[0], sides[1])
+    return img_s1.reshape(np.prod(divisors), sides[0], sides[1])
 
 
 def crop_image_for_split(img, sides):

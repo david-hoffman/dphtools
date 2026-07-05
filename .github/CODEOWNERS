@@ -1,0 +1,18 @@
+# Harness and repository governance require human/admin review.
+/.github/                  @david-hoffman
+/.claude/                  @david-hoffman
+/AGENTS.md                 @david-hoffman
+/CLAUDE.md                 @david-hoffman
+/ARCHITECTURE.md           @david-hoffman
+/QUALITY_SCORE.md          @david-hoffman
+/docs/agent-harness/       @david-hoffman
+/docs/references/          @david-hoffman
+/docs/testing/             @david-hoffman
+/scripts/agent_harness/    @david-hoffman
+/setup.py                  @david-hoffman
+/setup.cfg                 @david-hoffman
+/requirements*.txt         @david-hoffman
+/environment.yml           @david-hoffman
+/conda.recipe/             @david-hoffman
+/versioneer.py             @david-hoffman
+/dphtools/_version.py      @david-hoffman

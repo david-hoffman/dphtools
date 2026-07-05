@@ -1,0 +1,8 @@
+{
+  "phase": 3,
+  "enforced": true,
+  "line_coverage": 15.56,
+  "branch_coverage": 11.3,
+  "updated_at": "2026-07-05",
+  "notes": "Baseline measured with Python 3.13.12, pytest-cov, NumPy 2.5.1, and 35 passing tests. Coverage may increase; decreases require a waiver issue."
+}

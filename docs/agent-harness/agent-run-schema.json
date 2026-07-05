@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentRun",
+  "type": "object",
+  "required": [
+    "issue",
+    "role",
+    "agent_tool",
+    "session_label",
+    "base_sha",
+    "branch",
+    "started_at",
+    "ended_at",
+    "allowed_paths",
+    "commands_run",
+    "artifacts",
+    "result"
+  ],
+  "properties": {
+    "issue": {"type": "string"},
+    "role": {
+      "type": "string",
+      "enum": [
+        "scout",
+        "test-author",
+        "implementer",
+        "adversarial-reviewer",
+        "numerics-reviewer",
+        "ci-triager",
+        "doc-gardener",
+        "release-guard"
+      ]
+    },
+    "agent_tool": {"type": "string"},
+    "session_label": {"type": "string"},
+    "base_sha": {"type": "string"},
+    "branch": {"type": "string"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "allowed_paths": {"type": "array", "items": {"type": "string"}},
+    "commands_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "exit_code"],
+        "properties": {
+          "command": {"type": "string"},
+          "exit_code": {"type": "integer"},
+          "summary": {"type": "string"}
+        }
+      }
+    },
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "result": {"type": "string", "enum": ["passed", "failed", "blocked", "needs-human"]},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}
