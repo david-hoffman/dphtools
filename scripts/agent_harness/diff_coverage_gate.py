@@ -82,7 +82,7 @@ def coverage_lines() -> tuple[dict[str, set[int]], dict[str, set[int]]]:
     executable: dict[str, set[int]] = {}
     covered: dict[str, set[int]] = {}
     for class_node in root.findall(".//class"):
-        filename = class_node.attrib.get("filename", "")
+        filename = normalize_coverage_filename(class_node.attrib.get("filename", ""))
         if not filename.startswith(PRODUCT_PREFIXES):
             continue
         executable.setdefault(filename, set())
@@ -94,6 +94,15 @@ def coverage_lines() -> tuple[dict[str, set[int]], dict[str, set[int]]]:
             if hits > 0:
                 covered[filename].add(number)
     return executable, covered
+
+
+def normalize_coverage_filename(filename: str) -> str:
+    if filename.startswith(PRODUCT_PREFIXES):
+        return filename
+    candidate = f"dphtools/{filename}"
+    if (ROOT / candidate).is_file():
+        return candidate
+    return filename
 
 
 def main() -> int:

@@ -34,4 +34,5 @@ and the gate must be run with the matching `--waiver-issue` argument.
 
 - Baseline coverage is low because large public modules have little or no direct test coverage.
 - Diff coverage is line-based and depends on coverage.py XML plus a resolvable git base.
+- Coverage.py may store filenames relative to package directories; the diff coverage gate normalizes those paths before comparing changed product lines.
 - Mutation and property testing remain not enabled.
