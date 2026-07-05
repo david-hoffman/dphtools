@@ -13,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "docs/agent-harness/coverage-baseline.json"
 COVERAGE_XML = ROOT / "coverage.xml"
+WAIVERS_DIR = ROOT / "docs/agent-harness/coverage-waivers"
+EPSILON = 0.01
 
 
 def read_coverage_xml() -> tuple[float, float] | None:
@@ -27,6 +29,9 @@ def read_coverage_xml() -> tuple[float, float] | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--update-baseline", action="store_true")
+    parser.add_argument(
+        "--waiver-issue", help="Issue number for an approved coverage decrease waiver."
+    )
     args = parser.parse_args()
 
     if not BASELINE.is_file():
@@ -64,10 +69,18 @@ def main() -> int:
 
     baseline_line = baseline.get("line_coverage")
     baseline_branch = baseline.get("branch_coverage")
-    if baseline_line is not None and line_coverage < float(baseline_line):
+    waiver_path = WAIVERS_DIR / f"{args.waiver_issue}.md" if args.waiver_issue else None
+    waiver_exists = bool(waiver_path and waiver_path.is_file())
+    if baseline_line is not None and line_coverage + EPSILON < float(baseline_line):
+        if waiver_exists:
+            print(f"Line coverage decreased with approved waiver issue {args.waiver_issue}.")
+            return 0
         print(f"Line coverage decreased from {baseline_line:.2f}% to {line_coverage:.2f}%")
         return 1
-    if baseline_branch is not None and branch_coverage < float(baseline_branch):
+    if baseline_branch is not None and branch_coverage + EPSILON < float(baseline_branch):
+        if waiver_exists:
+            print(f"Branch coverage decreased with approved waiver issue {args.waiver_issue}.")
+            return 0
         print(f"Branch coverage decreased from {baseline_branch:.2f}% to {branch_coverage:.2f}%")
         return 1
 

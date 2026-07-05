@@ -11,9 +11,9 @@ Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 - Matrix runtime coverage: Python 3.10 only; package metadata declares Python `>=3.8`
 
 ## Tests
-- Line coverage: unknown; coverage command not completed because local tests fail under Python 3.13 and NumPy 2.5.1
-- Branch coverage: unknown; coverage command not completed because local tests fail under Python 3.13 and NumPy 2.5.1
-- Diff coverage policy: not enabled
+- Line coverage: 15.56%
+- Branch coverage: 11.30%
+- Diff coverage policy: enabled for changed product lines under `dphtools/`
 - Mutation/property testing status: not enabled
 - Flaky tests: unknown
 
@@ -29,7 +29,6 @@ Default branch commit: `c81ffdf108c33e3571757fd0996d685c47bd7d6a`
 | Risk | Severity | Owner issue | Current mitigation |
 |---|---:|---|---|
 | Runtime support metadata and CI matrix are not aligned. | Medium | follow-up required | CI preserves the existing Python 3.10 matrix and documents the gap. |
-| Existing tests fail with NumPy 2.x because product code calls `np.product`. | Medium | follow-up required | Phase 0 documents the exact failure and does not change product behavior. |
 | Scientific/numerical behavior is under-documented. | Medium | follow-up required | Numerical tolerance, fixture, and oracle policies are now present. |
 | Release workflow publishes on tags using repository secrets. | High | follow-up required | Phase 0 leaves release semantics unchanged and documents required human/admin review. |
 | Release environments are not configured. | High | follow-up required | Phase 1 configured branch protection; Phase 4 must harden release environments. |

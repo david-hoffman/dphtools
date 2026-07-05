@@ -153,10 +153,12 @@ def check_ci(errors: list[str]) -> None:
         "workflow_dispatch:",
         "contents: read",
         "ci-required:",
-        "needs: [harness-validate, lint, tests, package]",
+        "needs: [harness-validate, lint, tests, coverage, package]",
         "validate_harness.py",
         "validate_references.py",
         "validate_pr.py --ci",
+        "coverage_gate.py",
+        "diff_coverage_gate.py --enabled",
     ]:
         if snippet not in text:
             errors.append(f"ci.yml missing required snippet: {snippet}")
@@ -228,12 +230,13 @@ def check_enforcement_config(errors: list[str]) -> None:
         return
     text = path.read_text(encoding="utf-8")
     for snippet in [
-        '"phase": 2',
+        '"phase": 3',
         '"clean_context_metadata_enforced": true',
-        '"coverage_non_decrease_enforced": false',
+        '"coverage_non_decrease_enforced": true',
+        '"diff_coverage_enforced": true',
     ]:
         if snippet not in text:
-            errors.append(f"enforcement.json missing required Phase 2 setting: {snippet}")
+            errors.append(f"enforcement.json missing required Phase 3 setting: {snippet}")
 
 
 def main() -> int:

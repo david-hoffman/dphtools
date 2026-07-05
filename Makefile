@@ -17,6 +17,7 @@ test-fast:
 coverage:
 	python -m pytest --cov=dphtools --cov-branch --cov-report=term-missing --cov-report=xml tests
 	python scripts/agent_harness/coverage_gate.py
+	python scripts/agent_harness/diff_coverage_gate.py --enabled
 
 harness-check:
 	python scripts/agent_harness/validate_harness.py
