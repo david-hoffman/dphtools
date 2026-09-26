@@ -4,4 +4,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# Preserve archived source bytes so Git objects match retrieval hashes.
+docs/references/** -text
+
 dphtools/_version.py export-subst
