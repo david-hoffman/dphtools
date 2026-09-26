@@ -116,15 +116,15 @@ def scale(data, dtype=None):
     >>> from numpy.random import randn
     >>> a = randn(10)
     >>> b = scale(a)
-    >>> b.max()
-    1.0
-    >>> b.min()
-    0.0
+    >>> bool(b.max() == 1.0)
+    True
+    >>> bool(b.min() == 0.0)
+    True
     >>> b = scale(a, dtype = np.uint16)
-    >>> b.max()
-    65535
-    >>> b.min()
-    0
+    >>> bool(b.max() == 65535)
+    True
+    >>> bool(b.min() == 0)
+    True
     """
     if np.issubdtype(data.dtype, np.complexfloating):
         raise TypeError("`scale` is not defined for complex values")
@@ -234,8 +234,8 @@ def mode(data: np.ndarray) -> int:
     Example
     -------
     >>> a = np.array([0, 0, 0, 1, 2, 3, 4, 4, 4, 4, 10])
-    >>> mode(a)
-    4
+    >>> bool(mode(a) == 4)
+    True
     """
     # will not work with negative numbers (for now)
     return np.bincount(data.ravel()).argmax()
@@ -265,10 +265,10 @@ def slice_maker(xs, ws):
 
     Examples
     --------
-    >>> slice_maker((30, 20), 10)
-    (slice(25, 35, None), slice(15, 25, None))
-    >>> slice_maker((30, 20), 25)
-    (slice(18, 43, None), slice(8, 33, None))
+    >>> slice_maker((30, 20), 10) == (slice(25, 35, None), slice(15, 25, None))
+    True
+    >>> slice_maker((30, 20), 25) == (slice(18, 43, None), slice(8, 33, None))
+    True
     """
     # normalize inputs
     xs = np.asarray(xs)
