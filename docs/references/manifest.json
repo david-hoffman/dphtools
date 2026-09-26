@@ -1,0 +1,720 @@
+{
+  "document_version": "1.0",
+  "created_utc": "2026-09-26T22:53:30.875733+00:00",
+  "purpose": "Source archive and provenance only; not operating instructions or a code/security audit. Routine delivery sessions do not need to reread it.",
+  "hash_algorithm": "SHA-256",
+  "hash_scope": "Raw HTTP response bodies as received; archived source files are unchanged original bytes. Error-response hashes are labeled separately from source hashes.",
+  "authored_text": "README.md and READING-NOTES.md are original Version 1.0 notes; they are not original source bytes.",
+  "licenses": {
+    "pstack": {
+      "id": "pstack-license-pinned",
+      "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/LICENSE",
+      "retrieved_utc": "2026-09-26T22:48:57.644121+00:00",
+      "completed_utc": "2026-09-26T22:48:58.061889+00:00",
+      "status": "200",
+      "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/LICENSE",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 1067,
+      "sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
+      "license": "MIT",
+      "attribution": "Lauren Tan",
+      "archive_path": "docs/references/licenses/pstack-MIT.txt"
+    },
+    "github": {
+      "id": "githubdocs-license-pinned",
+      "requested_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/LICENSE",
+      "retrieved_utc": "2026-09-26T22:48:57.646695+00:00",
+      "completed_utc": "2026-09-26T22:48:57.820504+00:00",
+      "status": "200",
+      "final_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/LICENSE",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 18620,
+      "sha256": "12d3a82a7d1378e6f597ec23d63a081aeb6ec4bc8de2a76ee9dc96c34c6d7a1b",
+      "license": "CC-BY-4.0",
+      "attribution": "GitHub and contributors",
+      "archive_path": "docs/references/licenses/github-docs-CC-BY-4.0.txt"
+    },
+    "playwright": {
+      "id": "playwright-license-pinned",
+      "requested_url": "https://raw.githubusercontent.com/microsoft/playwright.dev/1cc5be996c1785fde93e6ba075ab83e271173008/LICENSE",
+      "retrieved_utc": "2026-09-26T22:48:57.820875+00:00",
+      "completed_utc": "2026-09-26T22:48:58.061445+00:00",
+      "status": "200",
+      "final_url": "https://raw.githubusercontent.com/microsoft/playwright.dev/1cc5be996c1785fde93e6ba075ab83e271173008/LICENSE",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 19047,
+      "sha256": "d6239afa918961b465b07bf7411cbe34ff6685854f58553db7966f4881a0211f",
+      "license": "CC-BY-4.0",
+      "attribution": "Microsoft and contributors",
+      "archive_path": "docs/references/licenses/playwright-docs-CC-BY-4.0.txt"
+    },
+    "agentskills": {
+      "id": "agentskills-docs-license",
+      "requested_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/LICENSE",
+      "retrieved_utc": "2026-09-26T22:51:26.132088+00:00",
+      "completed_utc": "2026-09-26T22:51:26.433688+00:00",
+      "status": "200",
+      "final_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/LICENSE",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 18656,
+      "sha256": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
+      "license": "CC-BY-4.0",
+      "attribution": "Agent Skills contributors",
+      "archive_path": "docs/references/licenses/agentskills-docs-CC-BY-4.0.txt"
+    }
+  },
+  "sources": [
+    {
+      "id": "R1",
+      "title": "pstack overview",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/README.md",
+      "retrieval": {
+        "id": "pstack-readme",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/README.md",
+        "retrieved_utc": "2026-09-26T22:48:57.643931+00:00",
+        "completed_utc": "2026-09-26T22:48:58.062146+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/README.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 22949,
+        "sha256": "16262f32aa041d857f2936f3ad6c589648f8e7b5d23e03c3c0a8c76ef99fd08c"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/README.md.txt",
+      "license": "pstack",
+      "source_sha256": "16262f32aa041d857f2936f3ad6c589648f8e7b5d23e03c3c0a8c76ef99fd08c",
+      "limitations": [],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R2",
+      "title": "Test behavior, not implementation",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+      "retrieval": {
+        "id": "pstack-principle-test-behavior-not-implementation",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+        "retrieved_utc": "2026-09-26T22:48:58.067278+00:00",
+        "completed_utc": "2026-09-26T22:48:58.226688+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 2575,
+        "sha256": "87e40efe4e486f7ea639d2ed1fc0abe6c93b8fd0e89a81218086909d2470a52e"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/principle-test-behavior-not-implementation.source.txt",
+      "license": "pstack",
+      "source_sha256": "87e40efe4e486f7ea639d2ed1fc0abe6c93b8fd0e89a81218086909d2470a52e",
+      "limitations": [
+        "Only the source text is archived. Referenced helper scripts, review templates, other skills, automation packs, and model defaults are not adopted or installed."
+      ],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R3",
+      "title": "Verify the real artifact",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/skills/principle-prove-it-works/SKILL.md",
+      "retrieval": {
+        "id": "pstack-principle-prove-it-works",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-prove-it-works/SKILL.md",
+        "retrieved_utc": "2026-09-26T22:48:58.227292+00:00",
+        "completed_utc": "2026-09-26T22:48:58.402613+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-prove-it-works/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 1371,
+        "sha256": "ec79a15025bac8d33d62011c54f3b612733fd2a024e623b531b3637aa75070e2"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/principle-prove-it-works.source.txt",
+      "license": "pstack",
+      "source_sha256": "ec79a15025bac8d33d62011c54f3b612733fd2a024e623b531b3637aa75070e2",
+      "limitations": [
+        "Only the source text is archived. Referenced helper scripts, review templates, other skills, automation packs, and model defaults are not adopted or installed."
+      ],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R4",
+      "title": "Simplify existing structure",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/skills/principle-subtract-before-you-add/SKILL.md",
+      "retrieval": {
+        "id": "pstack-principle-subtract-before-you-add",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-subtract-before-you-add/SKILL.md",
+        "retrieved_utc": "2026-09-26T22:48:58.230790+00:00",
+        "completed_utc": "2026-09-26T22:48:58.585893+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/principle-subtract-before-you-add/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 1094,
+        "sha256": "a983a50e732c1ed315eba7aaf47a61329e31c4794eb1ab9d25d9945265b31e03"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/principle-subtract-before-you-add.source.txt",
+      "license": "pstack",
+      "source_sha256": "a983a50e732c1ed315eba7aaf47a61329e31c4794eb1ab9d25d9945265b31e03",
+      "limitations": [
+        "Only the source text is archived. Referenced helper scripts, review templates, other skills, automation packs, and model defaults are not adopted or installed."
+      ],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R5",
+      "title": "Append-only evidence-linked findings",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/skills/show-me-your-work/SKILL.md",
+      "retrieval": {
+        "id": "pstack-show-me-your-work",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/show-me-your-work/SKILL.md",
+        "retrieved_utc": "2026-09-26T22:48:58.240366+00:00",
+        "completed_utc": "2026-09-26T22:48:58.406610+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/show-me-your-work/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 6418,
+        "sha256": "bcff5f7f9fd23f92c12b251f9cd6b947e9485e1055cfacb6fdd9cae0789d7550"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/show-me-your-work.source.txt",
+      "license": "pstack",
+      "source_sha256": "bcff5f7f9fd23f92c12b251f9cd6b947e9485e1055cfacb6fdd9cae0789d7550",
+      "limitations": [
+        "Only the source text is archived. Referenced helper scripts, review templates, other skills, automation packs, and model defaults are not adopted or installed."
+      ],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R6",
+      "title": "Improve instructions from experience",
+      "reference_url": "https://github.com/cursor/plugins/blob/main/pstack/skills/reflect/SKILL.md",
+      "retrieval": {
+        "id": "pstack-reflect",
+        "requested_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/reflect/SKILL.md",
+        "retrieved_utc": "2026-09-26T22:48:58.285115+00:00",
+        "completed_utc": "2026-09-26T22:48:58.585736+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/cursor/plugins/ecc249f1e306fc64ddf83c7bed16cacf7c2239db/pstack/skills/reflect/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 4982,
+        "sha256": "36efa48cc4ec2ba6f8131651aae24c6321682b098ed47a1069a7509462bf4a84"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db"
+      },
+      "read_scope": "Complete selected source text read; linked images and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": "docs/references/pstack/reflect.source.txt",
+      "license": "pstack",
+      "source_sha256": "36efa48cc4ec2ba6f8131651aae24c6321682b098ed47a1069a7509462bf4a84",
+      "limitations": [
+        "Only the source text is archived. Referenced helper scripts, review templates, other skills, automation packs, and model defaults are not adopted or installed."
+      ],
+      "license_record": "licenses/pstack-MIT.txt"
+    },
+    {
+      "id": "R7",
+      "title": "GitHub protected branches",
+      "reference_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+      "retrieval": {
+        "id": "github-protection-source",
+        "requested_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches.md",
+        "retrieved_utc": "2026-09-26T22:48:57.645488+00:00",
+        "completed_utc": "2026-09-26T22:48:57.824559+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 18329,
+        "sha256": "f803163895c73c5ffbf99c45747c0626e20075913686e7b51674a73a19ee860f"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "18945a31a4f2d97beb6c5c1a7479102e23c25727"
+      },
+      "read_scope": "Complete pinned Markdown source and complete rendered substantive article text read. Liquid partials are present in original source; their current rendered results were read from the public page.",
+      "read_completed_utc": "2026-09-26T22:56:17.124803+00:00",
+      "archive_path": "docs/references/github/about-protected-branches.source.txt",
+      "license": "github",
+      "source_sha256": "f803163895c73c5ffbf99c45747c0626e20075913686e7b51674a73a19ee860f",
+      "limitations": [],
+      "license_record": "licenses/github-docs-CC-BY-4.0.txt",
+      "rendered_page_retrieval": {
+        "id": "github-protection-page",
+        "requested_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+        "retrieved_utc": "2026-09-26T22:48:05.840819+00:00",
+        "completed_utc": "2026-09-26T22:48:06.316473+00:00",
+        "status": "200",
+        "final_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 281572,
+        "sha256": "c4ca611363d1868832445d1bcf00861fbd17cf0fa1b22274bd01db5a6c6ec3a4",
+        "archive_path": null,
+        "version_note": "Unversioned rendered page; equality to pinned repository source/build was not verified."
+      },
+      "rendered_text": {
+        "archive_path": "docs/references/github/about-protected-branches.rendered.txt",
+        "sha256": "e002e8847a64430b4729a6d31e4ee299db6b1ed90206252751c8b21a1f22ad1c",
+        "bytes": 18397,
+        "derived_from_response_sha256": "c4ca611363d1868832445d1bcf00861fbd17cf0fa1b22274bd01db5a6c6ec3a4",
+        "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
+      }
+    },
+    {
+      "id": "R8",
+      "title": "Playwright best practices",
+      "reference_url": "https://playwright.dev/docs/best-practices",
+      "retrieval": {
+        "id": "playwright-source",
+        "requested_url": "https://raw.githubusercontent.com/microsoft/playwright.dev/1cc5be996c1785fde93e6ba075ab83e271173008/nodejs/docs/best-practices.mdx",
+        "retrieved_utc": "2026-09-26T22:48:57.647798+00:00",
+        "completed_utc": "2026-09-26T22:48:57.841567+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/microsoft/playwright.dev/1cc5be996c1785fde93e6ba075ab83e271173008/nodejs/docs/best-practices.mdx",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 27291,
+        "sha256": "0edfafce5939a9b3e0aa9e289ecd7848c1c9aca72678eec2baa4c25142568776"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "1cc5be996c1785fde93e6ba075ab83e271173008"
+      },
+      "read_scope": "Complete pinned MDX source and complete rendered substantive article text read. Image/video assets and linked tutorials were not inspected.",
+      "read_completed_utc": "2026-09-26T22:56:17.126166+00:00",
+      "archive_path": "docs/references/playwright/best-practices.source.txt",
+      "license": "playwright",
+      "source_sha256": "0edfafce5939a9b3e0aa9e289ecd7848c1c9aca72678eec2baa4c25142568776",
+      "limitations": [
+        "Browser-project background only; this Python library setup does not install Playwright."
+      ],
+      "license_record": "licenses/playwright-docs-CC-BY-4.0.txt",
+      "rendered_page_retrieval": {
+        "id": "playwright-page",
+        "requested_url": "https://playwright.dev/docs/best-practices",
+        "retrieved_utc": "2026-09-26T22:48:05.866200+00:00",
+        "completed_utc": "2026-09-26T22:48:06.188584+00:00",
+        "status": "200",
+        "final_url": "https://playwright.dev/docs/best-practices",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 126293,
+        "sha256": "14a38e833272d8e24e1cef82c06817ebd2f9577eef5486424f7960bc59c91859",
+        "archive_path": null,
+        "version_note": "Unversioned rendered page; equality to pinned repository source/build was not verified."
+      },
+      "rendered_text": {
+        "archive_path": "docs/references/playwright/best-practices.rendered.txt",
+        "sha256": "3dfd5734ebde607a04624a292b7ff665292aeda9f5e311408445195700895d85",
+        "bytes": 14584,
+        "derived_from_response_sha256": "14a38e833272d8e24e1cef82c06817ebd2f9577eef5486424f7960bc59c91859",
+        "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
+      }
+    },
+    {
+      "id": "R9",
+      "title": "claude-trace overview",
+      "reference_url": "https://github.com/badlogic/lemmy/blob/main/apps/claude-trace/README.md",
+      "retrieval": {
+        "id": "lemmy-readme",
+        "requested_url": "https://raw.githubusercontent.com/badlogic/lemmy/92e4ba60328bb9e6d756f18bd5c1e2f166768a61/apps/claude-trace/README.md",
+        "retrieved_utc": "2026-09-26T22:48:57.824918+00:00",
+        "completed_utc": "2026-09-26T22:48:58.062118+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/badlogic/lemmy/92e4ba60328bb9e6d756f18bd5c1e2f166768a61/apps/claude-trace/README.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 5622,
+        "sha256": "d1061ef325428314196e22641b15ac37a56c5c6bd14c02c89d5723d5cdd4c3cf"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "92e4ba60328bb9e6d756f18bd5c1e2f166768a61"
+      },
+      "read_scope": "Complete pinned README text read. No source implementation, installation, token extractor, or runtime audit.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": "d1061ef325428314196e22641b15ac37a56c5c6bd14c02c89d5723d5cdd4c3cf",
+      "limitations": [
+        "No applicable LICENSE found in repository license endpoint or tree (the only LICENSE found was for apps/snap-happy). Full README remains outside the committed archive."
+      ]
+    },
+    {
+      "id": "O1",
+      "title": "Lessons from building Claude Code: How we use skills",
+      "reference_url": "https://claude.com/blog/lessons-from-building-claude-code-how-we-use-skills",
+      "retrieval": {
+        "id": "original-skills",
+        "requested_url": "https://claude.com/blog/lessons-from-building-claude-code-how-we-use-skills",
+        "retrieved_utc": "2026-09-26T22:48:05.634887+00:00",
+        "completed_utc": "2026-09-26T22:48:05.969961+00:00",
+        "status": "200",
+        "final_url": "https://claude.dev/blog/lessons-from-building-claude-code-how-we-use-skills/",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 108236,
+        "sha256": "e40b2634fd00200af4b6f640e326ff12387ef93abae7d8ade1c179327d4d477f"
+      },
+      "source_version": {
+        "kind": "unversioned_web_page",
+        "selected_at_utc": "2026-09-26T22:48:05.634887+00:00"
+      },
+      "read_scope": "Complete article prose read from downloaded HTML after removal of scripts/styles; image alt text inspected but image pixels and videos not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": "e40b2634fd00200af4b6f640e326ff12387ef93abae7d8ade1c179327d4d477f",
+      "limitations": [
+        "Original URL redirects to https://claude.dev/blog/lessons-from-building-claude-code-how-we-use-skills/. The selected page states publication June 3, 2026.",
+        "The initial web-tool open failed; direct HTTP retrieval succeeded.",
+        "Full original HTML and extracted article are not republished without an identified redistribution license.",
+        "Inherited introductory-course HTTP 403 and nine inaccessible images were not retried; do not treat the older gap as resolved."
+      ]
+    },
+    {
+      "id": "O2",
+      "title": "Introducing dynamic workflows in Claude Code",
+      "reference_url": "https://claude.com/blog/introducing-dynamic-workflows-in-claude-code",
+      "retrieval": {
+        "id": "original-workflows",
+        "requested_url": "https://claude.com/blog/introducing-dynamic-workflows-in-claude-code",
+        "retrieved_utc": "2026-09-26T22:48:05.654782+00:00",
+        "completed_utc": "2026-09-26T22:48:05.778469+00:00",
+        "status": "200",
+        "final_url": "https://claude.com/blog/introducing-dynamic-workflows-in-claude-code",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 559172,
+        "sha256": "b939087ba9302ddaf433a8d99e548da130433ea0986a17b3689210cd5ec5f7ea"
+      },
+      "source_version": {
+        "kind": "unversioned_web_page",
+        "selected_at_utc": "2026-09-26T22:48:05.654782+00:00"
+      },
+      "read_scope": "Complete substantive article prose and text examples read from downloaded HTML; videos and images not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": "b939087ba9302ddaf433a8d99e548da130433ea0986a17b3689210cd5ec5f7ea",
+      "limitations": [
+        "The selected page states publication May 28, 2026 and includes a generally-available update.",
+        "Full original HTML and extracted article are not republished without an identified redistribution license.",
+        "Parallel workflow orchestration, auto mode, model defaults, and looping mechanisms are not adopted."
+      ]
+    },
+    {
+      "id": "O3",
+      "title": "An open-source spec for Codex orchestration: Symphony",
+      "reference_url": "https://openai.com/index/open-source-codex-orchestration-symphony/",
+      "retrieval": {
+        "id": "original-symphony",
+        "requested_url": "https://openai.com/index/open-source-codex-orchestration-symphony/",
+        "retrieved_utc": "2026-09-26T22:48:05.779314+00:00",
+        "completed_utc": "2026-09-26T22:48:05.865966+00:00",
+        "status": "403",
+        "final_url": "https://openai.com/index/open-source-codex-orchestration-symphony/",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 9842,
+        "sha256": "e54a894cee9e966bd121e3c7e318081455281b67e1e2c9305688add400591874"
+      },
+      "source_version": {
+        "kind": "unversioned_web_page",
+        "selected_at_utc": "2026-09-26T22:48:05.779314+00:00"
+      },
+      "read_scope": "Complete article narrative before and after the embedded Symphony service specification read through the web tool. The embedded 1,363-line controller specification and linked implementation were deliberately not selected, fully read, or adopted.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": null,
+      "limitations": [
+        "Direct original-byte retrieval returned HTTP 403. Article prose remained readable through the web tool; no original article hash or exact original-byte snapshot is claimed.",
+        "Web page publication date: 2026-04-27. No publisher revision ID was available.",
+        "Only a concise original reading note is archived; no full copyrighted article is republished.",
+        "Retrieval body is an HTTP error response, not the article. Its retrieval.sha256 is not a source-content hash."
+      ],
+      "web_read_completed_utc": "2026-09-26T22:56:17.127425+00:00"
+    },
+    {
+      "id": "O4",
+      "title": "Harness engineering: leveraging Codex in an agent-first world",
+      "reference_url": "https://openai.com/index/harness-engineering/",
+      "retrieval": {
+        "id": "original-harness",
+        "requested_url": "https://openai.com/index/harness-engineering/",
+        "retrieved_utc": "2026-09-26T22:48:05.833168+00:00",
+        "completed_utc": "2026-09-26T22:48:05.909154+00:00",
+        "status": "403",
+        "final_url": "https://openai.com/index/harness-engineering/",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 9758,
+        "sha256": "1552193f1a0cf373150c1f7812bf989505855347c48f3dd41d171f796c42d569"
+      },
+      "source_version": {
+        "kind": "unversioned_web_page",
+        "selected_at_utc": "2026-09-26T22:48:05.833168+00:00"
+      },
+      "read_scope": "Complete substantive article text, including the repository-tree example, read through the web tool. Images and linked implementation examples were not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": null,
+      "limitations": [
+        "Direct original-byte retrieval returned HTTP 403. Article prose remained readable through the web tool; no original article hash or exact original-byte snapshot is claimed.",
+        "Web page publication date: 2026-02-11. No publisher revision ID was available.",
+        "Only a concise original reading note is archived; no full copyrighted article is republished.",
+        "Retrieval body is an HTTP error response, not the article. Its retrieval.sha256 is not a source-content hash."
+      ],
+      "web_read_completed_utc": "2026-09-26T22:56:17.127427+00:00"
+    },
+    {
+      "id": "S1",
+      "title": "Agent Skills format specification",
+      "reference_url": "https://agentskills.io/specification",
+      "retrieval": {
+        "id": "agentskills-source",
+        "requested_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/specification.mdx",
+        "retrieved_utc": "2026-09-26T22:51:26.132595+00:00",
+        "completed_utc": "2026-09-26T22:51:26.433618+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/agentskills/agentskills/69ef37e9424c0a7ea9dd2293b559e43ec8176379/docs/specification.mdx",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 7166,
+        "sha256": "b9079c0c10b7930e8c6a20ff2bc10cda2a3343c55185120e3f1116a1a529b220"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "69ef37e9424c0a7ea9dd2293b559e43ec8176379"
+      },
+      "read_scope": "Complete pinned MDX source and current rendered format specification read. No reference-library code was downloaded or executed.",
+      "read_completed_utc": "2026-09-26T22:56:17.126852+00:00",
+      "archive_path": "docs/references/agent-skills/specification.source.txt",
+      "license": "agentskills",
+      "source_sha256": "b9079c0c10b7930e8c6a20ff2bc10cda2a3343c55185120e3f1116a1a529b220",
+      "limitations": [
+        "The nested docs/LICENSE (CC BY 4.0) applies to this document, rather than the repository-root Apache 2.0 license."
+      ],
+      "license_record": "licenses/agentskills-docs-CC-BY-4.0.txt",
+      "rendered_page_retrieval": {
+        "id": "agentskills-page",
+        "requested_url": "https://agentskills.io/specification",
+        "retrieved_utc": "2026-09-26T22:48:05.866259+00:00",
+        "completed_utc": "2026-09-26T22:48:06.188814+00:00",
+        "status": "200",
+        "final_url": "https://agentskills.io/specification",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 445221,
+        "sha256": "aa631ab4cc311da4efcb847f74e52c9b413e624e36901ee883578d61546239bc",
+        "archive_path": null,
+        "version_note": "Unversioned rendered page; equality to pinned repository source/build was not verified."
+      },
+      "rendered_text": {
+        "archive_path": "docs/references/agent-skills/specification.rendered.txt",
+        "sha256": "a4b858d55aa7016c241b8999586dd426fc668e5cda641c9525a91e13e6d8279c",
+        "bytes": 6393,
+        "derived_from_response_sha256": "aa631ab4cc311da4efcb847f74e52c9b413e624e36901ee883578d61546239bc",
+        "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
+      }
+    },
+    {
+      "id": "S2",
+      "title": "AGENTS.md format guidance",
+      "reference_url": "https://agents.md/",
+      "retrieval": {
+        "id": "agentsmd-page",
+        "requested_url": "https://agents.md/",
+        "retrieved_utc": "2026-09-26T22:48:05.909416+00:00",
+        "completed_utc": "2026-09-26T22:48:06.168445+00:00",
+        "status": "200",
+        "final_url": "https://agents.md/",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 81690,
+        "sha256": "09fac07b77bcfe1a0c27a83d01cff2ae87883e72e1065e6b0490e55e8da0e144"
+      },
+      "source_version": {
+        "kind": "unversioned_web_page",
+        "selected_at_utc": "2026-09-26T22:48:05.909416+00:00"
+      },
+      "read_scope": "Complete substantive public-page text read; example repositories and screenshots not inspected.",
+      "read_completed_utc": "2026-09-26T22:53:30.875733+00:00",
+      "archive_path": null,
+      "license": "No redistribution license identified; full text not republished.",
+      "source_sha256": "09fac07b77bcfe1a0c27a83d01cff2ae87883e72e1065e6b0490e55e8da0e144",
+      "limitations": [
+        "The website points to an MIT-licensed source repository, but the rendered page carries LF Projects copyright and site terms. The site-to-repository revision mapping and redistribution terms were not established, so full site HTML/text is not republished."
+      ]
+    },
+    {
+      "id": "L1",
+      "title": "Managing a branch protection rule",
+      "reference_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule",
+      "retrieval": {
+        "id": "github-branch-rule-source",
+        "requested_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule.md",
+        "retrieved_utc": "2026-09-26T22:51:26.135562+00:00",
+        "completed_utc": "2026-09-26T22:51:26.435490+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 9409,
+        "sha256": "624257ee7eac0b09757425e561d04ff332b7393236caa7dbc2a97f49a955adfa"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "18945a31a4f2d97beb6c5c1a7479102e23c25727"
+      },
+      "read_scope": "Complete pinned Markdown source and complete rendered substantive article text read, including settings/check behavior and examples; image pixels not inspected.",
+      "read_completed_utc": "2026-09-26T22:56:17.127170+00:00",
+      "archive_path": "docs/references/github/managing-a-branch-protection-rule.source.txt",
+      "license": "github",
+      "source_sha256": "624257ee7eac0b09757425e561d04ff332b7393236caa7dbc2a97f49a955adfa",
+      "limitations": [],
+      "license_record": "licenses/github-docs-CC-BY-4.0.txt",
+      "rendered_page_retrieval": {
+        "id": "github-branch-rule-page",
+        "requested_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule",
+        "retrieved_utc": "2026-09-26T22:51:26.139345+00:00",
+        "completed_utc": "2026-09-26T22:51:26.475791+00:00",
+        "status": "200",
+        "final_url": "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/managing-a-branch-protection-rule",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 276588,
+        "sha256": "0bd988dbb4efd1b42af6b41e8e9bb99ec5b92c090f76e1c5abc59477544f5d5d",
+        "archive_path": null,
+        "version_note": "Unversioned rendered page; equality to pinned repository source/build was not verified."
+      },
+      "rendered_text": {
+        "archive_path": "docs/references/github/managing-a-branch-protection-rule.rendered.txt",
+        "sha256": "6c3a006c166c6023548cb6b2181c86ec9214a6805dd51e6c1eb6be3cb86ceeef",
+        "bytes": 9040,
+        "derived_from_response_sha256": "0bd988dbb4efd1b42af6b41e8e9bb99ec5b92c090f76e1c5abc59477544f5d5d",
+        "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
+      }
+    },
+    {
+      "id": "L2",
+      "title": "Troubleshooting required status checks",
+      "reference_url": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks",
+      "retrieval": {
+        "id": "github-required-checks-source",
+        "requested_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks.md",
+        "retrieved_utc": "2026-09-26T22:51:26.137400+00:00",
+        "completed_utc": "2026-09-26T22:51:26.433496+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/github/docs/18945a31a4f2d97beb6c5c1a7479102e23c25727/content/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 7246,
+        "sha256": "9b5561c1111ad4a6e3430d1656cc17d7f923539794df8224638952984e1e2990"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "18945a31a4f2d97beb6c5c1a7479102e23c25727"
+      },
+      "read_scope": "Complete pinned Markdown source and complete rendered substantive article text read, including settings/check behavior and examples; image pixels not inspected.",
+      "read_completed_utc": "2026-09-26T22:56:17.127422+00:00",
+      "archive_path": "docs/references/github/troubleshooting-required-status-checks.source.txt",
+      "license": "github",
+      "source_sha256": "9b5561c1111ad4a6e3430d1656cc17d7f923539794df8224638952984e1e2990",
+      "limitations": [],
+      "license_record": "licenses/github-docs-CC-BY-4.0.txt",
+      "rendered_page_retrieval": {
+        "id": "github-required-checks-page",
+        "requested_url": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks",
+        "retrieved_utc": "2026-09-26T22:51:26.434398+00:00",
+        "completed_utc": "2026-09-26T22:51:26.989171+00:00",
+        "status": "200",
+        "final_url": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 181812,
+        "sha256": "a9e6330dbcafeabb0c5cc1f1d28462594a807bd2f43ad4fd65576f29cda00341",
+        "archive_path": null,
+        "version_note": "Unversioned rendered page; equality to pinned repository source/build was not verified."
+      },
+      "rendered_text": {
+        "archive_path": "docs/references/github/troubleshooting-required-status-checks.rendered.txt",
+        "sha256": "4f56a65ffe9e137ace0dc1cb53e6b8434612054506b7b41146bf3193e3931a47",
+        "bytes": 5869,
+        "derived_from_response_sha256": "a9e6330dbcafeabb0c5cc1f1d28462594a807bd2f43ad4fd65576f29cda00341",
+        "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
+      }
+    }
+  ],
+  "additional_access_failures": [
+    {
+      "id": "cursor-license",
+      "requested_url": "https://api.github.com/repos/cursor/plugins/license",
+      "retrieved_utc": "2026-09-26T22:48:04.881742+00:00",
+      "completed_utc": "2026-09-26T22:48:05.251507+00:00",
+      "status": "404",
+      "final_url": "https://api.github.com/repos/cursor/plugins/license",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 154,
+      "sha256": "e80d8bd80b672a912a514abede3950704d7e2e93c561917510b5150e5889971a"
+    },
+    {
+      "id": "lemmy-license",
+      "requested_url": "https://api.github.com/repos/badlogic/lemmy/license",
+      "retrieved_utc": "2026-09-26T22:48:04.884334+00:00",
+      "completed_utc": "2026-09-26T22:48:05.226168+00:00",
+      "status": "404",
+      "final_url": "https://api.github.com/repos/badlogic/lemmy/license",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 154,
+      "sha256": "e80d8bd80b672a912a514abede3950704d7e2e93c561917510b5150e5889971a"
+    }
+  ],
+  "excluded_scope": [
+    "Symphony embedded controller specification and implementation",
+    "Dynamic-workflow implementation and subagent orchestration",
+    "Pstack skills/helpers/reviewer templates outside R1-R6",
+    "claude-trace implementation, token extraction, and transcript tools",
+    "Images, videos, interactive demos, private user material, and introductory courses",
+    "LangChain custom-harness article, Open Code Review, SoL-Pi paper/repository, C4 and GitHub diagram tutorials: links retained in package REFERENCES.md, not reread or archived in this selected pass."
+  ]
+}
