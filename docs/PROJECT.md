@@ -59,6 +59,8 @@ python -m coverage report --fail-under=100 dphtools/*.py dphtools/utils/*.py too
 
 The environment assignment is POSIX syntax; CI uses Bash on every target. Report commands return failure below 100%; run each to preserve diagnostics even after an earlier failure. CI uses separate unconditional report steps without suppressing failure. Explicit owned-source globs include never-imported modules; extend them when introducing a new runtime directory. Coverage paths combine copied CLI artifacts back into `tools/delivery`; subprocess measurement is enabled. Global 100% with zero missing statements/branches implies every included file and package is complete; the JSON retains exact counts. Generated `dphtools/_version.py` is the only omitted runtime file. Vendor Versioneer tooling, notebooks, and tests are not product/runtime coverage targets; handwritten module demo/error paths remain included.
 
+Type checking is gradual, not a claim that this predominantly unannotated library is fully typed. SciPy's dynamic, untyped exports produced false missing-attribute reports for working public imports; the narrowly named SciPy import boundary is skipped by mypy and remains a static-checking gap. Owned annotated code still reports errors. Public numerical tests, not a suppressed type error, must establish the real behavior.
+
 Regenerate the single verification lock deliberately with the pinned uv, rather than during CI:
 
 ```sh

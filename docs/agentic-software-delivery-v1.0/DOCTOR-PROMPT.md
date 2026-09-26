@@ -3,7 +3,8 @@
 **Version 1.0** This is the procedure for `delivery doctor`, using the existing `review-work` skill in doctor mode. Before the command is implemented, give this prompt to a fresh coding session. It may write a documentation patch; it must not claim a command ran when it did not.
 
 ```text
-Run doctor under DELIVERY-SYSTEM-SPEC.md section 8. Check the working tree and stop
+Run doctor under docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md section 8.
+Check the working tree and stop
 rather than overwrite unrelated/uncommitted work or interrupt an active delivery task.
 Read relevant project instructions, recent LESSONS.md entries, and concrete CI/test
 or repository evidence. Search narrowly; do not replay all sessions or recrawl sources.
@@ -13,7 +14,8 @@ Classify each finding: product bug, test defect, workflow problem, or documentat
 a previous failure was harmless. Hypotheses remain hypotheses.
 
 For a confirmed spec gap, create a small docs branch and actually edit the existing
-DELIVERY-SYSTEM-SPEC.md plus directly affected instructions. Replace or remove text
+docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md plus directly affected
+instructions. Replace or remove text
 before adding more. No new framework, skill swarm, or parallel spec. No gap means
 no change. With --check, report only and do not write files.
 
