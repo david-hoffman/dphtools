@@ -25,7 +25,7 @@ On 2026-09-26 the owner replied to the exact five-step setup plan and architectu
 - Read-only discovery: canonical spec read once; no approved prior architecture found. Existing Python architecture routed through intake and owner approval above. Empty-project route is documented, not an executed empty-project demonstration.
 - Initial local CI contains duplicate `run` keys; no current coverage invocation or threshold. Prior ignored XML reports 275/1761 lines and 47/416 branches; this is stale evidence, not the setup baseline.
 - GitHub read on 2026-09-26: public `david-hoffman/dphtools`, default `main`, admin access available. Existing protection requires `ci-required`, current branches, one approval, code-owner review, last-push approval, conversation resolution, and administrator enforcement; force pushes/deletion disabled. No settings changed during discovery.
-- No fresh A/B/C/D, test checkpoint, candidate, PR, passing coverage, or doctor demonstration is claimed yet. Results will be appended/reconciled here as executed.
+- Role/checkpoint evidence is recorded below as executed. No passing whole-repository candidate, PR, or real doctor demonstration is claimed until its actual evidence is recorded.
 
 ### Approved compatibility maintenance
 
@@ -50,3 +50,5 @@ Role A started as root Codex session `01a0dfe9-f17c-7aa3-8bf9-b783349a94ae`, wit
 - A copied-script coverage probe confirmed that subprocess/copy paths combine back to the canonical helper. The probe only establishes measurement plumbing, not helper functionality or a green product suite.
 - All 20 retained archive/source/license/rendered files match their manifest hashes in both the working tree and Git after commit `3b2131f`. Lesson `2026-09-26-SETUP-001-setup-archive-normalization` records the observed failure that motivated the fix.
 - Seven owned-code type-check errors remain after recognizing SciPy's dynamic import boundary as a documented static-checking gap. No product/type fixes have been claimed yet.
+- Actionlint 1.7.12 validated `.github/workflows/ci.yml` with no findings. Its downloaded Darwin ARM64 binary matched the published SHA-256 `aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f`; the binary/log remain local ignored diagnostics, not additional repository infrastructure. This validates workflow syntax, not a remote passing run.
+- Supplemental library A disclosed that one black-box signal-analysis probe printed four implementation lines through Python warning formatting. It did not deliberately open source; later probes removed warning source excerpts. This limits the supplemental session's blindness and must not be described as perfect isolation. The separate doctor A/B evidence above is unaffected.
