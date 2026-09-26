@@ -1,6 +1,6 @@
-# Verification environment, Python 3.10. Product dependencies stay in requirements.txt.
+# Verification environments, Python >=3.10. Product compatibility is separate.
 -r requirements.txt
-black[jupyter]==23.3.0
+black[jupyter]==26.5.1
 flake8==7.4.1
 pydocstyle==6.3.0
 pytest==9.1.1
@@ -8,7 +8,7 @@ pytest-cov==7.1.0
 coverage==7.16.1
 mypy==2.3.1
 pip-audit==2.10.1
-pip-tools==7.6.1
+uv==0.12.19
 build==1.6.1
 setuptools==84.0.0
 wheel==0.48.0

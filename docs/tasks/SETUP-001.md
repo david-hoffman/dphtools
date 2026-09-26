@@ -26,3 +26,11 @@ On 2026-09-26 the owner replied to the exact five-step setup plan and architectu
 - Initial local CI contains duplicate `run` keys; no current coverage invocation or threshold. Prior ignored XML reports 275/1761 lines and 47/416 branches; this is stale evidence, not the setup baseline.
 - GitHub read on 2026-09-26: public `david-hoffman/dphtools`, default `main`, admin access available. Existing protection requires `ci-required`, current branches, one approval, code-owner review, last-push approval, conversation resolution, and administrator enforcement; force pushes/deletion disabled. No settings changed during discovery.
 - No fresh A/B/C/D, test checkpoint, candidate, PR, passing coverage, or doctor demonstration is claimed yet. Results will be appended/reconciled here as executed.
+
+### Approved compatibility maintenance
+
+The owner additionally approved “compatibility maintenance and baseline tests” on 2026-09-26 after being shown 15 failures with current dependencies. Scope: preserve public APIs and numerical intent; repair compatibility and add tests for existing documented behavior; no new features. Ambiguous scientific contracts still return to intake.
+
+Fresh current-environment baseline: 28 passed, 15 failed. Twelve failures reach removed `np.product`; three are NumPy scalar representations in doctests. The earlier Python 3.10/SciPy 1.15.3 attempt failed collection because macOS 27 rejected a binary extension; it is environment failure, not meaningful red evidence. Formatting, critical lint, and docstrings passed; type checks found existing errors. Build produced a wheel and source distribution without publishing.
+
+Role A started as root Codex session `01a0dfe9-f17c-7aa3-8bf9-b783349a94ae`, with memory/delegation disabled. It paused for a CLI-feature-name clarification. Native queueing did not unblock the active process; the process was interrupted and the same A role resumed with verified flags, without changing its blind inputs. It authored 37 command cases and reported 37 expected feature-absence failures, no fixture errors/skips. This is new-helper absence, not a historical product bug. Final A turn reported 410,763 input tokens (368,768 cached), 19,886 output tokens; no reliable dollar total is available. The initial interrupted attempt also consumed resources not totaled here.

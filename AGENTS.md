@@ -4,6 +4,8 @@
 
 Be direct. Use plain English, distinguish evidence from assumptions, and ask only when a material decision blocks work. Preserve product documentation and sound tooling. Do not infer desired numerical behavior from existing code.
 
+Answer first. Use short sentences and active voice. Define acronyms once. Show units, key math steps, and a sanity check when relevant. State uncertainty and what would resolve it. Cite nontrivial factual claims with verified inline primary-source links; verify time-sensitive claims. No flattery or filler.
+
 Read the approved task, role-permitted public context, and one selected skill. The canonical policy is `docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md`. Do not routinely reload the whole package or source archive. Project decisions are in `docs/PROJECT.md`; current setup evidence is in `docs/tasks/SETUP-001.md`.
 
 Use one delivery task at a time. Start A/B/C/D as fresh root Codex sessions, never resume/fork another role's conversation. Disable optional memory and multi-agent delegation for those sessions. Native instructions and skill metadata are inherited; independence is procedural, not guaranteed.

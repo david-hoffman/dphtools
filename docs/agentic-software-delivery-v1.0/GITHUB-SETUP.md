@@ -27,3 +27,29 @@ Tests and workflows live beside product code. Agents are instructed not to weake
 The first tests may intentionally fail before implementation; keep that work on the task branch. Initial test infrastructure and workflows are authorized setup work. Later workflow changes require a separate owner-approved maintenance task, not an implementer “fixing CI” inside an ordinary feature.
 
 Record the effective branch rule and required check names in the repository's setup notes. When a protection feature is unavailable, report the gap rather than building a substitute platform or saying merging is protected. Owner-driven manual review remains a weaker operating choice, not equivalent enforcement.
+
+## dphtools configuration observed during setup
+
+Read on 2026-09-26 with `gh api repos/david-hoffman/dphtools/branches/main/protection`. Repository: `david-hoffman/dphtools`, public, default branch `main`; the authenticated account has admin access. No settings have been changed by setup.
+
+The existing rule requires `ci-required`, up-to-date branches, one approving review, code-owner review, approval after the last push by someone other than its pusher, conversation resolution, and enforcement for administrators. Force pushes and deletion are disabled. No repository rulesets were returned.
+
+The adapted ordinary `ci` workflow preserves the required `ci-required` name. Its unconditional job fails unless the entire `verify` matrix succeeds. The matrix retains Linux, macOS, and Windows; pinned runner families make changes explicit. The required job has no path filter, no conditional bypass, and no failure suppression. This is an ordinary aggregate of actual configured CI, not independent certification of workflows or agent roles.
+
+Owner verification actions after the first setup PR run:
+
+1. Open repository **Settings → Branches → main → Edit** (or the corresponding active branch rule). Keep **Require a pull request**, **Require status checks**, `ci-required`, and **Require branches to be up to date** enabled.
+2. Keep administrator enforcement, force-push prohibition, deletion prohibition, and conversation resolution enabled. Preserve the existing human-review settings unless you explicitly decide to change them.
+3. Confirm `ci-required` is present on the PR and fails when any matrix target fails. Inspect the actual PR's merge state. A protected-branch settings read by itself is not the failure-blocking demonstration.
+4. A PR authored by the owner still needs an eligible real reviewer under the current one-approval/last-push rule. If the repository is operated solo and no such reviewer exists, explicitly authorize changing the approval count to zero and disabling code-owner/last-push approval requirements while retaining required PRs and CI. These changes are not applied or presumed approved. Do not fabricate reviewer identities or treat an agent report as a GitHub human approval.
+
+Read-only verification commands:
+
+```sh
+gh api repos/david-hoffman/dphtools/branches/main/protection
+gh api repos/david-hoffman/dphtools/rulesets
+gh pr checks PR_NUMBER
+gh pr view PR_NUMBER --json url,mergeStateStatus,statusCheckRollup,reviewDecision
+```
+
+The setup task records actual PR/run links when they exist. Merge and production release remain explicit owner actions; setup does not merge, push release tags, or invoke the existing publishing workflow.

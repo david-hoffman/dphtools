@@ -43,20 +43,25 @@ jobs:
       - name: Check types
         run: python -m mypy --follow-untyped-imports dphtools tools/delivery
       - name: Audit locked dependencies
-        run: python -m pip_audit --require-hashes --no-deps -r requirements-dev.lock
+        run: python -m pip_audit --require-hashes -r requirements-dev.lock
       - name: Build and install the distribution
         run: |
           python -m build --no-isolation
           python -m pip install --no-deps --no-build-isolation .
       - name: Exercise public behavior and doctests
         run: python -m coverage run -m pytest --doctest-modules dphtools tests -ra --junitxml=reports/pytest.xml
-      - name: Report exact coverage, including never-imported owned files
+      - name: Combine coverage
         if: always()
-        run: |
-          python -m coverage combine
-          python -m coverage json -o reports/coverage.json dphtools/*.py dphtools/utils/*.py tools/delivery
-          python -m coverage xml -o reports/coverage.xml dphtools/*.py dphtools/utils/*.py tools/delivery
-          python -m coverage report --fail-under=100 dphtools/*.py dphtools/utils/*.py tools/delivery
+        run: python -m coverage combine
+      - name: Write exact coverage JSON, including never-imported owned files
+        if: always()
+        run: python -m coverage json -o reports/coverage.json dphtools/*.py dphtools/utils/*.py tools/delivery
+      - name: Write coverage XML
+        if: always()
+        run: python -m coverage xml -o reports/coverage.xml dphtools/*.py dphtools/utils/*.py tools/delivery
+      - name: Require complete statement and branch coverage
+        if: always()
+        run: python -m coverage report --fail-under=100 dphtools/*.py dphtools/utils/*.py tools/delivery
       - name: Reject missing, empty, or skipped test results
         if: always()
         run: |
