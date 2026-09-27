@@ -15,6 +15,7 @@ import itertools
 
 # get a logger
 import logging
+from typing import Tuple
 
 # plotting
 import matplotlib.pyplot as plt
@@ -73,7 +74,7 @@ class BaseCPD(object):
         return self.B.mean(axis=1)
 
     @property
-    def matches(self) -> np.ndarray:
+    def matches(self) -> Tuple[np.ndarray, ...]:
         """Return X, Y matches."""
         return np.where(self.p_old > max(min(self.w, 0.9), np.finfo(float).eps))[::-1]
 

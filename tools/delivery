@@ -1,7 +1,65 @@
 #!/usr/bin/env python3
-"""Minimal setup scaffold; doctor behavior has not been implemented yet."""
+"""Run the repository's doctor procedure in one fresh Codex session."""
 
+import argparse
+from pathlib import Path
+import subprocess
 import sys
 
-print("delivery doctor is not implemented yet (setup scaffold)", file=sys.stderr)
-sys.exit(2)
+parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+commands = parser.add_subparsers(required=True)
+doctor = commands.add_parser(
+    "doctor",
+    help="inspect delivery evidence and propose a documentation patch",
+    allow_abbrev=False,
+)
+doctor.add_argument(
+    "--check", action="store_true", help="inspect and report without writing files"
+)
+args = parser.parse_args()
+
+root = Path(__file__).resolve().parents[1]
+prompt_path = root / "docs/agentic-software-delivery-v1.0/DOCTOR-PROMPT.md"
+try:
+    procedure = prompt_path.read_text(encoding="utf-8")
+except (OSError, UnicodeError) as error:
+    print(f"Cannot read doctor prompt {prompt_path}: {error}", file=sys.stderr)
+    sys.exit(1)
+
+mode = (
+    "Run doctor --check: inspection only. Report findings without writing files."
+    if args.check
+    else "Run default doctor: inspect actual evidence, make an evidenced documentation patch "
+    "on a docs branch when warranted, and wait for owner approval before commit, push, or merge."
+)
+request = (
+    "Use .agents/skills/review-work/SKILL.md in doctor mode.\n"
+    f"{mode}\n"
+    "Follow docs/agentic-software-delivery-v1.0/DOCTOR-PROMPT.md:\n\n"
+    f"{procedure}"
+)
+try:
+    result = subprocess.run(
+        [
+            "codex",
+            "exec",
+            "--cd",
+            str(root),
+            "--disable",
+            "memories",
+            "--disable",
+            "multi_agent",
+            "--sandbox",
+            "read-only" if args.check else "workspace-write",
+            "-",
+        ],
+        cwd=root,
+        input=request,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+except FileNotFoundError:
+    print("Cannot start doctor: codex executable not found on PATH.", file=sys.stderr)
+    sys.exit(127)
+sys.exit(result.returncode)

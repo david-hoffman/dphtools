@@ -73,7 +73,7 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
 
     if M > len(S):
         M = len(S)
-        print("M too large, set to max = ".format(M))
+        print("M too large, set to max = {}".format(M))
 
     # remove bias if needed
     if removebias:

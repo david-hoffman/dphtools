@@ -12,6 +12,7 @@ import os
 import subprocess
 import time
 from functools import partial
+from typing import Tuple
 
 import numpy as np
 import scipy
@@ -212,7 +213,7 @@ def radial_profile(data, center=None, binsize=1.0):
     return radial_mean, radial_std
 
 
-def mode(data: np.ndarray) -> int:
+def mode(data: np.ndarray) -> np.signedinteger:
     """Get mode of non-negative integer data.
 
     up to 1000 times faster than scipy mode
@@ -333,6 +334,8 @@ def _padding_slices(oldshape, newshape):
 
 
 # add np.pad docstring
+if fft_pad.__doc__ is None or np.pad.__doc__ is None:
+    raise TypeError("Cannot concatenate missing fft_pad or numpy.pad docstrings")
 fft_pad.__doc__ += np.pad.__doc__
 
 
@@ -694,7 +697,7 @@ def calc_angles(mat_b):
 # TODO: refactor the below as methods of a point cloud object, maybe
 
 
-def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Fit quadratic to point data.
 
     Parameters are:
@@ -842,7 +845,7 @@ def split_img(img, sides):
     # roll one axis so that the tile's y, x coordinates are next to each other
     img_s1 = np.rollaxis(img_s0, -3, -1)
     # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.product(divisors), sides[0], sides[1])
+    return img_s1.reshape(np.prod(divisors), sides[0], sides[1])
 
 
 def crop_image_for_split(img, sides):

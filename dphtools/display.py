@@ -9,6 +9,7 @@ Copyright (c) 2021, David Hoffman
 
 import textwrap
 from functools import partial
+from typing import Optional
 
 import matplotlib as mpl
 import matplotlib.font_manager as fm
@@ -16,7 +17,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cbook
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Colormap, Normalize
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
@@ -520,7 +520,7 @@ def add_scalebar(
     scalebar_size: float,
     pixel_size: float,
     unit: str = "µm",
-    edgecolor: str = None,
+    edgecolor: Optional[str] = None,
     **kwargs,
 ) -> None:
     """Add a scalebar to the axis."""
@@ -604,7 +604,7 @@ class SymPowerNorm(Normalize):
         vmin = self._transform(vmin)
         vmax = self._transform(vmax)
 
-        if cbook.iterable(value):
+        if np.iterable(value):
             val = np.ma.asarray(value)
             return self._transform_inv(val * (vmax - vmin) + vmin)
         else:
