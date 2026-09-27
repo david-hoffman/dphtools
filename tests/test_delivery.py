@@ -12,6 +12,7 @@ owner approval. Those behaviors require the separate real doctor demonstration.
 
 from contextlib import ExitStack
 import hashlib
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -66,11 +67,16 @@ def _install_fake_codex(bin_dir):
         assert wrapper.is_file(), "Windows fixture needs pytest's installed console launcher"
         with zipfile.ZipFile(wrapper) as archive:
             payload_offset = min(info.header_offset for info in archive.infolist())
+        # Build the ZIP separately so its offsets are relative to the archive.
+        # Appending with ZipFile(executable, "a") includes the EXE prefix in those
+        # offsets, preventing distlib's launcher from finding its interpreter line.
+        payload = BytesIO()
+        with zipfile.ZipFile(payload, "w") as archive:
+            archive.writestr("__main__.py", FAKE_CODEX)
         executable = bin_dir / "codex.exe"
         with wrapper.open("rb") as source, executable.open("wb") as target:
             target.write(source.read(payload_offset))
-        with zipfile.ZipFile(executable, "a") as archive:
-            archive.writestr("__main__.py", FAKE_CODEX)
+            target.write(payload.getvalue())
     else:
         # env plus a private interpreter symlink also handles spaces in the real
         # interpreter's path, which a direct Python shebang would not handle.
@@ -145,7 +151,7 @@ def doctor(tmp_path):
         timeout=20,
         check=False,
     )
-    assert probe.returncode == 0, f"Fake harness setup failed: {probe.stderr}"
+    assert probe.returncode == 0, f"Fake harness setup failed: {_result_detail(probe)}"
     assert probe.stdout == HARNESS_STDOUT
     assert probe.stderr == HARNESS_STDERR
     assert command.calls() == [
