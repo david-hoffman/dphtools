@@ -1,6 +1,6 @@
 # SETUP-001: Install and demonstrate the delivery workflow
 
-**Version 1.0** Status: approved setup in progress; readiness unproven.
+**Version 1.0** Status: approved implementation checkpoint complete; awaiting scientific intake; setup is not ready. No implementation role is currently running.
 
 ## Contract
 
@@ -69,3 +69,16 @@ A corrected the three findings and added the suggested zero-sigma boundary withi
 Checkpoint **`3d3440d`** contains the accepted supplemental tests and docstring tests, before any C implementation. The separate doctor checkpoint remains `80ff2a1`. C must preserve both sets, including doctests embedded in runtime files. B acceptance establishes test review, not scientific feature approval or full coverage. The provisional Poisson-estimator and fitted-uncertainty assumptions were removed as test defects; observed API failures and unresolved contracts remain in intake.
 
 Latest raw native usage reports: A correction continuation 4,041,475 input / 59,293 output tokens; B rereview 1,568,571 input / 10,784 output tokens. These may be cumulative session reports and are not summed or converted to a dollar claim.
+
+### Fresh C implementation
+
+Fresh root C session `01a0e029-342f-7133-9cd0-2c09cf33ccfa` committed **`f7a7416`**. It implemented the thin single-invocation doctor launcher, replaced removed NumPy/Matplotlib APIs, corrected the known whitespace issue, and repaired behavior-preserving type annotations/diagnostics. Tests, product docstring values, dependencies, workflows, and delivery instructions remained unchanged. The tracked working tree was clean at handoff. Its raw usage report was 1,581,709 input / 14,921 output tokens; no dollar estimate is available.
+
+- Black, critical lint, docstrings, mypy, build, and install passed. Audit passed with network access after an initial restricted-network environment failure; both attempts remain in local evidence. The existing SciPy static-checking gap remains.
+- **39 doctor boundary tests passed. Complete tests/doctests: 266 passed, 12 failed, 32 warnings, no skips.** The compatibility replacements exposed an additional `combine_img` reshape defect, also reproduced from the built wheel outside the checkout. A separate installed-wheel check passed the two repaired API paths, including scalar/vector normalization inverse calls.
+- Whole-runtime coverage: **1294/1842 statements and 257/434 branches**; 548 statements and 177 branches missing. All JSON/XML/text reports were generated and all three 100% threshold checks failed. No handwritten coverage exclusions were added.
+- Direct-file package counts: `dphtools` 280/337 statements and 80/116 branches; `dphtools/utils` 990/1481 statements and 177/318 branches; `tools/delivery` 24/24 statements with **zero native measured branch opportunities**. The helper's conditional-expression/exception choices are not separately counted in that branch denominator; passing boundary tests and 24/24 statements are not a claim of exhaustive logical-path measurement.
+- Python 3.8 grammar parsing passed for modified files; runtime verification on Python 3.8 has not occurred. The initial local Python 3.10 SciPy wheel incompatibility remains a host limitation, pending actual hosted-matrix execution.
+- Exact commands/results: local `reports/C-20260927T000050Z/C-result.md` and `checks.json`; full reports under that directory and `.delivery-runs/C-20260927T000050Z/`. These local logs are not substitutes for remote CI evidence.
+
+Remaining failures concern custom drift coordinates, histogram statistics, documented solver modes/weights/Jacobians, covariance scaling, normalized rigid registration, and split/combine round trips. Scientific scope and undefined contracts remain pending intake. There is **no fresh D approval or passing whole-repository candidate**; starting D on the known-red state would misrepresent the requested process. Real doctor and GitHub evidence will be recorded separately. The original approved work is checkpointed and no autonomous implementation or repair loop is running while owner input is pending.

@@ -23,3 +23,7 @@ The coordinator verified the upstream replacements against [NumPy's migration gu
 - Several filter boundaries, transform composition/weight choices, and handwritten error/demo paths lack enough public behavior to justify exact expectations. These are test-contract gaps, not permission to add exclusions or assert incidental implementation results.
 
 The supplemental tests can establish defined behavior while these gaps remain explicit. Any further numerical contract must be recorded and approved before it drives product changes. A green suite or a passing local helper alone cannot establish setup readiness while coverage and contract gaps remain.
+
+## Additional evidence after approved compatibility repairs
+
+At `f7a7416`, replacing `np.product` lets the reviewed split/combine round-trip test reach `combine_img`, which attempts to reshape 64 values to `(2, 2)`. The same call fails against the built wheel from outside the checkout. This is an additional concrete API defect for the proposed correctness-maintenance scope, not a reason to weaken the round-trip test. The complete suite now has 266 passing and 12 failing cases; the 100% coverage gate still fails.
