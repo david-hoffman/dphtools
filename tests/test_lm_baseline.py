@@ -282,3 +282,225 @@ def test_least_squares_remains_distinct_from_poisson_mle(method, counts, expecte
     # a_LS = dot(exposure, counts)/dot(exposure, exposure), not 16/15.
     assert_allclose(np.exp(parameters), [expected], rtol=1e-5, atol=1e-8)
     assert covariance.shape == (1, 1)
+
+
+@pytest.mark.parametrize("start", [0.1, 2.0], ids=["overshooting-start", "nearby-start"])
+@pytest.mark.parametrize(
+    "stopping, expected_status",
+    [
+        ({"maxfev": 1, "ftol": 0, "xtol": 0}, 5),
+        ({"maxfev": 100, "ftol": 1, "xtol": 0}, 1),
+        ({"maxfev": 100, "ftol": 0, "xtol": 1e6}, 2),
+        ({"maxfev": 100, "gtol": 1e6}, 4),
+    ],
+    ids=["iteration-limit", "objective-stop", "step-stop", "gradient-stop"],
+)
+def test_low_level_ls_diagnostics_describe_accepted_point(start, stopping, expected_status):
+    calls = []
+
+    def residual(p):
+        calls.append(p.copy())
+        return np.array([p[0] ** 2 - 1, 2 * (p[0] ** 2 - 1)])
+
+    result, covariance, info, message, status = lm(
+        residual,
+        [start],
+        Dfun=lambda p: np.array([[2 * p[0]], [4 * p[0]]]),
+        full_output=True,
+        **stopping,
+    )
+    # Independently evaluate the polynomial and its derivative at returned p.
+    # No diagnostic evaluation calls the instrumented callback.
+    expected_residual = np.array([result[0] ** 2 - 1, 2 * (result[0] ** 2 - 1)])
+    assert_allclose(info["fvec"], expected_residual, atol=1e-12)
+    assert_allclose(info["fjac"], [[2 * result[0]], [4 * result[0]]], atol=1e-12)
+    assert info["nfev"] == len(calls)
+    assert 2.5 * (result[0] ** 2 - 1) ** 2 <= 2.5 * (start**2 - 1) ** 2 + 1e-12
+    assert covariance is None
+    assert isinstance(message, str) and message
+    assert status == expected_status
+
+
+@pytest.mark.parametrize("starting_rate", [0.5, 20.0])
+@pytest.mark.parametrize(
+    "stopping, expected_status",
+    [
+        ({"maxfev": 1, "ftol": 0, "xtol": 0}, 5),
+        ({"maxfev": 100, "ftol": 1, "xtol": 0}, 1),
+        ({"maxfev": 100, "ftol": 0, "xtol": 1e6}, 2),
+        ({"maxfev": 100, "gtol": 1e6}, 4),
+    ],
+    ids=["iteration-limit", "objective-stop", "step-stop", "gradient-stop"],
+)
+def test_low_level_poisson_diagnostics_describe_accepted_point(
+    starting_rate, stopping, expected_status
+):
+    exposures = np.array([1.0, 2.0, 4.0, 8.0])
+    counts = np.array([0.0, 4.0, 0.0, 12.0])
+    calls = []
+
+    def predictions(p):
+        calls.append(p.copy())
+        return np.exp(p[0]) * exposures, counts
+
+    result, covariance, info, message, status = lm(
+        predictions,
+        [np.log(starting_rate)],
+        Dfun=lambda p: (np.exp(p[0]) * exposures)[:, None],
+        method="mle",
+        full_output=True,
+        **stopping,
+    )
+    accepted_rate = np.exp(result[0])
+    assert_allclose(info["fvec"], accepted_rate * exposures, atol=1e-12)
+    assert_allclose(info["fjac"], (accepted_rate * exposures)[:, None], atol=1e-12)
+    assert info["nfev"] == len(calls)
+    # All terms independent of a cancel in the objective difference:
+    # D(a)/2 - D(a0)/2 = 15*(a-a0) - 16*log(a/a0).
+    objective_change = 15 * (accepted_rate - starting_rate) - 16 * np.log(
+        accepted_rate / starting_rate
+    )
+    assert objective_change <= 1e-10
+    assert covariance is None
+    assert isinstance(message, str) and message
+    assert status == expected_status
+
+
+def test_low_level_singular_problem_reports_real_function_call_count():
+    calls = []
+
+    def residual(p):
+        calls.append(p.copy())
+        return np.array([2.0, -1.0])
+
+    result, covariance, info, message, status = lm(
+        residual, [3.0], Dfun=lambda p: np.zeros((2, 1)), full_output=True, maxfev=3
+    )
+    assert_allclose(result, [3])
+    assert_allclose(info["fvec"], [2, -1])
+    assert_allclose(info["fjac"], np.zeros((2, 1)))
+    assert info["nfev"] == len(calls)
+    assert covariance is None
+    assert isinstance(message, str) and message
+    # An accepted zero-change step may meet objective tolerance; a proposed
+    # zero step may meet step tolerance, or singular solves may exhaust the limit.
+    # Default gtol disables gradient convergence.
+    assert status in (1, 2, 5)
+
+
+@pytest.mark.parametrize("method", [None, "lm", "trf", "dogbox", "ls", "mle"])
+def test_curve_fit_full_output_keeps_fit_and_diagnostics_consistent(method):
+    x = np.arange(5.0)
+    result, covariance, info, message, status = curve_fit(
+        line,
+        x,
+        2 * x + 3,
+        p0=[1, 1],
+        jac=line_jacobian,
+        method=method,
+        full_output=True,
+        maxfev=100,
+    )
+    assert_allclose(result, [2, 3], atol=1e-7)
+    assert covariance.shape == (2, 2)
+    assert isinstance(message, str) and message
+    assert status in (1, 2, 3, 4)
+    if method in ("trf", "dogbox"):
+        assert info is None
+    elif method in ("ls", "mle"):
+        expected = 2 * x + 3 if method == "mle" else np.zeros_like(x)
+        assert_allclose(info["fvec"], expected, atol=1e-7)
+        assert_allclose(info["fjac"], np.column_stack((x, np.ones_like(x))), atol=1e-12)
+        assert info["nfev"] >= 1
+
+
+def test_low_level_solver_rejects_unimplemented_extra_argument_forwarding():
+    with pytest.raises(NotImplementedError):
+        lm(
+            lambda p, target: np.array([p[0] - target]),
+            [1.0],
+            args=(3.0,),
+            Dfun=lambda p, target: np.ones((1, 1)),
+        )
+
+
+def test_poisson_invalid_trial_cannot_replace_valid_accepted_point():
+    exposures = np.array([1.0, 2.0, 4.0, 8.0])
+    counts = np.array([0.0, 4.0, 0.0, 12.0])
+    calls = []
+
+    def predictions(p):
+        calls.append(p.copy())
+        return p[0] * exposures, counts
+
+    result, _, info, _, status = lm(
+        predictions,
+        [20.0],
+        Dfun=lambda p: exposures[:, None],
+        method="mle",
+        maxfev=1,
+        ftol=0,
+        xtol=0,
+        full_output=True,
+    )
+    # This unconstrained linear model permits invalid proposals. Returned state
+    # must remain valid and correspond to p, regardless of damping choices.
+    assert result[0] > 0
+    assert_allclose(info["fvec"], result[0] * exposures, atol=1e-12)
+    assert_allclose(info["fjac"], exposures[:, None], atol=1e-12)
+    assert info["nfev"] == len(calls)
+    assert 15 * (result[0] - 20) - 16 * np.log(result[0] / 20) <= 1e-10
+    assert status == 5
+
+
+@pytest.mark.parametrize("method", ["ls", "mle"])
+def test_custom_curve_fit_rejects_explicit_unit_weights(method):
+    x = np.arange(5.0)
+    with pytest.raises(NotImplementedError):
+        curve_fit(
+            line, x, 2 * x + 3, p0=[1, 1], jac=line_jacobian, method=method, sigma=np.ones(5)
+        )
+
+
+@pytest.mark.parametrize("method", ["ls", "mle"])
+def test_custom_curve_fit_rejects_false_legacy_derivative_flag(method):
+    x = np.arange(5.0)
+    with pytest.raises(NotImplementedError):
+        curve_fit(line, x, 2 * x + 3, p0=[1, 1], jac=line_jacobian, method=method, col_deriv=False)
+
+
+@pytest.mark.parametrize("method", ["ls", "mle"])
+def test_custom_curve_fit_accepts_array_valued_unbounded_limits(method):
+    x = np.arange(5.0)
+    result, covariance = curve_fit(
+        line,
+        x,
+        2 * x + 3,
+        p0=[1, 1],
+        jac=line_jacobian,
+        method=method,
+        bounds=(np.full(2, -np.inf), np.full(2, np.inf)),
+    )
+    assert_allclose(result, [2, 3], atol=1e-7)
+    assert covariance.shape == (2, 2)
+
+
+@pytest.mark.parametrize("method", [None, "trf", "dogbox"])
+def test_delegated_bounded_full_output_retains_documented_placeholders(method):
+    x = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+    result, covariance, info, message, status = curve_fit(
+        line,
+        x,
+        2 * x + 3,
+        p0=[0.5, 2],
+        bounds=([0, 0], [1, 5]),
+        jac=line_jacobian,
+        method=method,
+        full_output=True,
+    )
+    # Centered x leaves the intercept 3; the constrained optimal slope is 1.
+    assert_allclose(result, [1, 3], atol=1e-6)
+    assert covariance.shape == (2, 2)
+    assert info is None
+    assert message == "No error"
+    assert status == 1

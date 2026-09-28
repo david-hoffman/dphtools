@@ -266,3 +266,127 @@ def test_gaussian_filter_anisotropic_fourier_mode():
     wave = np.cos(2 * np.pi * (fy * y + fx * x))
     attenuation = np.exp(-2 * np.pi**2 * ((sy * fy) ** 2 + (sx * fx) ** 2))
     assert_allclose(utils.fft_gaussian_filter(wave, (sy, sx)), wave * attenuation, atol=1e-12)
+
+
+@pytest.mark.parametrize("operation", ["sum", "mean"])
+def test_bin_noncontiguous_view_uses_values_in_logical_array_order(operation):
+    data = np.arange(48).reshape(6, 8)[::2, ::2]
+    # The three rows are [0,2,4,6], [16,18,20,22], [32,34,36,38].
+    expected = np.array([[2, 10], [34, 42], [66, 74]])
+    if operation == "mean":
+        expected = expected / 2
+    assert_allclose(utils.bin_ndarray(data, new_shape=(3, 2), operation=operation), expected)
+
+
+def test_radial_profile_nonconstant_image_has_population_ring_statistics():
+    data = np.array([[1.0, 2.0, 3.0], [4.0, 9.0, 5.0], [6.0, 7.0, 8.0]])
+    mean, std = utils.radial_profile(data, center=(1, 1), binsize=1)
+    # Center 9; all surrounding eight pixels lie between radii 1 and 1.5.
+    # Their population is 1..8, mean 4.5 and variance 5.25.
+    assert_allclose(mean, [9, 4.5])
+    assert_allclose(std, [0, np.sqrt(5.25)])
+
+
+def test_fft_convolution_asymmetric_kernel_matches_interior_direct_sum():
+    data = np.arange(21.0) ** 2
+    kernel = np.array([1.0, 2.0, 3.0])
+    result = utils.fftconvolve_fast(data, kernel)
+    # Conventional convolution reverses offsets: asymmetric weights distinguish
+    # convolution from correlation. Interior samples avoid padding conventions.
+    expected = data[5:18] + 2 * data[4:17] + 3 * data[3:16]
+    assert_allclose(result[4:17], expected, atol=1e-10)
+
+
+def test_get_max_along_rows_selects_each_rows_independent_coordinate():
+    x = np.array([[2.0, 5.0, 9.0], [-4.0, 0.0, 7.0]])
+    y = np.array([[1.0, 8.0, 3.0], [9.0, 2.0, 4.0]])
+    assert_array_equal(utils.get_max(x, y, axis=1), [5, -4])
+
+
+@pytest.mark.parametrize(
+    "source, target",
+    [([1.0, 0.0, 0.0], [1.0, 0.0, 0.0]), ([1.0, 0.0, 0.0], [-1.0, 0.0, 0.0])],
+    ids=["parallel", "antiparallel"],
+)
+def test_rotation_parallel_boundaries_map_vectors_and_preserve_orientation(source, target):
+    source, target = np.asarray(source), np.asarray(target)
+    matrix = utils.rot_matrix(source, target)
+    assert np.isfinite(matrix).all()
+    assert_allclose(matrix @ source, target, atol=1e-12)
+    assert_allclose(matrix.T @ matrix, np.eye(3), atol=1e-12)
+    assert_allclose(np.linalg.det(matrix), 1, atol=1e-12)
+
+
+def test_rotation_maps_nonaxis_unit_vectors():
+    source = np.array([1.0, 2.0, -2.0]) / 3
+    target = np.array([-2.0, 2.0, 1.0]) / 3
+    matrix = utils.rot_matrix(source, target)
+    assert_allclose(matrix @ source, target, atol=1e-12)
+    assert_allclose(matrix.T @ matrix, np.eye(3), atol=1e-12)
+    assert_allclose(np.linalg.det(matrix), 1, atol=1e-12)
+
+
+def test_split_volume_preserves_all_values_in_three_dimensional_tiles():
+    data = np.arange(2 * 6 * 8).reshape(2, 6, 8)
+    tiles = utils.split_img(data, (1, 3, 4))
+    expected = [
+        data[z : z + 1, y : y + 3, x : x + 4] for z in (0, 1) for y in (0, 3) for x in (0, 4)
+    ]
+    assert tiles.shape == (8, 1, 3, 4)
+    assert sorted(tuple(tile.ravel()) for tile in tiles) == sorted(
+        tuple(tile.ravel()) for tile in expected
+    )
+
+
+def test_single_tile_split_combine_preserves_values():
+    data = np.arange(15).reshape(3, 5)
+    assert_array_equal(utils.combine_img(utils.split_img(data, (3, 5))), data)
+
+
+@pytest.mark.parametrize("message", [None, "A baseline timer message"])
+def test_easy_timer_runs_context_body_and_emits_requested_message(message, capsys, caplog):
+    import logging
+
+    steps = []
+    timer = utils.EasyTimer() if message is None else utils.EasyTimer(message)
+    with caplog.at_level(logging.DEBUG):
+        with timer:
+            steps.append("inside")
+        steps.append("after")
+    assert steps == ["inside", "after"]
+    captured = capsys.readouterr()
+    emitted = captured.out + captured.err + caplog.text
+    assert emitted.strip()
+    if message is not None:
+        assert message in emitted
+    # Neither clock values, a timing unit, nor an emission channel is prescribed.
+
+
+def test_localize_peak_1d_tracks_shift_and_positive_intensity_affine_invariance():
+    coordinate = np.arange(-1.0, 2.0)
+    center, shift = -0.2, 0.35
+    original = 20 - 2 * (coordinate - center) ** 2
+    translated = 20 - 2 * (coordinate - center - shift) ** 2
+    assert original.argmax() == translated.argmax() == 1
+    original_position = utils.localize_peak_1d(original)
+    translated_position = utils.localize_peak_1d(translated)
+    assert_allclose(translated_position - original_position, shift, atol=1e-12)
+    assert_allclose(utils.localize_peak_1d(2.5 * original + 7), original_position, atol=1e-12)
+    assert_allclose(utils.localize_peak_1d(2.5 * translated + 7), translated_position, atol=1e-12)
+
+
+def test_localize_peak_tracks_equal_axis_shift_and_intensity_affine_invariance():
+    coordinate = np.arange(-2.0, 3.0)
+    y, x = np.meshgrid(coordinate, coordinate, indexing="ij")
+    center, shift = -0.2, 0.35
+    original = 50 - 2 * (x - center) ** 2 - 3 * (y - center) ** 2
+    translated = 50 - 2 * (x - center - shift) ** 2 - 3 * (y - center - shift) ** 2
+    # Both exact concave parabolas retain their sampled maximum at the central
+    # pixel of an odd square. Equal shifts avoid imposing a tuple-axis order.
+    assert np.unravel_index(original.argmax(), original.shape) == (2, 2)
+    assert np.unravel_index(translated.argmax(), translated.shape) == (2, 2)
+    original_position = np.asarray(utils.localize_peak(original))
+    translated_position = np.asarray(utils.localize_peak(translated))
+    assert_allclose(translated_position - original_position, [shift, shift], atol=1e-12)
+    assert_allclose(utils.localize_peak(2.5 * original + 7), original_position, atol=1e-12)
+    assert_allclose(utils.localize_peak(2.5 * translated + 7), translated_position, atol=1e-12)

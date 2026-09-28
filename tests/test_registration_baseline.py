@@ -174,3 +174,115 @@ def test_rigid_registration_in_three_dimensions_preserves_unseen_distances(norma
         np.linalg.norm(unseen[:, None] - unseen[None, :], axis=-1),
         atol=1e-5,
     )
+
+
+@pytest.mark.parametrize("only2d", [False, True])
+@pytest.mark.parametrize("diagnostics", [False, True])
+def test_align_dataframes_recovers_displacement_and_transforms_new_points(only2d, diagnostics):
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    coordinates = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
+    displacement = np.array([0.2, -0.3, 0.1])
+    fixed = pd.DataFrame(coordinates, columns=["x0", "y0", "z0"])
+    moving = pd.DataFrame(coordinates + displacement, columns=fixed.columns)
+    try:
+        reg = registration.align(
+            fixed, moving, model="translation", only2d=only2d, diagnostics=diagnostics, iters=20
+        )
+        dimension = 2 if only2d else 3
+        unseen = np.array([[2.5, 1.5, -0.5], [-0.5, 2.0, 4.0]])[:, :dimension]
+        assert_allclose(reg.transform(unseen + displacement[:dimension]), unseen, atol=1e-8)
+        if diagnostics:
+            assert plt.get_fignums()
+            for number in plt.get_fignums():
+                plt.figure(number).canvas.draw()
+    finally:
+        plt.close("all")
+
+
+@pytest.mark.parametrize("copy", [False, True])
+def test_apply_transform_to_slab_preserves_metadata_and_copy_contract(copy):
+    import pandas as pd
+
+    coordinates = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
+    slab = pd.DataFrame(coordinates, columns=["x0", "y0", "z0"], index=[2, 4, 7, 9, 12])
+    slab["label"] = list("abcde")
+    original = slab.copy(deep=True)
+    matrix = np.diag([1.0, 2.0, 3.0])
+    translation = np.array([0.2, -0.3, 0.1])
+    result = registration.apply_transform_to_slab(slab, matrix, translation, copy=copy)
+    assert_allclose(result[["x0", "y0", "z0"]], coordinates * [1, 2, 3] + translation)
+    assert_array_equal(result.index, original.index)
+    assert_array_equal(result["label"], original["label"])
+    if copy:
+        pd.testing.assert_frame_equal(slab, original)
+    else:
+        pd.testing.assert_frame_equal(slab, result)
+
+
+@pytest.mark.parametrize("model", ["translation", registration.TranslationCPD])
+@pytest.mark.parametrize("limits", [0.1, (0.05, 0.1)])
+def test_auto_weight_returns_a_registration_that_maps_exact_clouds(model, limits):
+    displacement = np.array([0.2, -0.3])
+    reg = registration.auto_weight(
+        POINTS + displacement,
+        POINTS.copy(),
+        model,
+        resolution=0.05,
+        limits=limits,
+        maxiters=40,
+        dist_tol=1e-7,
+    )
+    unseen = np.array([[2.5, 1.5], [-0.5, 2.0]])
+    assert_allclose(reg.transform(unseen), unseen + displacement, atol=1e-5)
+    # Every candidate can be exact here; no tie-breaking or weight is prescribed.
+
+
+def test_nearest_neighbors_uses_custom_coordinates_and_transform_with_real_registration():
+    import pandas as pd
+
+    displacement = np.array([20.0, -30.0])
+    reg = registration.TranslationCPD(POINTS.copy(), POINTS + displacement)
+    reg.estimate()
+    fixed = pd.DataFrame(POINTS, columns=["u", "v"], index=[10, 20, 30, 40, 50])
+    moving = pd.DataFrame((POINTS + displacement)[[3, 0, 4, 1, 2]], columns=["u", "v"])
+    fixed_matches, moving_matches = registration.nearest_neighbors(
+        fixed, moving, r=1e-6, transform=reg.transform, coords=["u", "v"]
+    )
+    assert len(fixed_matches) == len(moving_matches) == len(POINTS)
+    assert_allclose(reg.transform(moving_matches[["u", "v"]]), fixed_matches[["u", "v"]])
+
+
+def test_registered_matches_preserve_correspondence_after_input_permutation():
+    permutation = [3, 0, 4, 1, 2]
+    moving = POINTS[permutation] + [0.2, -0.3]
+    reg = registration.TranslationCPD(POINTS.copy(), moving)
+    reg(maxiters=100, dist_tol=1e-8)
+    fixed_indices, moving_indices = reg.matches
+    assert set(zip(fixed_indices, moving_indices)) == set(zip(permutation, range(len(POINTS))))
+    assert_allclose(reg.transform(moving[moving_indices]), POINTS[fixed_indices], atol=1e-6)
+
+
+@pytest.mark.parametrize("initial_translation", [None, [2.0, -1.0]])
+def test_propagated_commuting_translations_have_the_expected_final_mapping(initial_translation):
+    displacements = np.array([[0.2, -0.3], [-0.1, 0.4], [0.5, 0.2]])
+    registrations = []
+    for displacement in displacements:
+        reg = registration.TranslationCPD(POINTS + displacement, POINTS.copy())
+        reg.estimate()
+        registrations.append(reg)
+    expected_translation = np.array([0.6, 0.3])
+    options = {}
+    if initial_translation is not None:
+        initial_translation = np.asarray(initial_translation)
+        options["initial"] = registration.to_augmented(np.eye(2), initial_translation)
+        expected_translation = expected_translation + initial_translation
+    matrices, translations = registration.propogate_transforms(registrations, **options)
+    # Inspect only the endpoint. No intermediate list length or inclusion of an
+    # initial pose is prescribed; all participating transformations commute.
+    matrix, translation = np.asarray(matrices[-1]), np.asarray(translations[-1]).ravel()
+    assert_allclose(matrix, np.eye(2), atol=1e-12)
+    assert_allclose(translation, expected_translation, atol=1e-12)
+    unseen = np.array([[2.5, 1.5], [-0.5, 2.0]])
+    assert_allclose(unseen @ matrix + translation, unseen + expected_translation, atol=1e-12)

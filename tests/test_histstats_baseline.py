@@ -65,3 +65,18 @@ def test_histogram_translation_and_scale_obey_population_definitions():
     assert_allclose(histstats.hist_mean(weights, bins), 12)
     assert_allclose(histstats.hist_var(weights, bins), 12)
     assert_allclose(histstats.hist_moment(weights, bins), 2 / np.sqrt(3))
+
+
+@pytest.mark.parametrize("order, expected", [(1, 0), (2, 1), (3, -2 / np.sqrt(3)), (4, 7 / 3)])
+def test_default_histogram_bins_have_correct_standardized_moments(order, expected):
+    # Two ordered bins with weights 1:3 have these standardized moments under
+    # any common origin and positive spacing; no absolute default-bin origin
+    # or pandas index convention is assumed.
+    assert_allclose(histstats.hist_moment(np.array([1.0, 3.0]), k=order), expected, atol=1e-14)
+
+
+def test_one_populated_histogram_bin_has_its_location_and_zero_variance():
+    weights = np.array([0.0, 2.5, 0.0])
+    bins = np.array([-100.0, -3.0, 200.0])
+    assert_allclose(histstats.hist_mean(weights, bins), -3)
+    assert_allclose(histstats.hist_var(weights, bins), 0)
