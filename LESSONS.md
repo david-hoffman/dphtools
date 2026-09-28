@@ -39,3 +39,8 @@ Copy below the marker and replace placeholders. Do not leave fake evidence.
 - Observation: the external fake harness passed locally but its Windows console launcher failed before any doctor behavior ran. Appending a ZIP directly made its offsets include the executable prefix; the native launcher expects archive-relative offsets.
 - Evidence: Actions run 36281726862 at f1609ca had 39 Windows fixture setup errors. Fresh A/B reviewed correction cfdea14, which builds the ZIP separately and concatenates it with the preserved launcher prefix. Run 36282672655 then passed all 39 doctor cases on Windows, Ubuntu, and macOS. No runtime or behavior assertion changed.
 - Lesson: validate native platform fixtures on their real target and retain independent fixture self-checks. Python-readable ZIP structure alone does not prove a native launcher can find its payload. Fixture setup errors are not meaningful product red evidence.
+
+### 2026-09-27-SETUP-001-doctor-disposition | Approved instruction changes
+- Status: confirmed; disposition of `2026-09-26-SETUP-001-setup-archive-normalization` and `2026-09-26-SETUP-001-A-warning-source`.
+- Evidence: owner approved item 2 on 2026-09-27; commit `4e4c75d` adopts the doctor proposal in the canonical spec, native AGENTS.md, and its template for PR #10. Duplicate additions to the two role skills and setup prompt were removed at the owner's request. The Windows fixture lesson required no new rule.
+- Lesson: keep the rationale in the spec and the shared operational rule in native instructions; repeat it in the generation template so regeneration preserves the rule. These prospective instructions do not retroactively establish historical session blindness or fix product readiness gaps.
