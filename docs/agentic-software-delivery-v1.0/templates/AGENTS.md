@@ -7,7 +7,7 @@ Read your approved task, role-permitted public/project context, and the selected
 Use one task at a time and a fresh session for each A/B/C/D role. No reused/forked implementation conversation for review.
 
 - Intake resolves material questions and requests explicit owner approval.
-- A/B do not read implementation, its history, or LESSONS.md. Receive only approved public-contract inputs; B also receives A's tests.
+- A/B do not read implementation, its history, or LESSONS.md. Receive only approved public-contract inputs; B also receives A's tests. Before probes/tests, use source-free warning/traceback rendering while retaining diagnostics and failure status; disclose accidental source exposure.
 - C must not change reviewed tests, fixtures, snapshots, workflows, test discovery, coverage settings, or delivery instructions. Report defects rather than bypassing them.
 - D reviews actual behavior, evidence, and simplicity. Do not fix and approve your own repair.
 - Setup may create infrastructure when explicitly authorized. Doctor may edit documentation under its dedicated procedure; neither exception is permission for C to weaken checks.
