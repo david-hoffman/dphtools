@@ -168,7 +168,9 @@ img : ndarray
 
 Returns
 -------
-(vmin, vmax) : tuple of numbers
+limits : dict
+    Mapping with numeric ``vmin`` and ``vmax`` values, suitable for
+    passing as keyword arguments to plotting functions.
 
 
 ### wavelength_to_rgb
