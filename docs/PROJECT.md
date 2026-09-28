@@ -25,6 +25,8 @@ The library has no deployed service. Build wheels/source distributions using the
 
 ## Harness and delivery
 
+Until the owner changes this direction, target all pull requests to `codex-main` (`gh pr create --base codex-main`). This was requested on 2026-09-28; it does not change the repository's default branch. CI runs for both `main` and `codex-main`.
+
 Use the installed Codex CLI, observed as `0.155.0-alpha.16.4`. Four canonical skills live under `.agents/skills/`. Root `AGENTS.md` is native; no bridge is needed. Start a fresh root role session with:
 
 ```sh

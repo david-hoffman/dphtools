@@ -10,9 +10,9 @@ Create or adapt one ordinary required job, preferably `verify`. Run the project'
 
 Pin third-party actions/dependencies, use only needed CI permissions, and keep production secrets out of tests. For fork contributions, do not run untrusted proposed code with privileged credentials. Save useful failure reports using ordinary Actions artifacts; no evidence service.
 
-## Owner: configure the default branch
+## Owner: configure the PR target branch
 
-Use the repository's branch protection or branch ruleset settings for `main` (or the actual default branch). The exact controls available depend on repository visibility, account plan, and permissions. GitHub's [protected-branch documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) describes availability and settings.
+Use the repository's branch protection or branch ruleset settings for the approved PR target (`codex-main` for dphtools until the owner changes direction). The exact controls available depend on repository visibility, account plan, and permissions. GitHub's [protected-branch documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) describes availability and settings.
 
 1. Require changes through pull requests and require the actual CI job(s). Run the workflow once if needed for its check name to be available. Require branches to be current with the base branch before merging.
 2. Disallow ordinary force pushes, branch deletion, and bypass. Apply the rule to administrators where supported. Do not create fake human reviewer accounts or a mandatory approval count that a solo owner cannot satisfy; independent agent review is documented in the task/PR, not proven by GitHub identity.
@@ -34,11 +34,13 @@ Read on 2026-09-26 with `gh api repos/david-hoffman/dphtools/branches/main/prote
 
 The existing rule requires `ci-required`, up-to-date branches, one approving review, code-owner review, approval after the last push by someone other than its pusher, conversation resolution, and enforcement for administrators. Force pushes and deletion are disabled. No repository rulesets were returned.
 
+On 2026-09-28 the owner selected `codex-main` as the temporary target for all PRs. PR #10 was retargeted. A read of `branches/codex-main/protection` confirmed the controls listed above, including stale-review dismissal; `rules/branches/codex-main` returned no additional rules. The workflow now includes both branch names. No repository settings or default branch were changed.
+
 The adapted ordinary `ci` workflow preserves the required `ci-required` name. Its unconditional job fails unless the entire `verify` matrix succeeds. The matrix retains Linux, macOS, and Windows; pinned runner families make changes explicit. The required job has no path filter, no conditional bypass, and no failure suppression. This is an ordinary aggregate of actual configured CI, not independent certification of workflows or agent roles.
 
 Owner verification actions after the first setup PR run:
 
-1. Open repository **Settings → Branches → main → Edit** (or the corresponding active branch rule). Keep **Require a pull request**, **Require status checks**, `ci-required`, and **Require branches to be up to date** enabled.
+1. Open repository **Settings → Branches → codex-main → Edit** (or the corresponding active branch rule). Keep **Require a pull request**, **Require status checks**, `ci-required`, and **Require branches to be up to date** enabled.
 2. Keep administrator enforcement, force-push prohibition, deletion prohibition, and conversation resolution enabled. Preserve the existing human-review settings unless you explicitly decide to change them.
 3. Confirm `ci-required` is present on the PR and fails when any matrix target fails. Inspect the actual PR's merge state. A protected-branch settings read by itself is not the failure-blocking demonstration.
 4. A PR authored by the owner still needs an eligible real reviewer under the current one-approval/last-push rule. If the repository is operated solo and no such reviewer exists, explicitly authorize changing the approval count to zero and disabling code-owner/last-push approval requirements while retaining required PRs and CI. These changes are not applied or presumed approved. Do not fabricate reviewer identities or treat an agent report as a GitHub human approval.
@@ -46,7 +48,7 @@ Owner verification actions after the first setup PR run:
 Read-only verification commands:
 
 ```sh
-gh api repos/david-hoffman/dphtools/branches/main/protection
+gh api repos/david-hoffman/dphtools/branches/codex-main/protection
 gh api repos/david-hoffman/dphtools/rulesets
 gh pr checks PR_NUMBER
 gh pr view PR_NUMBER --json url,mergeStateStatus,statusCheckRollup,reviewDecision
