@@ -619,10 +619,6 @@ def align(
 ):
     """Align two slabs fiducials, assumes that z coordinate has been normalized."""
     model = choose_model(model)
-    coords = ["x0", "y0"] if only2d else ["x0", "y0", "z0"]
-    for fids in (fids0, fids1):
-        if not np.isfinite(fids[coords].values).all():
-            raise ValueError("Alignment coordinates must be finite")
 
     def register(fids0_filt, fids1_filt, coords):
         reg = model(fids0_filt[coords].values, fids1_filt[coords].values)
@@ -635,13 +631,9 @@ def align(
     def sub_func(rmse, transform, coords):
         for i in range(iters):
             r = max(rmse * 2, 1)
-            try:
-                fids0_filt, fids1_filt = nearest_neighbors(
-                    fids0, fids1, r=r, transform=transform, coords=coords
-                )
-            except ValueError:
-                rmse *= 2
-                continue
+            fids0_filt, fids1_filt = nearest_neighbors(
+                fids0, fids1, r=r, transform=transform, coords=coords
+            )
             reg = register(fids0_filt, fids1_filt, coords)
             transform = reg.transform
             rmse_new = reg.rmse
