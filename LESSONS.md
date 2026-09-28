@@ -50,3 +50,9 @@ Copy below the marker and replace placeholders. Do not leave fake evidence.
 - Observation: a passing singular-solver test wrongly excluded objective convergence and allowed a gradient-convergence status while that check was disabled.
 - Evidence: fresh B session `01a0e6d5-55b2-7082-8b8a-cbca532c6d8b` identified the contract mismatch. A corrected only the assertion/comment; B independently passed all 123 solver cases and accepted checkpoint `b14298f`.
 - Lesson (returned by B): when several documented stopping predicates can hold at the same accepted point, test returned state and actual callback counts without imposing an undocumented stopping-priority order.
+
+### 2026-09-28-SETUP-001-setup-local-gate | Verify before pushing
+- Status: confirmed
+- Observation: recording known local coverage failures did not prevent repeated pushes of candidates that necessarily failed the same hosted gate.
+- Evidence: candidate `8ca6cf2` had 514 passing local tests but only 1553/1822 statements and 335/436 branches; Actions run `36440054784` repeated those exact coverage failures on all three platforms. The owner required local success before pushing on 2026-09-28.
+- Lesson: share one deterministic verification command between local checks and CI, require local success before pushing, and use ordinary hooks for early feedback. CI verifies a locally passing candidate; it is not the place to discover already-known failures.

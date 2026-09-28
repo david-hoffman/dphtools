@@ -70,7 +70,7 @@ class BaseCPD(object):
 
     @property
     def scale(self):
-        """Return the estimated scale of the transformation matrix"""
+        """Return the estimated scale of the transformation matrix."""
         return self.B.mean(axis=1)
 
     @property

@@ -41,27 +41,20 @@ The invocation is `python tools/delivery doctor [--check]`; `PATH="$PWD/tools:$P
 
 Create an isolated environment with an appropriate installed Python (`python3.10 -m venv .venv-delivery` for the existing CI target, or `python3.13 -m venv .venv` on this macOS 27 host). The initial local Python 3.10/SciPy 1.15.3 wheel could not load on macOS 27; current Python 3.13 wheels do load. This environment gap is not a product regression reproduction. Install using `python -m pip install --require-hashes -r requirements-dev.lock`. The universal lock carries interpreter/platform markers, including Windows-only dependencies. It is a verification lock, not a narrowing of the library's declared Python >=3.8 metadata.
 
-With that environment's `python` active, run the same commands as CI, cheap checks first:
+Use one shared verification command locally and in CI. Fast checks give feedback while editing; the full check must pass before any push, including the 100% statement and branch gate:
 
 ```sh
-python -m black --check --line-length 99 dphtools tests tools/delivery setup.py versioneer.py notebooks
-python -m flake8 dphtools tests tools/delivery setup.py versioneer.py
-python -m pydocstyle --count dphtools
-python -m mypy --follow-untyped-imports dphtools tools/delivery
-python -m pip_audit --require-hashes -r requirements-dev.lock
-python -m build --no-isolation
-python -m pip install --no-deps --no-build-isolation .
-python -m coverage erase
-MPLBACKEND=Agg python -m coverage run -m pytest --doctest-modules dphtools tests -ra --junitxml=reports/pytest.xml
-python -m coverage combine
-python -m coverage json -o reports/coverage.json dphtools/*.py dphtools/utils/*.py tools/delivery
-python -m coverage xml -o reports/coverage.xml dphtools/*.py dphtools/utils/*.py tools/delivery
-python -m coverage report --fail-under=100 dphtools/*.py dphtools/utils/*.py tools/delivery
+python tools/verification.py fast
+python tools/verification.py full
 ```
+
+The script invokes the existing tools with the selected interpreter and saves their actual commands, statuses, and logs in a fresh `reports/verification/` directory. `fast` runs Black (99 columns), Flake8 (`E9,F63,F7,F82`, critical errors only), and recursive NumPy-style pydocstyle across `dphtools`. `full` adds configured types, the hashed dependency audit, build/install, all tests/doctests, sequential coverage reports, and exact report validation. Missing tools/reports, failed or skipped tests, omitted owned files, exclusions, or incomplete measured coverage fail the command. It retains diagnostics after ordinary tool failures. A host success does not establish Linux/macOS/Windows matrix success; CI repeats `full` on each configured platform. No known local failure may be sent to CI as a candidate.
+
+Ordinary Git hooks under `.githooks/` run `fast` before commit and `full` before push. Inspect `git config --show-origin --get core.hooksPath` and the current hooks directory before installing; preserve any existing hooks. For a clone without active hooks, install with `git config --local core.hooksPath .githooks`. The hooks use the active `python`, or an explicit `DPHTOOLS_PYTHON` executable. They require staged tracked content for commit and a clean checkout of the commit being pushed. They are bypassable local feedback, not permission enforcement. Required CI remains enabled. The [verification contract](tasks/LOCAL-VERIFICATION-CONTRACT.md) describes the public commands and hook behavior.
 
 Local measurement note: Python 3.13 skips hidden `.pth` startup files. On this host the checkout's `.venv` coverage hook had that flag, and clearing it did not persist. A fresh environment created by `/Users/davidhoffman/miniconda3/bin/python3.13 -m venv /private/tmp/dphtools-verify-313-jmr47yhf`, followed by its `python -m pip install --require-hashes -r requirements-dev.lock`, restored subprocess measurement. Its 39 launcher tests measured all 24 statements. Use that environment's `bin/python` for the canonical commands on this host; the ordinary hosted CI environments also measure the launcher. This changes no dependency, test, or coverage rule. See Python's [startup-file handling](https://github.com/python/cpython/blob/3.13/Lib/site.py) and coverage.py's [subprocess documentation](https://coverage.readthedocs.io/en/7.16.1/subprocess.html).
 
-The environment assignment is POSIX syntax; CI uses Bash on every target. Report commands return failure below 100%; run each to preserve diagnostics even after an earlier failure. CI uses separate unconditional report steps without suppressing failure. Explicit owned-source globs include never-imported modules; extend them when introducing a new runtime directory. Coverage paths combine copied CLI artifacts back into `tools/delivery`; subprocess measurement is enabled. Global 100% with zero missing statements/branches implies every included file and package is complete; the JSON retains exact counts. Generated `dphtools/_version.py` is the only omitted runtime file. Vendor Versioneer tooling, notebooks, and tests are not product/runtime coverage targets; handwritten module demo/error paths remain included.
+On this host, use `/private/tmp/dphtools-verify-313-jmr47yhf/bin/python tools/verification.py full` and set `DPHTOOLS_PYTHON=/private/tmp/dphtools-verify-313-jmr47yhf/bin/python` for Git operations. The script sets `MPLBACKEND=Agg` and `PYTHONHASHSEED=0` itself. Its recursive owned-source discovery includes never-imported `dphtools` modules, `tools/*.py` descendants, and `tools/delivery`; extend discovery for any new runtime outside those directories. Coverage paths combine copied CLI fixtures into `tools`; subprocess measurement is enabled. Global 100% with zero missing statements/branches implies every included file and package is complete; the validator checks exact per-file counts. Generated `dphtools/_version.py` is the only omitted runtime file. Vendor Versioneer tooling, notebooks, and tests are not product/runtime coverage targets; handwritten module demo/error paths remain included. Python coverage cannot measure the shell hooks' statements/branches; process-boundary tests do not erase that reported measurement limit.
 
 Type checking is gradual, not a claim that this predominantly unannotated library is fully typed. SciPy's dynamic, untyped exports produced false missing-attribute reports for working public imports; the narrowly named SciPy import boundary is skipped by mypy and remains a static-checking gap. Owned annotated code still reports errors. Public numerical tests, not a suppressed type error, must establish the real behavior.
 

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Ordinary local feedback, not an approval or permission boundary.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+if ! git diff --quiet --; then
+    echo "pre-commit: stage or stash unstaged tracked changes so fast checks match the index." >&2
+    exit 1
+fi
+exec "${DPHTOOLS_PYTHON:-python}" tools/verification.py fast

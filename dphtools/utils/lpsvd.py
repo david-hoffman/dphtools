@@ -8,6 +8,11 @@ LPSVD was developed by Tufts and Kumaresan (Tufts, D.; Kumaresan, R. IEEE Transa
 Speech and signal Processing 1982, 30, 671 – 675.) as a method of harmonic inversion, i.e. decomposing
 a time signal into a linear combination of (decaying) sinusoids.
 
+The backward-prediction equations for damped signals are given by Kumaresan, R.;
+Tufts, D. W. IEEE Transactions on Acoustics, Speech, and Signal Processing 1982,
+30 (6), 833–840, equations (2)–(4), DOI: 10.1109/TASSP.1982.1163974.
+https://www.math.ucdavis.edu/~saito/data/sonar/KumaresanTufts.pdf
+
 A great reference that is easy to read for the non-EECS user is:
 Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
 
@@ -39,9 +44,10 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     M : int
         Model order, if None, it will be estimated
     lfactor : float
-        How to size the Hankel matrix, Tufts and Kumaresan suggest 1/3-1/2
-        Default number of prediction coefficients is half the number of points
-        in the input wave
+        Set L = floor(len(signal) * lfactor) prediction coefficients and
+        len(signal) - L prediction equations. The default uses half the samples
+        for the coefficient count. Both matrix dimensions must accommodate
+        the signal rank.
     removebias    : bool
         If true bias will be removed from the singular values of A
 
@@ -56,7 +62,7 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     L = int(np.floor(N * lfactor))
     # Shift the signal forward by 1
     rollsig = np.roll(signal, -1)
-    # Generate the Hankel matrix
+    # A[i, j] = signal[i + j + 1]; the last row has L samples starting at N - L.
     A = hankel(rollsig[: N - L], signal[N - L :])
     # Take the conjugate of the Hankel Matrix to form the prediction matrix
     A = np.conj(A)
@@ -104,8 +110,8 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     # so we have to reverse the coefficients before finding the roots.
     myroots = np.roots(lp_coefs[::-1])
 
-    # Remove the poles that lie within the unit circle on the complex plane as directed by Kurmaresan
-    # Actually it seems the correct thing to do is to remove roots with positive damping constants
+    # Reversing the polynomial uses q = 1/z relative to Kumaresan–Tufts Eq. (3).
+    # Damped signal roots satisfy |q| <= 1; conj(log(q)) recovers their exponents.
     usedroots = np.array([np.conj(np.log(root)) for root in myroots if np.abs(root) <= 1])
 
     # Error checking: see if we removed all roots!

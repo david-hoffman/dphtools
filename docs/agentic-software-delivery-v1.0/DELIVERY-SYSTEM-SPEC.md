@@ -90,6 +90,8 @@ Narrow documented exclusions may cover vendor, generated, or non-executable file
 
 Use the monorepo's ordinary GitHub Actions workflow. Prefer one required job, `verify`, running the project's canonical checks in order. A genuine multi-platform need may require several jobs; keep every required result visible. No custom gate publisher or GitHub App.
 
+Run the full canonical verification locally before pushing; do not submit a candidate with a known failing check, including coverage. Use fast local hooks for formatting, lint, and docstrings, and a pre-push full check. Hooks are bypassable feedback. CI repeats the shared verification command on the submitted commit and its supported platform matrix; local success does not certify other platforms.
+
 CI should install locked dependencies, run formatting/lint/types as applicable, build, run tests/coverage, and retain useful failure reports. Fail on failed commands, empty test discovery, unexpected skipped/focused tests, and missing required reports using native tools where available. Do not use `continue-on-error` or path filters that silently remove required validation. Keep diagnostic output short with access to full logs.
 
 Configure native protection for `main`: PRs, required CI, current branches, and no ordinary force-push/deletion or bypass. [GitHub setup](GITHUB-SETUP.md) explains the owner actions and capability limits. GitHub accepts some skipped/neutral check conclusions, so a required job should actually run, not be conditionally skipped ([source](REFERENCES.md#r7--github-protected-branches)).

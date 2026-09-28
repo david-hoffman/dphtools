@@ -1153,6 +1153,11 @@ LPSVD was developed by Tufts and Kumaresan (Tufts, D.; Kumaresan, R. IEEE Transa
 Speech and signal Processing 1982, 30, 671 – 675.) as a method of harmonic inversion, i.e. decomposing
 a time signal into a linear combination of (decaying) sinusoids.
 
+The backward-prediction equations for damped signals are given by Kumaresan, R.;
+Tufts, D. W. IEEE Transactions on Acoustics, Speech, and Signal Processing 1982,
+30 (6), 833–840, equations (2)–(4), DOI: 10.1109/TASSP.1982.1163974.
+https://www.math.ucdavis.edu/~saito/data/sonar/KumaresanTufts.pdf
+
 A great reference that is easy to read for the non-EECS user is:
 Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
 
@@ -1180,9 +1185,10 @@ signal : ndarray
 M : int
     Model order, if None, it will be estimated
 lfactor : float
-    How to size the Hankel matrix, Tufts and Kumaresan suggest 1/3-1/2
-    Default number of prediction coefficients is half the number of points
-    in the input wave
+    Set L = floor(len(signal) * lfactor) prediction coefficients and
+    len(signal) - L prediction equations. The default uses half the samples
+    for the coefficient count. Both matrix dimensions must accommodate
+    the signal rank.
 removebias    : bool
     If true bias will be removed from the singular values of A
 
@@ -1288,7 +1294,7 @@ Y : ndarray (M, D)
 ```python
 scale(self)
 ```
-Return the estimated scale of the transformation matrix
+Return the estimated scale of the transformation matrix.
 
 
 #### BaseCPD.matches
