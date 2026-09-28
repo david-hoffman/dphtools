@@ -185,7 +185,7 @@ http://www.physics.sfasu.edu/astro/color/spectra.html
 
 ### add_scalebar
 ```python
-add_scalebar(ax: mpl.axes.Axes, scalebar_size: float, pixel_size: float, unit: str='µm', edgecolor: str=None, **kwargs)
+add_scalebar(ax: mpl.axes.Axes, scalebar_size: float, pixel_size: float, unit: str='µm', edgecolor: Optional[str]=None, **kwargs)
 ```
 Add a scalebar to the axis.
 
@@ -321,15 +321,15 @@ Examples
 >>> from numpy.random import randn
 >>> a = randn(10)
 >>> b = scale(a)
->>> b.max()
-1.0
->>> b.min()
-0.0
+>>> bool(b.max() == 1.0)
+True
+>>> bool(b.min() == 0.0)
+True
 >>> b = scale(a, dtype = np.uint16)
->>> b.max()
-65535
->>> b.min()
-0
+>>> bool(b.max() == 65535)
+True
+>>> bool(b.min() == 0)
+True
 
 
 ### radial_profile
@@ -390,8 +390,8 @@ mode : int
 Example
 -------
 >>> a = np.array([0, 0, 0, 1, 2, 3, 4, 4, 4, 4, 10])
->>> mode(a)
-4
+>>> bool(mode(a) == 4)
+True
 
 
 ### slice_maker
@@ -421,10 +421,10 @@ The method will automatically coerce slices into acceptable bounds.
 
 Examples
 --------
->>> slice_maker((30, 20), 10)
-(slice(25, 35, None), slice(15, 25, None))
->>> slice_maker((30, 20), 25)
-(slice(18, 43, None), slice(8, 33, None))
+>>> slice_maker((30, 20), 10) == (slice(25, 35, None), slice(15, 25, None))
+True
+>>> slice_maker((30, 20), 25) == (slice(18, 43, None), slice(8, 33, None))
+True
 
 
 ### fft_pad
@@ -700,7 +700,7 @@ Take an image and a side and crop it apropriately to ensure that split_img will 
 ```python
 combine_img(stack)
 ```
-Combine tiled stack.
+Reassemble a square grid of tiles returned by ``split_img``.
 
 
 ## dphtools/utils/beads.py
@@ -725,7 +725,9 @@ Calculate image drift from multiple emitters in a FOV.
 
 Given a list of DataFrames with each DF containing the coordinates
 of a single fiducial calculate the mean or weighted mean of the coordinates
-in each frame.
+in each frame. ``weighted=""`` selects the unweighted mean; ``"coords"``
+selects inverse coordinate-variance weights, and other nonempty strings
+name the weight column (``"amp"`` by default).
 
 
 ## dphtools/utils/fitfuncs.py
@@ -975,12 +977,12 @@ Defaults to the third one
 
 ## dphtools/utils/lm.py
 
-A python implementation of Levenberg–Marquardt.
+Levenberg–Marquardt fitting with analytic derivatives.
 
-exposes a drop in replacement for scipy.curve_fit and
-allows the user to fit their function by maximizing the
-maximum likelihood for poisson deviates rather than for
-gaussian deviates, requires the jacobian to be defined.
+The custom ``mle`` method minimizes the Laurence–Chromy Poisson deviance;
+``ls`` provides an unweighted least-squares comparison. These custom methods
+support fewer options than SciPy. ``curve_fit`` delegates its other supported
+methods to SciPy; it is not a drop-in replacement for every SciPy option.
 
 ### References
 1. Methods for Non-Linear Least Squares Problems (2nd ed.) http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=3215 (accessed Aug 18, 2017).
@@ -1003,139 +1005,141 @@ according to J. J. Moré's paper
 ```python
 lm(func, x0, args=(), Dfun=None, full_output=False, col_deriv=True, ftol=1.49012e-08, xtol=1.49012e-08, gtol=0.0, maxfev=None, epsfcn=None, factor=100, diag=None, method='ls')
 ```
-Thorough implementation of levenburg-marquet for gaussian Noise.
+Fit unweighted least squares or Poisson counts with analytic derivatives.
 
-::
-    x = arg min(sum(func(y)**2,axis=0))
-             y
 Parameters
 ----------
 func : callable
-    should take at least one (possibly length N vector) argument and
-    returns M floating point numbers. It must not return NaNs or
-    fitting might fail.
-x0 : ndarray
-    The starting estimate for the minimization.
+    Called as ``func(params)``. For ``method="ls"``, return an M-vector
+    of residuals. For ``method="mle"``, return ``(predictions, counts)``:
+    strictly positive model predictions and nonnegative observed counts.
+    The objective is half the Poisson deviance,
+    ``sum(mu - y + y * log(y / mu))``, with the log term zero for y=0.
+    Invalid trial predictions are rejected, not clipped.
+x0 : array_like
+    Initial N-vector of parameters; the initial objective must be finite.
 args : tuple, optional
-    Any extra arguments to func are placed in this tuple.
-Dfun : callable, optional
-    A function or method to compute the Jacobian of func with derivatives
-    across the rows. If this is None, the Jacobian will be estimated.
+    Extra-argument forwarding is unimplemented; only the empty tuple is
+    supported. Bind additional data in ``func`` and ``Dfun`` instead.
+Dfun : callable
+    Analytic Jacobian, called as ``Dfun(params)``, of residuals (ls) or
+    predictions (mle). Return shape (M, N): one row per observation and
+    one column per parameter. Numerical derivatives are unimplemented.
 full_output : bool, optional
-    non-zero to return all optional outputs.
+    If True, return the five-item result described below. Default False.
 col_deriv : bool, optional
-    non-zero to specify that the Jacobian function computes derivatives
-    down the columns (faster, because there is no transpose operation).
+    Must be True (the default). This legacy flag does not use SciPy's
+    orientation convention; the Jacobian still has shape (M, N).
+    False is unimplemented.
 ftol : float, optional
-    Relative error desired in the sum of squares.
+    Stop after an accepted step reduces the objective by at most this
+    fraction of its previous value. Default 1.49012e-8.
 xtol : float, optional
-    Relative error desired in the approximate solution.
+    Stop when the proposed step norm is at most
+    ``xtol * (norm(params) + xtol)``. Default 1.49012e-8.
 gtol : float, optional
-    Orthogonality desired between the function vector and the columns of
-    the Jacobian.
+    Stop when the largest absolute gradient component is at most gtol.
+    The default 0 disables this check.
 maxfev : int, optional
-    The maximum number of calls to the function. If `Dfun` is provided
-    then the default `maxfev` is 100*(N+1) where N is the number of elements
-    in x0, otherwise the default `maxfev` is 200*(N+1).
+    Legacy name for the trial-iteration limit, including unsuccessful
+    linear solves. Default ``100 * (N + 1)``. There is also one initial
+    function evaluation; the actual count is returned in ``nfev``.
 epsfcn : float, optional
-    A variable used in determining a suitable step length for the forward-
-    difference approximation of the Jacobian (for Dfun=None).
-    Normally the actual step length will be sqrt(epsfcn)*x
-    If epsfcn is less than the machine precision, it is assumed that the
-    relative errors are of the order of the machine precision.
+    Unused inherited argument; does not enable numerical derivatives.
 factor : float, optional
-    A parameter determining the initial step bound
-    (``factor * || diag * x||``). Should be in interval ``(0.1, 100)``.
+    Damping multiplier after a singular linear solve. Default 100.
+    This is not SciPy's initial-step-bound option.
 diag : sequence, optional
-    N positive entries that serve as a scale factors for the variables.
-method : "ls" or "mle"
-    What type of estimator to use. Maximum likelihood ("mle") assumes that the noise
-    in the measurement is poisson distributed while least squares ("ls") assumes
-    normally distributed noise.
+    Unused inherited argument; custom variable scaling is unimplemented.
+method : {"ls", "mle"}, optional
+    Default "ls" minimizes half the residual sum of squares. "mle"
+    minimizes the Laurence–Chromy Poisson objective using approximate
+    curvature ``J.T @ diag(y / mu**2) @ J`` and adaptive damping.
+
+Returns
+-------
+popt : ndarray
+    Last accepted parameters.
+cov_x : None
+    This low-level solver does not compute covariance.
+infodict : dict, optional
+    With full_output, contains ``fvec`` (residuals for ls, predictions
+    for mle), ``fjac`` at the returned parameters, and the actual number
+    of function calls ``nfev``.
+message : str, optional
+    Termination description, returned with full_output.
+status : int, optional
+    With full_output: 1 for objective convergence, 2 for step convergence,
+    4 for gradient convergence, or 5 for exhausted iterations. Without
+    full_output, exhaustion is logged and the last accepted point returned.
 
 
 ### curve_fit
 ```python
 curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False, check_finite=True, bounds=(-np.inf, np.inf), method=None, jac=None, **kwargs)
 ```
-Use non-linear least squares to fit a function, f, to data.
-
-Assumes ``ydata = poisson(f(xdata, *params))``
+Fit a model using SciPy or the custom analytic-derivative solvers.
 
 Parameters
 ----------
 f : callable
-    The model function, f(x, ...).  It must take the independent
-    variable as the first argument and the parameters to fit as
-    separate remaining arguments.
-xdata : An M-length sequence or an (k,M)-shaped array for functions with k predictors
-    The independent variable where the data is measured.
-ydata : M-length sequence
-    The dependent data --- nominally f(xdata, ...)
-p0 : None, scalar, or N-length sequence, optional
-    Initial guess for the parameters.  If None, then the initial
-    values will all be 1 (if the number of parameters for the function
-    can be determined using introspection, otherwise a ValueError
-    is raised).
-sigma : None or M-length sequence or MxM array, optional
-    Determines the uncertainty in `ydata`. If we define residuals as
-    ``r = ydata - f(xdata, *popt)``, then the interpretation of `sigma`
-    depends on its number of dimensions:
-        - A 1-d `sigma` should contain values of standard deviations of
-          errors in `ydata`. In this case, the optimized function is
-          ``chisq = sum((r / sigma) ** 2)``.
-        - A 2-d `sigma` should contain the covariance matrix of
-          errors in `ydata`. In this case, the optimized function is
-          ``chisq = r.T @ inv(sigma) @ r``.
-          .. versionadded:: 0.19
-    None (default) is equivalent of 1-d `sigma` filled with ones.
+    Model called as ``f(xdata, *params)``. For custom "mle", predictions
+    must be strictly positive; use a suitable model parameterization.
+xdata : array_like or object
+    Independent variables passed to the model.
+ydata : array_like
+    Observations. Custom "mle" requires finite nonnegative Poisson counts,
+    including zero-count bins. Other methods minimize squared residuals.
+p0 : scalar or array_like or None, optional
+    Initial guess for SciPy. If None, SciPy infers the parameter count and
+    starts at ones. Custom methods first run an unweighted SciPy
+    least-squares fit, then use its result as their initial parameters.
+sigma : scalar or array_like or None, optional
+    Passed to delegated SciPy methods. Custom methods require None;
+    weighting is unimplemented, including a supplied all-ones sigma.
 absolute_sigma : bool, optional
-    If True, `sigma` is used in an absolute sense and the estimated parameter
-    covariance `pcov` reflects these absolute values.
-    If False, only the relative magnitudes of the `sigma` values matter.
-    The returned parameter covariance matrix `pcov` is based on scaling
-    `sigma` by a constant factor. This constant is set by demanding that the
-    reduced `chisq` for the optimal parameters `popt` when using the
-    *scaled* `sigma` equals unity. In other words, `sigma` is scaled to
-    match the sample variance of the residuals after the fit.
-    Mathematically,
-    ``pcov(absolute_sigma=False) = pcov(absolute_sigma=True) * chisq(popt)/(M-N)``
+    Passed to SciPy. Custom covariance is unscaled for both True and
+    False (default); custom covariance rescaling is unimplemented.
 check_finite : bool, optional
-    If True, check that the input arrays do not contain nans of infs,
-    and raise a ValueError if they do. Setting this parameter to
-    False may silently produce nonsensical results if the input arrays
-    do contain nans. Default is True.
+    Check input arrays for NaNs and infinities. Default True.
 bounds : 2-tuple of array_like, optional
-    Lower and upper bounds on independent variables. Defaults to no bounds.
-    Each element of the tuple must be either an array with the length equal
-    to the number of parameters, or a scalar (in which case the bound is
-    taken to be the same for all parameters.) Use ``np.inf`` with an
-    appropriate sign to disable bounds on all or some parameters.
-    .. versionadded:: 0.17
-method : {'lm', 'trf', 'dogbox'}, optional
-    Method to use for optimization.  See `least_squares` for more details.
-    Default is 'lm' for unconstrained problems and 'trf' if `bounds` are
-    provided. The method 'lm' won't work when the number of observations
-    is less than the number of variables, use 'trf' or 'dogbox' in this
-    case.
+    Parameter bounds passed to SciPy. Custom methods support only
+    unbounded parameters (the default ``(-inf, inf)``).
+method : {None, "lm", "trf", "dogbox", "ls", "mle"}, optional
+    None (default), "lm", "trf", and "dogbox" delegate to SciPy curve_fit.
+    "ls" selects custom unweighted least squares. "mle" selects the
+    Laurence–Chromy Poisson objective, not least squares. "pyls" and
+    unknown methods raise TypeError.
+jac : callable or str or None, optional
+    Custom methods require an analytic Jacobian ``jac(xdata, *params)``
+    with shape (observations, parameters); None and numerical derivative
+    selectors raise NotImplementedError. Delegated methods retain SciPy's
+    supported numerical derivative options.
+**kwargs
+    Options for the delegated SciPy fit, or for both the SciPy initializer
+    and custom ``lm``. See ``lm`` for custom tolerances and limitations.
+    ``full_output=True`` requests a five-item result instead of two.
+    Custom ``col_deriv`` must be True despite its legacy name. Inherited
+    ``epsfcn`` and ``diag`` do not tune the custom iteration.
 
-    "ls", "mle"
-    What type of estimator to use. Maximum likelihood ("mle") assumes that the noise
-    in the measurement is poisson distributed while least squares ("ls") assumes
-    normally distributed noise. "pyls" is a python implementation, for testing only
-
-    .. versionadded:: 0.17
-jac : callable, string or None, optional
-    Function with signature ``jac(x, ...)`` which computes the Jacobian
-    matrix of the model function with respect to parameters as a dense
-    array_like structure. It will be scaled according to provided `sigma`.
-    If None (default), the Jacobian will be estimated numerically.
-    String keywords for 'trf' and 'dogbox' methods can be used to select
-    a finite difference scheme, see `least_squares`.
-    .. versionadded:: 0.18
-kwargs
-    Keyword arguments passed to `leastsq` for ``method='lm'`` or
-    `least_squares` otherwise.
+Returns
+-------
+popt : ndarray
+    Fitted parameters.
+pcov : ndarray
+    SciPy's covariance for delegated methods. Custom methods return the
+    unscaled pseudoinverse of ``J.T @ J`` at the fitted point, discarding
+    numerically zero singular values. This has no validated Poisson
+    confidence-interval interpretation and ignores ``absolute_sigma``.
+infodict : dict or None, optional
+    With full_output, diagnostics from SciPy or custom ``lm``. Delegated
+    bounded fits and "trf"/"dogbox" retain the legacy placeholder None.
+message : str, optional
+    Termination message with full_output. The legacy delegated placeholder
+    result uses "No error".
+status : int, optional
+    Termination status with full_output. The legacy delegated placeholder
+    result uses 1. Failed custom convergence raises RuntimeError.
 
 
 ## dphtools/utils/lpsvd.py
@@ -1449,7 +1453,7 @@ Update B: in this case is just the rotation matrix multiplied by the scale facto
 ```python
 calc_init_scale(self)
 ```
-Calculate scale: for similarity we have isotropic scaling for each point cloud.
+Use one isotropic scale for both centered point clouds.
 
 
 ### RigidCPD
