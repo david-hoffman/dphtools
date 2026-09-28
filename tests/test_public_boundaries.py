@@ -523,3 +523,166 @@ raise SystemExit(status)
         results.append(receipt.get("values"))
     assert not problems, "\n".join(problems)
     assert len(results) == 2 and results[0] == results[1]
+
+
+def test_completion_display_grid_aspect_preserves_pixels_and_vertical_contours():
+    images = {
+        "ramp": np.tile(np.arange(5.0), (4, 1)),
+        "shifted": np.tile(np.arange(5.0) + 10, (4, 1)),
+    }
+    display.display_grid(
+        images,
+        nrows=1,
+        grid_aspect=2,
+        aspect=1.5,
+        showcontour=True,
+        contourcolor="green",
+    )
+    fig = plt.gcf()
+    fig.canvas.draw()
+    axes = [axis for axis in fig.axes if axis.images]
+    assert len(axes) == 2
+    for axis in axes:
+        assert axis.get_title() in images
+        assert_array_equal(axis.images[0].get_array(), images[axis.get_title()])
+        assert axis.get_subplotspec().get_gridspec().nrows == 1
+        # The inherited Matplotlib aspect is the displayed y/x unit-length ratio.
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
+        origin, along_x, along_y = axis.transData.transform([[0, 0], [1, 0], [0, 1]])
+        assert_allclose(np.linalg.norm(along_y - origin) / np.linalg.norm(along_x - origin), 1.5)
+        paths = [
+            path.vertices
+            for collection in axis.collections
+            for path in collection.get_paths()
+            if len(path.vertices) > 1
+        ]
+        assert paths
+        # z depends only on the column: every nonempty contour is vertical.
+        # No contour count, level spacing, origin, or threshold is prescribed.
+        for vertices in paths:
+            assert np.isfinite(vertices).all()
+            assert_allclose(vertices[:, 0], vertices[0, 0], atol=1e-12)
+            assert np.ptp(vertices[:, 1]) > 0
+
+
+@pytest.mark.parametrize("raises", [False, True], ids=["return", "exception"])
+def test_completion_timer_elapsed_meaning_above_one_second(raises, capsys, caplog):
+    marker = object()
+    error = RuntimeError("long timed body failed")
+    minimum_seconds = 1.125
+
+    def body():
+        with utils.EasyTimer("long boundary duration"):
+            time.sleep(minimum_seconds)
+            if raises:
+                raise error
+            return marker
+
+    start = time.perf_counter()
+    with caplog.at_level(logging.DEBUG):
+        if raises:
+            with pytest.raises(RuntimeError) as caught:
+                body()
+            assert caught.value is error
+        else:
+            assert body() is marker
+    outer_seconds = time.perf_counter() - start
+    captured = capsys.readouterr()
+    emitted = (
+        captured.out + captured.err + "\n".join(record.getMessage() for record in caplog.records)
+    )
+    assert "long boundary duration" in emitted
+    quantities = re.findall(
+        r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*"
+        r"(nanoseconds?|microseconds?|milliseconds?|seconds?|ns|[uµμ]s|ms|s)\b",
+        emitted,
+    )
+    unit_scales = {
+        "ns": 1e-9,
+        "nanosecond": 1e-9,
+        "us": 1e-6,
+        "µs": 1e-6,
+        "μs": 1e-6,
+        "microsecond": 1e-6,
+        "ms": 1e-3,
+        "millisecond": 1e-3,
+        "s": 1,
+        "second": 1,
+    }
+    consistent = []
+    for magnitude, unit in quantities:
+        scale = unit_scales[unit if unit in unit_scales else unit.removesuffix("s")]
+        seconds = float(magnitude) * scale
+        # Use the printed resolution, not an assumed rounding precision or
+        # duration at which the timer should switch units.
+        resolution = 10.0 ** Decimal(magnitude).as_tuple().exponent * scale
+        consistent.append(minimum_seconds - resolution <= seconds <= outer_seconds + resolution)
+    assert any(consistent), emitted
+
+
+def test_completion_low_level_lm_rejects_unknown_method():
+    from dphtools.utils.lm import lm
+
+    # The low-level contract allows ls/mle but does not pin the exception family
+    # for other selectors. This asserts rejection, not a diagnostic format.
+    with pytest.raises(Exception):
+        lm(
+            lambda p: np.array([p[0] - 2, 2 * (p[0] - 2)]),
+            [1.0],
+            Dfun=lambda p: np.array([[1.0], [2.0]]),
+            method="not-a-solver",
+            maxfev=10,
+        )
+
+
+def test_completion_registration_rejects_unknown_model_name():
+    # Rejection is required; the public packet does not choose an error family.
+    with pytest.raises(Exception):
+        registration.choose_model("not-a-registration-model")
+
+
+def test_completion_one_dimensional_registration_plot_displays_fitted_results():
+    fixed = np.array([[0.0], [1.0], [4.0], [8.0], [11.0]])
+    moving = fixed + 0.2
+    reg = registration.TranslationCPD(fixed, moving)
+    reg(maxiters=100, dist_tol=1e-8)
+    assert_allclose(reg.transform(moving), fixed, atol=1e-5)
+    assert_allclose(reg.rmse, 0, atol=1e-5)
+    reg.plot()
+    fig = plt.gcf()
+    fig.canvas.draw()
+    # The public plot promises registration results but chooses no 1D layout.
+    # Require data-bearing artists without prescribing a plot layout.
+    plotted_data = [np.asarray(line.get_xydata()) for axis in fig.axes for line in axis.lines]
+    plotted_data.extend(
+        np.asarray(collection.get_offsets())
+        for axis in fig.axes
+        for collection in axis.collections
+    )
+    plotted_data.extend(patch.get_path().vertices for axis in fig.axes for patch in axis.patches)
+    plotted_data.extend(
+        np.asarray(image.get_array()) for axis in fig.axes for image in axis.images
+    )
+    assert any(
+        values.size and np.isfinite(values).all() for values in plotted_data
+    ), "A fitted 1D registration must display data, not an empty axes."
+
+
+def test_completion_auto_weight_translation_in_three_dimensions_maps_unseen_points():
+    moving = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0], [0.0, 2.0, -2.0], [3.0, 4.0, 3.0], [-1.0, 3.0, 1.5]]
+    )
+    displacement = np.array([0.2, -0.3, 0.1])
+    reg = registration.auto_weight(
+        moving + displacement,
+        moving.copy(),
+        "translation",
+        resolution=0.05,
+        limits=(0.05, 0.1),
+        maxiters=80,
+        dist_tol=1e-7,
+    )
+    assert_allclose(reg.transform(moving), moving + displacement, atol=1e-5)
+    unseen = np.array([[2.5, 1.5, -0.5], [-0.5, 2.0, 4.0]])
+    assert_allclose(reg.transform(unseen), unseen + displacement, atol=1e-5)
+    assert_allclose(reg.rmse, 0, atol=1e-5)
