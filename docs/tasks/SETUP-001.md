@@ -1,6 +1,6 @@
 # SETUP-001: Install and demonstrate the delivery workflow
 
-**Version 1.0** Status: approved implementation checkpoint complete; awaiting scientific intake; setup is not ready. No implementation role is currently running.
+**Version 1.0** Status: owner-approved correctness maintenance in test review; setup is not ready. No passing final review is claimed.
 
 ## Contract
 
@@ -120,3 +120,7 @@ The coordinator ran `PATH="$PWD/tools:$PATH" delivery doctor` from clean `7feb60
 - **Test defect, already repaired:** checked the fixture-only diff `cfdea14` and actual logs for runs [36281726862](https://github.com/david-hoffman/dphtools/actions/runs/36281726862) and [36282672655](https://github.com/david-hoffman/dphtools/actions/runs/36282672655). Windows changed from 39 fixture errors to 39 doctor passes. The latter run still has 12 failures on every platform and failed coverage/`ci-required`; this is not a green whole-repository rerun. Existing rules already distinguish fixture errors from meaningful red evidence, so this lesson warrants no new rule.
 
 Product failure causes and unresolved scientific contracts were not adjudicated. No new workflow defect was established. Doctor did not rerun the product suite, recheck remote protection, or change runtime code, tests, workflows, thresholds, or settings. Approval of this documentation patch does not resolve the recorded readiness gaps. Record its lesson disposition with the resulting commit/PR reference after commit.
+
+### Owner-approved correctness maintenance
+
+On 2026-09-27 the owner authorized all of item 1 with the explicit caveat that `lm.py` implements Laurence and Chromy, *Efficient Maximum Likelihood Estimator Fitting of Histograms* (2010): fix misleading copied SciPy docstrings and leave unimplemented paths unimplemented. [The maintenance contract](SETUP-001-maintenance-contract.md) narrows the earlier solver proposals accordingly. The coordinator interprets this to include absent custom `absolute_sigma` covariance rescaling, rather than adding it to satisfy a copied SciPy promise. Existing unsupported paths will remain unsupported and be covered as such. Public signatures, supported behavior, and the 100% coverage requirement remain. Fresh A/B review and a new committed test checkpoint precede fresh C maintenance. This is an owner-authorized scope clarification, not a repair after D; no D has run. Unlimited budget continues; the default one C/D repair remains.

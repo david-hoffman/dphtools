@@ -1,8 +1,8 @@
 # SETUP-001: Scientific maintenance intake
 
-**Version 1.0** Pending owner decisions. This is an intake record, not an approved numerical contract or a replacement delivery specification.
+**Version 1.0** Correctness repairs approved; solver expansion prohibited. This is an intake record, not an approved numerical contract or a replacement delivery specification.
 
-The owner approved compatibility maintenance and baseline tests, preserving public APIs and numerical intent. On 2026-09-27 the owner approved the separate doctor documentation patch (item 2) and requested code locations and decisions for the proposed product repairs (item 1). Item 1 remains unapproved. No product code or reviewed tests changed during this investigation.
+The owner approved compatibility maintenance and baseline tests, preserving public APIs and numerical intent. On 2026-09-27 the owner approved the separate doctor documentation patch (item 2) and requested code locations and decisions for the proposed product repairs (item 1). The owner subsequently approved all of item 1 with this caveat: `lm.py` implements Laurence and Chromy (2010); fix copied SciPy docstrings, but leave unimplemented paths unimplemented. The operative clarification is in [the maintenance contract](SETUP-001-maintenance-contract.md). The analysis below records the preceding decision map; its proposals to add solver capabilities are superseded by that approval. No product change preceded the new test review/checkpoint.
 
 ## Evidence and limits
 
