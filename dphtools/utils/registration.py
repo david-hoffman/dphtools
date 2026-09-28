@@ -421,15 +421,9 @@ class SimilarityCPD(BaseCPD):
         return self.B
 
     def calc_init_scale(self):
-        """Calculate scale: for similarity we have isotropic scaling for each point cloud."""
-        # we can prescale by the same anisotropic scaling factor we use in
-        # TranslationCPD and then augment it by an isotropic scaling factor
-        # for each point cloud.
-        anisotropic_scale = np.concatenate((self.X, self.Y)).std()
-        # self.scale_x = anisotropic_scale / self.X.var()
-        # self.scale_y = anisotropic_scale / self.Y.var()
-        # NOTE: the above doesn't work
-        self.scale_x = self.scale_y = 1 / np.array((anisotropic_scale, anisotropic_scale))
+        """Use one isotropic scale for both centered point clouds."""
+        scale = np.concatenate((self.X, self.Y)).std()
+        self.scale_x = self.scale_y = np.full(self.D, 1 / scale)
 
     def _umeyama(self):
         """Calculate Umeyama: for similarity we want to have scaling."""
@@ -462,9 +456,6 @@ class RigidCPD(SimilarityCPD):
         # the call signature for _umeyama is (src, dst)
         # which is the reverse of ours
         return _umeyama(self.Y, self.X, False)
-
-    # for rigid we also want to avoid anything other than uniform scaling
-    calc_init_scale = TranslationCPD.calc_init_scale
 
 
 EuclideanCPD = RigidCPD

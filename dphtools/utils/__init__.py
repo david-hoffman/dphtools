@@ -863,11 +863,14 @@ def crop_image_for_split(img, sides):
 
 
 def combine_img(stack):
-    """Combine tiled stack."""
+    """Reassemble a square grid of tiles returned by ``split_img``."""
     length = len(stack)
     ny = int(np.sqrt(length))
 
     assert length % ny == 0
     assert length // ny == ny
 
-    return stack.reshape(ny, ny)
+    height, width = stack.shape[1:]
+    return (
+        stack.reshape(ny, ny, height, width).transpose(0, 2, 1, 3).reshape(ny * height, ny * width)
+    )

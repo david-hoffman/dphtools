@@ -57,7 +57,7 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     # Shift the signal forward by 1
     rollsig = np.roll(signal, -1)
     # Generate the Hankel matrix
-    A = hankel(rollsig[: N - L], signal[L:])
+    A = hankel(rollsig[: N - L], signal[N - L :])
     # Take the conjugate of the Hankel Matrix to form the prediction matrix
     A = np.conj(A)
     # Set up the data vector, the vector to be "predicted"

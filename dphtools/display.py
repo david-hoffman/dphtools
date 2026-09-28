@@ -207,7 +207,7 @@ def clean_grid(fig, axs):
 def take_slice(data, axis, midpoint=None):
     """Take slices."""
     if midpoint is None:
-        midpoint = np.array(data.shape, dtype=np.int) // 2
+        midpoint = np.array(data.shape, dtype=int) // 2
     my_slice = [slice(None, None, None) for i in range(data.ndim)]
     my_slice[axis] = midpoint[axis]
     return data[tuple(my_slice)]
@@ -573,7 +573,6 @@ class SymPowerNorm(Normalize):
         result, is_scalar = self.process_value(value)
 
         self.autoscale_None(result)
-        gamma = self.gamma
         vmin, vmax = self.vmin, self.vmax
         if vmin > vmax:
             raise ValueError("minvalue must be less than or equal to maxvalue")
@@ -584,10 +583,7 @@ class SymPowerNorm(Normalize):
                 mask = np.ma.getmask(result)
                 result = np.ma.array(np.clip(result.filled(vmax), vmin, vmax), mask=mask)
             resdat = result.data
-            resdat = self._transform(resdat)
-            vmin = self._transform(vmin)
-            vmax = self._transform(vmax)
-            resdat = (resdat - vmin) / (vmax - vmin)
+            resdat = self._transform((resdat - vmin) / (vmax - vmin))
 
             result = np.ma.array(resdat, mask=result.mask, copy=False)
         if is_scalar:
@@ -598,17 +594,13 @@ class SymPowerNorm(Normalize):
         """Invert scale."""
         if not self.scaled():
             raise ValueError("Not invertible until scaled")
-        gamma = self.gamma
         vmin, vmax = self.vmin, self.vmax
-
-        vmin = self._transform(vmin)
-        vmax = self._transform(vmax)
 
         if np.iterable(value):
             val = np.ma.asarray(value)
-            return self._transform_inv(val * (vmax - vmin) + vmin)
+            return self._transform_inv(val) * (vmax - vmin) + vmin
         else:
-            return self._transform_inv(value * (vmax - vmin) + vmin)
+            return self._transform_inv(value) * (vmax - vmin) + vmin
 
     def autoscale(self, A):
         """Set *vmin*, *vmax* to min, max of *A*."""
