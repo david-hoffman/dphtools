@@ -504,3 +504,86 @@ def test_delegated_bounded_full_output_retains_documented_placeholders(method):
     assert info is None
     assert message == "No error"
     assert status == 1
+
+
+@pytest.mark.parametrize("bad_count", [-1.0, np.nan, np.inf])
+def test_low_level_poisson_rejects_invalid_observed_counts(bad_count):
+    counts = np.array([bad_count, 4.0, 0.0, 12.0])
+    exposure = np.array([1.0, 2.0, 4.0, 8.0])
+    with pytest.raises(ValueError):
+        lm(
+            lambda p: (np.exp(p[0]) * exposure, counts),
+            [0.0],
+            Dfun=lambda p: (np.exp(p[0]) * exposure)[:, None],
+            method="mle",
+            maxfev=5,
+        )
+
+
+@pytest.mark.parametrize("bad_prediction", [0.0, -1.0, np.nan, np.inf])
+def test_low_level_poisson_rejects_invalid_initial_predictions(bad_prediction):
+    with pytest.raises(ValueError):
+        lm(
+            lambda p: (np.array([bad_prediction, np.exp(p[0])]), np.array([1.0, 2.0])),
+            [0.0],
+            Dfun=lambda p: np.array([[0.0], [np.exp(p[0])]]),
+            method="mle",
+            maxfev=5,
+        )
+
+
+def test_custom_poisson_curve_fit_rejects_negative_counts():
+    exposure = np.array([1.0, 2.0, 4.0, 8.0])
+    with pytest.raises(ValueError):
+        curve_fit(
+            exposure_model,
+            exposure,
+            [-1.0, 4.0, 0.0, 12.0],
+            p0=[0.0],
+            jac=exposure_jacobian,
+            method="mle",
+            maxfev=100,
+        )
+
+
+@pytest.mark.parametrize("method", ["ls", "mle"])
+def test_custom_fit_accepts_list_observations_and_scalar_initial_parameter(method):
+    def model(x, rate):
+        return rate * np.asarray(x)
+
+    def jacobian(x, rate):
+        return np.asarray(x)[:, None]
+
+    result, covariance = curve_fit(
+        model, [1, 2, 4, 8], [3, 6, 12, 24], p0=1.0, jac=jacobian, method=method, maxfev=100
+    )
+    assert_allclose(result, [3], atol=1e-7)
+    assert covariance.shape == (1, 1)
+
+
+def test_low_level_exhaustion_without_full_output_logs_and_preserves_accepted_objective(caplog):
+    import logging
+    import re
+
+    with caplog.at_level(logging.DEBUG):
+        result, covariance = lm(
+            lambda p: np.array([p[0] ** 2 - 1, 2 * (p[0] ** 2 - 1)]),
+            [0.1],
+            Dfun=lambda p: np.array([[2 * p[0]], [4 * p[0]]]),
+            maxfev=1,
+            ftol=0,
+            xtol=0,
+        )
+    assert 2.5 * (result[0] ** 2 - 1) ** 2 <= 2.5 * (0.1**2 - 1) ** 2 + 1e-12
+    assert covariance is None
+    # Ordinary iteration progress is insufficient. Require an exhaustion or
+    # nonconvergence notice, without fixing its full text, level, or logger.
+    notice = re.compile(
+        r"\bexhaust(?:ed|ion)?\b"
+        r"|\b(?:did not|could not|failed to|unable to|not)\s+converg\w*\b"
+        r"|\bnon[- ]?converg\w*\b"
+        r"|\b(?:maximum|maxfev|iteration limit)\b.*\b(?:reached|exceeded)\b"
+        r"|\b(?:reached|exceeded)\b.*\b(?:maximum|maxfev|iteration limit)\b",
+        re.IGNORECASE,
+    )
+    assert any(notice.search(" ".join(record.getMessage().split())) for record in caplog.records)

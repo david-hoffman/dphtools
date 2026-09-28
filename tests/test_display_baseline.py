@@ -412,3 +412,40 @@ def test_mip_forwards_image_color_limits_and_colormap(shape):
         assert_allclose(image.get_clim(), [3, 17])
         assert image.get_cmap().name == "viridis"
     fig.canvas.draw()
+
+
+@pytest.mark.parametrize("count", [1, 4, 5])
+def test_square_montage_preserves_each_tile_when_displayed(count):
+    from dphtools import utils
+
+    # Distinct positive patterns distinguish lost, repeated, transposed, or
+    # scrambled tiles. No tile order or padding intensity is prescribed.
+    stack = np.arange(1, count * 9 + 1).reshape(count, 3, 3)
+    montage = utils.square_montage(stack)
+    assert montage.ndim == 2
+    assert montage.shape[0] == montage.shape[1]
+    blocks = [
+        montage[y : y + 3, x : x + 3]
+        for y in range(0, montage.shape[0], 3)
+        for x in range(0, montage.shape[1], 3)
+    ]
+    for tile in stack:
+        assert sum(np.array_equal(tile, block) for block in blocks) == 1
+    fig, _ = display.mip(montage, cmap="viridis")
+    assert_image_planes(fig, [montage])
+    fig.canvas.draw()
+
+
+def test_slice_maker_rectangle_and_slice_display_agree_on_selected_pixels():
+    from dphtools import utils
+
+    data = np.arange(12 * 16).reshape(12, 16)
+    selection = utils.slice_maker((6, 8), (4, 6))
+    # Integer even widths have an unambiguous center and no rounding boundary.
+    assert selection == (slice(4, 8), slice(5, 11))
+    rectangle = display.make_rec_from_slice(selection, linewidth=2)
+    assert_allclose(rectangle.get_xy(), [5, 4])
+    assert_allclose([rectangle.get_width(), rectangle.get_height()], [6, 4])
+    fig, _ = display.mip(data[selection])
+    assert_image_planes(fig, [data[4:8, 5:11]])
+    fig.canvas.draw()

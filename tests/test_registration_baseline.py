@@ -286,3 +286,46 @@ def test_propagated_commuting_translations_have_the_expected_final_mapping(initi
     assert_allclose(translation, expected_translation, atol=1e-12)
     unseen = np.array([[2.5, 1.5], [-0.5, 2.0]])
     assert_allclose(unseen @ matrix + translation, unseen + expected_translation, atol=1e-12)
+
+
+def test_drift_corrected_custom_tracks_register_and_match_in_three_dimensions():
+    import pandas as pd
+
+    from dphtools.utils import beads
+
+    coordinates = ["u", "v", "w"]
+    points = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
+    angle = 0.08
+    rotation = np.array(
+        [[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]]
+    )
+    stationary = points @ rotation.T + [0.2, -0.3, 0.1]
+    frames = pd.Index([10, 20, 30, 40, 50], name="frame")
+    drift = np.arange(-2.0, 3.0)[:, None] * np.array([0.5, -0.25, 0.75])
+    tracks = []
+    for index, position in enumerate(stationary):
+        # Both schedules have zero mean drift, making offset removal exact.
+        rows = np.array([0, 2, 4]) if index % 2 else np.arange(5)
+        track = pd.DataFrame(position + drift[rows], columns=coordinates)
+        track["frame"] = frames[rows]
+        track["amp"] = float(index + 1)
+        tracks.append(track)
+    measured = beads.calc_drift(
+        tracks, coords=coordinates, frame_name="frame", frames_index=frames, weighted="amp"
+    )
+    assert_array_equal(measured.index, frames)
+    assert_allclose(measured[coordinates], drift, atol=1e-12)
+    observed_last_frame = stationary + drift[-1]
+    corrected = observed_last_frame - measured.loc[50, coordinates].to_numpy()
+    reg = registration.RigidCPD(points.copy(), corrected)
+    reg(maxiters=100, dist_tol=1e-8, normalization=True)
+    assert_allclose(reg.transform(corrected), points, atol=1e-5)
+    fixed = pd.DataFrame(points, columns=coordinates)
+    moving = pd.DataFrame(corrected[[3, 0, 4, 1, 2]], columns=coordinates)
+    fixed_matches, moving_matches = registration.nearest_neighbors(
+        fixed, moving, coords=coordinates, transform=reg.transform, r=1e-5
+    )
+    assert len(fixed_matches) == len(moving_matches) == len(points)
+    assert_allclose(
+        reg.transform(moving_matches[coordinates]), fixed_matches[coordinates], atol=1e-5
+    )

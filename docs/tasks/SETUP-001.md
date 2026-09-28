@@ -1,6 +1,6 @@
 # SETUP-001: Install and demonstrate the delivery workflow
 
-**Version 1.0** Status: all 498 collected tests/doctests pass locally; coverage and scientific contract gaps still block readiness and final review.
+**Version 1.0** Status: published head `c6fa4a2` passes 498 tests/doctests on all three hosted platforms, but fails the 100% coverage gate. Reviewed baseline additions reproduce one further montage defect (513 passes/one failure); a bounded compatibility repair is next. Scientific contracts and coverage still block readiness.
 
 ## Contract
 
@@ -174,3 +174,19 @@ Coverage remains **1535/1822 statements and 329/436 branches**: 287 statements a
 ### Temporary PR target
 
 On 2026-09-28 the owner requested all PRs target `codex-main` for now. PR #10 was retargeted; both bases pointed to `c81ffdf`, so its product diff did not change. PROJECT.md records the preference, and CI's push/PR filters now include both `main` and `codex-main`. The new base already has required CI and review protection, verified read-only and recorded in GITHUB-SETUP.md. No settings, default branch, runtime, tests, or coverage thresholds changed.
+
+### Current CI failure diagnosis
+
+[Actions run 36393317630](https://github.com/david-hoffman/dphtools/actions/runs/36393317630) tested exact PR head **`c6fa4a2`** against `codex-main`. Linux, macOS, and Windows each passed **498 tests/doctests**, with zero failures/errors/skips. Formatting, lint/docstrings, configured types, audit, build/install, and report retention passed. All three coverage report/gate steps failed at **1535/1822 statements (84.25%) and 329/436 branches (75.46%)**; the required `ci-required` aggregate therefore failed too. Artifacts are retained in `reports/github-36393317630/`. The preceding run `36392402046` measured the same results at `114cd69`. Passing tests do not establish green CI.
+
+After the owner reported the failed checks, fresh root A session `01a0e862-71d1-7ac0-92d3-9acf6575b970` began a bounded continuation of already-approved baseline tests with memory/delegation disabled. Its inputs are approved public contracts/tests and aggregate coverage counts, without source gap listings or earlier conversations. This pass requires independent B review before any new checkpoint. Coverage thresholds, exclusions, runtime, and settings remain unchanged; no D has begun.
+
+### CI coverage continuation: proposed tests
+
+Fresh A `01a0e862-71d1-7ac0-92d3-9acf6575b970` added 16 cases in eight functions across three existing baseline files. Its selected run reported 468 passes, one failure, zero errors/skips, 25 pytest warnings and a separately retained smoke-child warning. It verified that all pre-existing test bytes were preserved and reported no implementation exposure. Two provisional drift-weighting cases were withdrawn because the public packet does not specify their uncertainty inputs; they are not claimed product defects. Native cumulative usage was 2,002,059 input / 23,758 output tokens, without dollar metering.
+
+The coordinator's complete run reproduced **513 passes and one failure out of 514 tests/doctests**, zero errors/skips, and 25 pytest warnings. The sole red is a single-image `square_montage` raising `TypeError`; the new four- and five-image integrations pass. Coverage is **1553/1822 statements and 335/436 branches**, with zero excluded lines and all 24 launcher statements. Every 100% report/gate still fails. Formatting and critical lint pass. Reports and exact test hashes are in `reports/ci-proposed-baseline/`; the independent author handoff is `reports/A-ci-coverage/report.md`. These tests are supplemental evidence for existing code, not original test-first evidence. The review and corrected checkpoint evidence follow.
+
+Fresh B `01a0e86f-77f6-71d2-94d9-4a6ceebb2da1` independently reproduced 468 selected passes/one montage failure and required one correction: a generic debug message must not satisfy the exhaustion-log assertion. A corrected only that new test; B verified the old snapshot hash, unchanged other test files, and unchanged objective/result assertions. B accepted all eight additions after independently passing all **134 solver cases with zero warnings**. Both roles reported no implementation exposure. Final cumulative usage: A 2,826,136 input/29,459 output tokens; B 1,476,205 input/18,591 output tokens, not summed with their earlier cumulative reports.
+
+The complete rerun of the exact corrected test bytes again produced **513 passes/one montage failure**, zero errors/skips, 25 pytest warnings, and **1553/1822 statements with 335/436 branches**. JSON/XML/text coverage gates failed and retained their reports in `reports/ci-corrected-red/`. This accepted test checkpoint precedes implementation. In response to the owner's CI report, the next fresh C pass is confined to the singleton montage compatibility defect under the existing maintenance approval; it cannot select scientific conventions, clean up the solver, or start an automatic repair loop. No D or green-CI approval is claimed.
