@@ -44,3 +44,9 @@ Copy below the marker and replace placeholders. Do not leave fake evidence.
 - Status: confirmed; disposition of `2026-09-26-SETUP-001-setup-archive-normalization` and `2026-09-26-SETUP-001-A-warning-source`.
 - Evidence: owner approved item 2 on 2026-09-27; commit `4e4c75d` adopts the doctor proposal in the canonical spec, native AGENTS.md, and its template for PR #10. Duplicate additions to the two role skills and setup prompt were removed at the owner's request. The Windows fixture lesson required no new rule.
 - Lesson: keep the rationale in the spec and the shared operational rule in native instructions; repeat it in the generation template so regeneration preserves the rule. These prospective instructions do not retroactively establish historical session blindness or fix product readiness gaps.
+
+### 2026-09-28-SETUP-001-B-stopping-oracle | Numerical test contracts
+- Status: confirmed
+- Observation: a passing singular-solver test wrongly excluded objective convergence and allowed a gradient-convergence status while that check was disabled.
+- Evidence: fresh B session `01a0e6d5-55b2-7082-8b8a-cbca532c6d8b` identified the contract mismatch. A corrected only the assertion/comment; B independently passed all 123 solver cases and accepted checkpoint `b14298f`.
+- Lesson (returned by B): when several documented stopping predicates can hold at the same accepted point, test returned state and actual callback counts without imposing an undocumented stopping-priority order.

@@ -1,6 +1,6 @@
 # SETUP-001: Install and demonstrate the delivery workflow
 
-**Version 1.0** Status: supplemental tests expose six further defects; coverage and final review remain incomplete. No passing final review is claimed.
+**Version 1.0** Status: all 498 collected tests/doctests pass locally; coverage and scientific contract gaps still block readiness and final review.
 
 ## Contract
 
@@ -160,3 +160,13 @@ Fresh B session `01a0e6d5-55b2-7082-8b8a-cbca532c6d8b` independently reproduced 
 The coordinator's complete run after that correction reproduced **492 passed, six failed, zero errors/skips**, with 62 pytest warnings; the smoke subprocess retained its separate warning. All doctests and 39 doctor cases passed. Measured coverage is **1528/1815 statements and 326/434 branches**, including 24/24 launcher statements, with zero excluded lines. JSON/XML/text gates all fail below 100%. Final reports and test hashes are in `reports/supplemental-corrected-red/`; command logs use the matching `.delivery-runs/` directory. The preceding full run remains under `supplemental-reviewed-red`. The eight accepted test files and this evidence are being committed before the fresh bounded C repair; no D or passing product candidate is claimed.
 
 The six reds cover shifted two-component exponential fitting, antiparallel rotation, advertised volume splitting, single-line recoloring, explicit-cutoff PowerLaw sample state, and LPSVD error-field population. They do not prescribe a new estimator, uncertainty calibration, arbitrary rotation axis, or unsupported solver feature. Remaining scientific choices are draft-only in [intake](SETUP-001-intake.md); owner silence does not approve them.
+
+### Bounded supplemental repair
+
+Reviewed checkpoint **`b14298f`** also ran in [Actions run 36391159033](https://github.com/david-hoffman/dphtools/actions/runs/36391159033). Linux, macOS, and Windows each reported **493 passed/five failed**, zero errors/skips, and 1528/1815 statements with 326/434 branches. The LPSVD field-population case passes with the Python 3.10 lock's pandas 2.3.3 but fails locally with pandas 3.0.6. All non-test/non-coverage verification steps passed; coverage and the required aggregate failed. Artifacts are in `reports/github-36391159033/`.
+
+Fresh root C session `01a0e6e3-2840-7a70-82b2-51fe4c1088e5`, with memory/delegation disabled, committed the six repairs as **`5e4d3af`**. Only four runtime files changed: elapsed-axis exponential guesses and continuous-cutoff state, antiparallel rotation and volume tiling, singleton recoloring, and direct pandas error-field assignment. LPSVD formulas and `lm.py` remain unchanged. All 102 other tracked files, public signatures, and embedded doctests matched the checkpoint; the coordinator subsequently refreshed the public-docstring packet.
+
+The complete local run passed **498 collected tests/doctests**, including eight doctests, 123 solver cases, and 39 launcher cases; zero failures/errors/skips. It retained 25 pytest warnings and one smoke-child warning. Black, critical lint/docstrings, configured gradual types, hashed audit, build, and installation passed. The audit's first sandbox attempt failed; its network-enabled retry passed. A built wheel exercised all six repairs outside the checkout, and its handwritten library files matched the committed source. Python 3.8 syntax passed; its runtime remains unverified. Native C reported 1,226,862 input / 19,649 output tokens, without dollar metering.
+
+Coverage remains **1535/1822 statements and 329/436 branches**: 287 statements and 107 branches are uncovered, not evidence of unsupported instrumentation or proven defects. The launcher measured 24/24 statements; native coverage reports zero branch opportunities there and does not separately certify conditional-expression or exception paths. No thresholds/exclusions changed. JSON/XML/text gates returned exit 2, with all reports retained in `reports/C-supplemental-20260928/`. This completes the bounded repair pass. The candidate is being sent to the existing draft PR's hosted checks; no D, full green CI, merge, or release is claimed. Scientific decisions and further coverage work remain separate gaps.

@@ -775,14 +775,17 @@ multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs)
 ```
 Fit data to a multi-exponential function.
 
-Assumes evenaly spaced data.
+Assumes evenly spaced data.
 
 Parameters
 ----------
 data : ndarray (1d)
-    data that can be modeled as a single exponential decay
+    data that can be modeled as a sum of exponential decays
 xdata : numeric
     x axis for fitting
+components : int
+    Number of exponential components. Automatic selection with None is
+    unsupported and raises NotImplementedError.
 
 Returns
 -------
