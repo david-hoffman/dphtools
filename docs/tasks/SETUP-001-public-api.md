@@ -35,6 +35,11 @@ Plot a colored line with coordinates x and y.
 Optionally specify colors in the array z
 Optionally specify a colormap, a norm function and a line width
 
+Additional existing module documentation (prose, omitted from the original extraction):
+`z` may be omitted for coloring by position, a single number for a uniform color,
+an array at least as long as `x`, or a shorter array whose colors repeat along
+the curve. The returned `LineCollection` can be modified afterwards.
+
 
 ### display_grid
 ```python
@@ -193,6 +198,8 @@ Add a scalebar to the axis.
 
 
 ### SymPowerNorm
+Public base class: `matplotlib.colors.Normalize`.
+
 Linearly map a given value to the 0-1 range and then apply a power-law normalization over that range.
 
 

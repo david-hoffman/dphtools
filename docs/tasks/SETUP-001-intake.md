@@ -40,6 +40,12 @@ The narrow cleanup is implemented in `d193de9`: remove unreachable private weigh
 
 The public `make_lambda(j, d0)` helper remains unresolved. The module's OSTI identifier leads to [Moré's original report at UNT](https://digital.library.unt.edu/ark:/67531/metadc1448594/). Section 6, equations (6.1)–(6.3), gives an n-by-n diagonal matrix for n parameter columns; adaptive scales take the maximum of the previous scale and current Jacobian-column norm for the same parameter. Current code instead forms n-1 adjacent-column maxima. The reference resolves the mathematics but not this helper's undocumented `d0` interface. It is unused by the supported custom solver. Decide whether the standalone helper takes previous per-parameter scales before repair; do not wire in an unimplemented solver path or silently delete a public function. Relevant PDF pages 11–12 were visually checked; a full-paper audit is not claimed. Evidence: `reports/more-scaling-research/REPORT.md`.
 
+## Intercept level units
+
+The coverage continuation exposed a further distinction in `PowerLaw.intercept(value=1)`: its short docstring does not say whether `value` is an occurrence count or normalized density. Current code uses the count amplitude `N*C`, where `N` is the full sample count. For 17 observations, a level of 1 gives `(17*C)**(1/alpha)` under that convention versus `C**(1/alpha)` for normalized density. Neither existing implementation nor the fitted coefficient alone establishes which public interpretation is intended.
+
+The coordinator withdrew a draft test that selected normalized-density units. Supplemental tests may check positive finite intercepts and the ratio between levels, which cancels the unknown amplitude, without deciding these units. This can measure the method while leaving its absolute interpretation unresolved; coverage is not scientific validation of that choice. No product change is authorized by the withdrawn assertion.
+
 ## Owner approval
 
 The earlier setup/compatibility approval and the `lm.py` caveat remain in force. **No approval of the new scientific choices above has been received.** Record answers here, with the exact clauses accepted, before updating the blind behavior packet. Untested or ambiguous behavior does not authorize exclusions, skipped tests, or reduced coverage thresholds.
