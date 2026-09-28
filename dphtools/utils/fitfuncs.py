@@ -254,11 +254,7 @@ def powerlaw_prng(alpha, xmin=1, xmax=1e7):
 
     def P(x):
         """Cumulative distribution function."""
-        try:
-            return zeta(alpha, x) / bottom
-        except TypeError as e:
-            print(alpha, x, r)
-            raise e
+        return zeta(alpha, x) / bottom
 
     # maximum r
     rmax = 1 - P(xmax)

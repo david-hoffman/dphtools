@@ -229,8 +229,7 @@ class BaseCPD(object):
         logger.debug("Variance is {}".format(self.var))
         # make sure self.var is positive
         if self.var < np.finfo(float).eps:
-            # self.var = np.finfo(float).eps
-            self.var = self.tol
+            self.var = max(self.tol, np.finfo(float).eps)
             logger.warning(
                 "Variance has dropped below machine precision, setting to {}".format(self.var)
             )
@@ -620,6 +619,10 @@ def align(
 ):
     """Align two slabs fiducials, assumes that z coordinate has been normalized."""
     model = choose_model(model)
+    coords = ["x0", "y0"] if only2d else ["x0", "y0", "z0"]
+    for fids in (fids0, fids1):
+        if not np.isfinite(fids[coords].values).all():
+            raise ValueError("Alignment coordinates must be finite")
 
     def register(fids0_filt, fids1_filt, coords):
         reg = model(fids0_filt[coords].values, fids1_filt[coords].values)
@@ -644,16 +647,17 @@ def align(
             rmse_new = reg.rmse
             rmse_rel = (rmse - rmse_new) / rmse
             if rmse_new < atol or rmse_rel < rtol:
+                logger.info(
+                    "{} succeeded, rmse = {}, rel = {}, i = {}".format(
+                        coords, rmse_new, rmse_rel, i
+                    )
+                )
                 break
             rmse = rmse_new
         else:
             logger.error(
                 "{} failed, rmse = {}, rel = {}, i = {}".format(coords, rmse_new, rmse_rel, i)
             )
-
-        logger.info(
-            "{} succeeded, rmse = {}, rel = {}, i = {}".format(coords, rmse_new, rmse_rel, i)
-        )
 
         if diagnostics:
             reg.plot()

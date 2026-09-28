@@ -499,8 +499,7 @@ def curve_fit(
             xdata = np.asarray(xdata)
 
     func = _wrap_func(f, xdata, ydata)
-    if callable(jac):
-        jac = _wrap_jac(jac, xdata)
+    jac = _wrap_jac(jac, xdata)
 
     res = lm(func, p0, Dfun=jac, full_output=1, method=method, **kwargs)
     popt, pcov, infodict, errmsg, info = res
