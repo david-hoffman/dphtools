@@ -346,8 +346,6 @@ class BaseCPD(object):
                 # now update Q to follow convergence
                 # we want to minimize Q so Q_old should be more positive than the new Q
                 Q_delta = np.abs(self.Q_old - self.Q)  # / np.abs(self.Q_old)
-                if Q_delta < 0:
-                    logger.warning("Q_delta = {}".format(Q_delta))
                 logger.debug("Q_delta = {}".format(Q_delta))
                 if Q_delta <= tol:
                     logger.info("Objective function converged, Q_delta = {:.3e}".format(Q_delta))

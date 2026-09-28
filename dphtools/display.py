@@ -430,7 +430,9 @@ def auto_adjust(img):
 
     Returns
     -------
-    (vmin, vmax) : tuple of numbers
+    limits : dict
+        Mapping with numeric ``vmin`` and ``vmax`` values, suitable for
+        passing as keyword arguments to plotting functions.
     """
     # calc statistics
     pixel_count = int(np.array((img.shape)).prod())

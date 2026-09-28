@@ -6,4 +6,10 @@ if ! git diff --quiet --; then
     echo "pre-commit: stage or stash unstaged tracked changes so fast checks match the index." >&2
     exit 1
 fi
-exec "${DPHTOOLS_PYTHON:-python}" tools/verification.py fast
+checked_index=$(git write-tree)
+"${DPHTOOLS_PYTHON:-python}" tools/verification.py fast
+current_index=$(git write-tree)
+if test "$current_index" != "$checked_index" || ! git diff --quiet --; then
+    echo "pre-commit: tracked content changed during fast checks; verify again." >&2
+    exit 1
+fi

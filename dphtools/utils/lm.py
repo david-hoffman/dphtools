@@ -82,84 +82,37 @@ def _update_mle(x0, f, Dfun):
     return j, a, g
 
 
-def _wrap_func_mle(func, xdata, ydata, transform):
+def _wrap_func_mle(func, xdata, ydata):
     """Return model predictions and unchanged Poisson counts."""
-    if transform is None:
 
-        def func_wrapped(params):
-            # return function and data
-            return np.asarray(func(xdata, *params)), ydata
+    def func_wrapped(params):
+        # return function and data
+        return np.asarray(func(xdata, *params)), ydata
 
-    elif transform.ndim == 1:
-        raise NotImplementedError
-    else:
-        # Chisq = (y - yd)^T C^{-1} (y-yd)
-        # transform = L such that C = L L^T
-        # C^{-1} = L^{-T} L^{-1}
-        # Chisq = (y - yd)^T L^{-T} L^{-1} (y-yd)
-        # Define (y-yd)' = L^{-1} (y-yd)
-        # by solving
-        # L (y-yd)' = (y-yd)
-        # and minimize (y-yd)'^T (y-yd)'
-        raise NotImplementedError
     return func_wrapped
 
 
-def _wrap_jac_mle(jac, xdata, transform):
-    if transform is None:
+def _wrap_jac_mle(jac, xdata):
 
-        def jac_wrapped(params):
-            return jac(xdata, *params)
+    def jac_wrapped(params):
+        return jac(xdata, *params)
 
-    elif transform.ndim == 1:
-        raise NotImplementedError
-    else:
-        raise NotImplementedError
     return jac_wrapped
 
 
-def _wrap_func_ls(func, xdata, ydata, transform):
+def _wrap_func_ls(func, xdata, ydata):
     """Cost function as defined by Transtrum and Sethna."""
-    if transform is None:
 
-        def func_wrapped(params):
-            return func(xdata, *params) - ydata
-
-    elif transform.ndim == 1:
-
-        def func_wrapped(params):
-            return transform * (func(xdata, *params) - ydata)
-
-    else:
-        # Chisq = (y - yd)^T C^{-1} (y-yd)
-        # transform = L such that C = L L^T
-        # C^{-1} = L^{-T} L^{-1}
-        # Chisq = (y - yd)^T L^{-T} L^{-1} (y-yd)
-        # Define (y-yd)' = L^{-1} (y-yd)
-        # by solving
-        # L (y-yd)' = (y-yd)
-        # and minimize (y-yd)'^T (y-yd)'
-        def func_wrapped(params):
-            return solve_triangular(transform, func(xdata, *params) - ydata, lower=True)
+    def func_wrapped(params):
+        return func(xdata, *params) - ydata
 
     return func_wrapped
 
 
-def _wrap_jac_ls(jac, xdata, transform):
-    if transform is None:
+def _wrap_jac_ls(jac, xdata):
 
-        def jac_wrapped(params):
-            return jac(xdata, *params)
-
-    elif transform.ndim == 1:
-
-        def jac_wrapped(params):
-            return transform[:, np.newaxis] * np.asarray(jac(xdata, *params))
-
-    else:
-
-        def jac_wrapped(params):
-            return solve_triangular(transform, np.asarray(jac(xdata, *params)), lower=True)
+    def jac_wrapped(params):
+        return jac(xdata, *params)
 
     return jac_wrapped
 
@@ -504,8 +457,6 @@ def curve_fit(
 
     if sigma is not None:
         raise NotImplementedError("Weighting has not been implemented")
-    else:
-        transform = None
 
     if not callable(jac):
         raise NotImplementedError("An analytic Jacobian is required")
@@ -547,9 +498,9 @@ def curve_fit(
         else:
             xdata = np.asarray(xdata)
 
-    func = _wrap_func(f, xdata, ydata, transform)
+    func = _wrap_func(f, xdata, ydata)
     if callable(jac):
-        jac = _wrap_jac(jac, xdata, transform)
+        jac = _wrap_jac(jac, xdata)
 
     res = lm(func, p0, Dfun=jac, full_output=1, method=method, **kwargs)
     popt, pcov, infodict, errmsg, info = res

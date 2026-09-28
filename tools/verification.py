@@ -121,6 +121,7 @@ def main():
     reports = root / "reports/verification"
     reports.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix=f"{mode}-", dir=reports))
+    distributions = directory / "dist"
     env = dict(os.environ, MPLBACKEND="Agg", PYTHONHASHSEED="0")
     env["COVERAGE_FILE"] = str(directory / ".coverage")
     env["COVERAGE_RCFILE"] = str(root / "setup.cfg")
@@ -136,8 +137,11 @@ def main():
         commands += [
             ("types", ["mypy", "--follow-untyped-imports", "dphtools", *runtime_tools]),
             ("audit", ["pip_audit", "--require-hashes", "-r", "requirements-dev.lock"]),
-            ("build", ["build", "--no-isolation"]),
-            ("install", ["pip", "install", "--no-deps", "--no-build-isolation", "."]),
+            ("build", ["build", "--no-isolation", "--outdir", str(distributions)]),
+            (
+                "install",
+                ["pip", "install", "--no-deps", "--no-build-isolation", "--force-reinstall"],
+            ),
             ("coverage-erase", ["coverage", "erase"]),
             (
                 "tests",
@@ -174,6 +178,8 @@ def main():
     )
     steps = []
     for name, arguments in commands:
+        if name == "install":
+            arguments = [*arguments, *map(str, sorted(distributions.glob("*.whl")))]
         command = [sys.executable, "-m", *arguments]
         print(f"\n== {name} ==", flush=True)
         try:
@@ -184,6 +190,7 @@ def main():
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                errors="backslashreplace",
             )
             output, status = result.stdout, result.returncode
         except OSError as error:

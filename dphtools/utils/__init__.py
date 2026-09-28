@@ -334,9 +334,8 @@ def _padding_slices(oldshape, newshape):
 
 
 # add np.pad docstring
-if fft_pad.__doc__ is None or np.pad.__doc__ is None:
-    raise TypeError("Cannot concatenate missing fft_pad or numpy.pad docstrings")
-fft_pad.__doc__ += np.pad.__doc__
+if fft_pad.__doc__ is not None and np.pad.__doc__ is not None:
+    fft_pad.__doc__ += np.pad.__doc__
 
 
 def _calc_crop(s1, s2):
@@ -571,7 +570,7 @@ def square_montage(stack):
 def latex_format_e(num, pre=2):
     """Format a number for nice latex presentation, the number will *not* be enclosed in "$"."""
     s = ("{:." + "{:d}".format(pre) + "e}").format(num)
-    fp, xp = s.split("e+")
+    fp, xp = s.split("e")
     return "{} \\times 10^{{{}}}".format(fp, int(xp))
 
 
