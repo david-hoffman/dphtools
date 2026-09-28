@@ -154,3 +154,23 @@ def test_registration_plot_renders_fitted_point_clouds(only2d, dimension):
         figure.canvas.draw()
     finally:
         plt.close("all")
+
+
+@pytest.mark.parametrize("normalization", [False, True])
+def test_rigid_registration_in_three_dimensions_preserves_unseen_distances(normalization):
+    moving = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
+    angle = 0.08
+    matrix = np.array(
+        [[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]]
+    )
+    translation = np.array([0.2, -0.3, 0.1])
+    reg = registration.RigidCPD(moving @ matrix.T + translation, moving.copy())
+    reg(maxiters=100, dist_tol=1e-8, normalization=normalization)
+    unseen = np.array([[2.5, 1.5, -0.5], [-0.5, 2.0, 4.0], [1.0, -2.0, 0.25]])
+    transformed = reg.transform(unseen)
+    assert_allclose(transformed, unseen @ matrix.T + translation, atol=1e-5)
+    assert_allclose(
+        np.linalg.norm(transformed[:, None] - transformed[None, :], axis=-1),
+        np.linalg.norm(unseen[:, None] - unseen[None, :], axis=-1),
+        atol=1e-5,
+    )

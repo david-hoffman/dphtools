@@ -53,3 +53,12 @@ def test_rolling_ball_vertical_offset_only_changes_background():
     shifted_residual, shifted_background = rolling_ball.rolling_ball_filter(data + 7, 2)
     assert_allclose(shifted_residual, residual, atol=1e-12)
     assert_allclose(shifted_background, background + 7, atol=1e-12)
+
+
+def test_circumcircle_selects_indexed_scalene_triangle():
+    triangle = np.array([[0.0, 0.0], [4.0, 0.0], [1.0, 3.0]])
+    points = np.concatenate((triangle, triangle + [10, -7]))
+    center, radius = rolling_ball.circumcircle(points, np.array([3, 4, 5]))
+    # (2,1) is sqrt(5) from each original vertex. Select the translated triangle.
+    assert_allclose(center, [12, -6], atol=1e-12)
+    assert_allclose(radius, np.sqrt(5), atol=1e-12)

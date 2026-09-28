@@ -76,3 +76,11 @@ def test_multi_exp_fit_resolves_two_distinct_components():
 def test_negative_binomial_uses_requested_mean(shape, mean):
     distribution = fitfuncs.NegBinom(shape, mean)
     assert_allclose(distribution.mean(), mean)
+
+
+def test_multi_exp_jacobian_at_zero_amplitude_and_zero_rate():
+    x = np.array([0.0, 0.5, 2.0])
+    # First component has no amplitude: its rate derivative is zero.
+    # Second has rate zero: d/dA = 1 and d/dk = -A*x.
+    expected = np.column_stack((np.exp(-2 * x), np.zeros(3), np.ones(3), -3 * x, np.ones(3)))
+    assert_allclose(fitfuncs.multi_exp_jac(x, 0, 2, 3, 0, 4), expected)

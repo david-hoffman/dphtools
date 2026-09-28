@@ -63,3 +63,60 @@ def test_calc_drift_custom_coordinate_and_frame_names():
     result = beads.calc_drift([track], coords=["u", "v"], frame_name="frame")
     assert_allclose(result[["u", "v"]], [[-2, 1], [0, 0], [2, -1]])
     assert_array_equal(result.index, [2, 4, 6])
+
+
+@pytest.mark.parametrize(
+    "coords, frame_name",
+    [(["x0", "y0"], "frame"), (["u", "v"], "slice"), (["u", "v"], "frame")],
+)
+def test_calc_drift_named_columns_preserve_weighting_and_remove_track_offsets(coords, frame_name):
+    tracks = [
+        pd.DataFrame(
+            {
+                frame_name: [2, 4, 6],
+                coords[0]: [9.0, 10.0, 11.0],
+                coords[1]: [8.0, 6.0, 4.0],
+                "amp": [1.0] * 3,
+            }
+        ),
+        pd.DataFrame(
+            {
+                frame_name: [2, 4, 6],
+                coords[0]: [-23.0, -20.0, -17.0],
+                coords[1]: [9.0, 5.0, 1.0],
+                "amp": [3.0] * 3,
+            }
+        ),
+    ]
+    # Centering removes the static bead positions. Weights 1:3 give the same
+    # established amplitude-weighted drift, independently of column spelling.
+    result = beads.calc_drift(tracks, coords=coords, frame_name=frame_name, weighted="amp")
+    assert_allclose(result[coords], [[-2.5, 3.5], [0, 0], [2.5, -3.5]])
+    assert_array_equal(result.index, [2, 4, 6])
+
+
+@pytest.mark.parametrize("coords, frame_name", [(["x0", "y0"], "slice"), (["u", "v"], "frame")])
+def test_calc_drift_empty_string_selects_unweighted_mean(coords, frame_name):
+    tracks = [
+        pd.DataFrame(
+            {
+                frame_name: [2, 4, 6],
+                coords[0]: [-1.0, 0.0, 1.0],
+                coords[1]: [2.0, 0.0, -2.0],
+                "amp": [1.0] * 3,
+            }
+        ),
+        pd.DataFrame(
+            {
+                frame_name: [2, 4, 6],
+                coords[0]: [-3.0, 0.0, 3.0],
+                coords[1]: [4.0, 0.0, -4.0],
+                "amp": [3.0] * 3,
+            }
+        ),
+    ]
+    # G2: weighted="" gives both tracks equal weight, despite their amplitudes.
+    # At frame 2, x=(-1-3)/2=-2 and y=(2+4)/2=3; both tracks are centered.
+    result = beads.calc_drift(tracks, coords=coords, frame_name=frame_name, weighted="")
+    assert_allclose(result[coords], [[-2, 3], [0, 0], [2, -3]])
+    assert_array_equal(result.index, [2, 4, 6])

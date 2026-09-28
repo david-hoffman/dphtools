@@ -239,3 +239,30 @@ def test_square_tiles_split_combine_round_trip():
 
 def test_one_has_no_prime_factors():
     assert utils.find_prime_facs(1).size == 0
+
+
+@pytest.mark.parametrize("shape, tile_shape", [((6, 10), (3, 5)), ((6, 12), (2, 4))])
+def test_rectangular_tiles_in_square_grid_split_combine_round_trip(shape, tile_shape):
+    # Respect U1's square tile grid: 2x2 or 3x3, with rectangular individual tiles.
+    data = np.arange(np.prod(shape), dtype=np.int16).reshape(shape) - 20
+    combined = utils.combine_img(utils.split_img(data, tile_shape))
+    assert_array_equal(combined, data)
+
+
+def test_quadratic_fit_and_center_recover_a_rotated_surface():
+    x, y = np.meshgrid(np.arange(-3.0, 4.0), np.arange(-3.0, 4.0))
+    u, v = x - 0.75, y + 0.5
+    z = 2 * u**2 + 3 * v**2 + u * v + 7
+    # The Hessian [[4,1],[1,6]] is positive definite, so (0.75,-0.5)
+    # is the unique minimum. Fit and center are both real public entry points.
+    center, _ = utils.find_center(x.ravel(), y.ravel(), z.ravel())
+    assert_allclose(center, [0.75, -0.5], atol=1e-12)
+
+
+def test_gaussian_filter_anisotropic_fourier_mode():
+    y, x = np.meshgrid(np.arange(16), np.arange(20), indexing="ij")
+    fy, fx = 2 / 16, 3 / 20
+    sy, sx = 0.75, 1.5
+    wave = np.cos(2 * np.pi * (fy * y + fx * x))
+    attenuation = np.exp(-2 * np.pi**2 * ((sy * fy) ** 2 + (sx * fx) ** 2))
+    assert_allclose(utils.fft_gaussian_filter(wave, (sy, sx)), wave * attenuation, atol=1e-12)

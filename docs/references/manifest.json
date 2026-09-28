@@ -736,7 +736,7 @@
         }
       ],
       "license_record": "docs/references/laurence-chromy-2010/LLNL-Notice_gpl.2.0.txt",
-      "read_scope": "README and license notices inspected; complete lm_mle.c inspected for objective, curvature, analytic-Jacobian requirement, and acceptance/rejection state. Other supplied files retained with notices but not yet substantively reviewed.",
+      "read_scope": "All six supplied files read: README, license/notices, full lm_mle.c, both headers, and convolvedexponential.c. Reviewed objective, curvature, analytic-Jacobian requirement, damping/accepted-step state, and model parameterization. No reference executable was built or run.",
       "limitations": [
         "Publisher link resolved, but this owner-provided copy was not byte-compared with a publisher ZIP.",
         "Reference material only; not compiled, run, translated, or installed as product code.",

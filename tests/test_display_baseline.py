@@ -234,3 +234,26 @@ def test_histogram_and_cumulative_plot_have_valid_distribution_ranges(log):
     assert np.all(np.diff(line.get_ydata()) >= 0)
     assert np.all((line.get_ydata() >= 0) & (line.get_ydata() <= 1))
     fig.canvas.draw()
+
+
+@pytest.mark.parametrize("gamma, expected", [(0.5, [0, 0.5, 1]), (2, [0, 1 / 16, 1])])
+def test_power_normalization_shifted_positive_range(gamma, expected):
+    # The public formula says to map linearly into [0,1] before exponentiation.
+    norm = display.SymPowerNorm(gamma, vmin=1, vmax=5)
+    assert_allclose(norm([1, 2, 5]), expected)
+
+
+@pytest.mark.parametrize("axis, expected_shape", [(0, (4, 5)), (1, (3, 5)), (2, (3, 4))])
+def test_take_slice_default_preserves_constant_and_removes_selected_axis(axis, expected_shape):
+    # G2: every possible plane has the same values, regardless of midpoint convention.
+    data = np.full((3, 4, 5), -3.25)
+    result = display.take_slice(data, axis=axis)
+    assert result.shape == expected_shape
+    assert_array_equal(result, np.full(expected_shape, -3.25))
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_take_slice_explicit_coordinate_vector_selects_requested_plane(axis):
+    data = np.arange(60).reshape(3, 4, 5)
+    expected = (data[0, :, :], data[:, 1, :], data[:, :, 4])[axis]
+    assert_array_equal(display.take_slice(data, axis=axis, midpoint=(0, 1, 4)), expected)
