@@ -680,6 +680,11 @@ def rot_matrix(source, target):
     # https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
     v1, v2, v3 = np.cross(source, target)
     c = np.inner(source, target)
+    if not np.any((v1, v2, v3)) and c < 0:
+        # A half-turn about any perpendicular axis maps antiparallel vectors.
+        axis = np.cross(source, np.eye(3)[np.argmin(np.abs(source))])
+        axis /= np.linalg.norm(axis)
+        return 2 * np.outer(axis, axis) - np.eye(3)
     vx = np.array(((0, -v3, v2), (v3, 0, -v1), (-v2, v1, 0)))
     return np.eye(3) + vx + vx @ vx * 1 / (1 + c)
 
@@ -840,12 +845,12 @@ def split_img(img, sides):
     for dim, side, divisor in zip(img.shape, sides, divisors):
         assert side == dim / divisor, "Side {}, not equal to {}/{}".format(side, dim, divisor)
 
-    # reshape array so that it's a tiled image
-    img_s0 = img.reshape(divisors[0], sides[0], divisors[1], sides[1])
-    # roll one axis so that the tile's y, x coordinates are next to each other
-    img_s1 = np.rollaxis(img_s0, -3, -1)
-    # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.prod(divisors), sides[0], sides[1])
+    # Separate each grid dimension from its tile dimension.
+    img_s0 = img.reshape(np.column_stack((divisors, sides)).ravel())
+    # Group grid axes first, then the coordinates within each tile.
+    axes = tuple(range(0, 2 * img.ndim, 2)) + tuple(range(1, 2 * img.ndim, 2))
+    img_s1 = img_s0.transpose(axes)
+    return img_s1.reshape((np.prod(divisors), *sides))
 
 
 def crop_image_for_split(img, sides):

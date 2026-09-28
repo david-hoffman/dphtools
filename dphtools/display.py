@@ -243,7 +243,7 @@ def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
     # cycle through colors and recolor lines
     for i, obj in enumerate(objs):
         # generate new color
-        new_color = list(cmap(i / (num_objs - 1)))
+        new_color = list(cmap(i / max(num_objs - 1, 1)))
         # replace alpha is wanted
         if new_alpha is not None:
             new_color[-1] = new_alpha

@@ -93,14 +93,17 @@ def exponent_fit(data, xdata=None, offset=True):
 def multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs):
     """Fit data to a multi-exponential function.
 
-    Assumes evenaly spaced data.
+    Assumes evenly spaced data.
 
     Parameters
     ----------
     data : ndarray (1d)
-        data that can be modeled as a single exponential decay
+        data that can be modeled as a sum of exponential decays
     xdata : numeric
         x axis for fitting
+    components : int
+        Number of exponential components. Automatic selection with None is
+        unsupported and raises NotImplementedError.
 
     Returns
     -------
@@ -129,14 +132,16 @@ def multi_exp_fit(data, xdata=None, components=None, offset=True, **kwargs):
         # we can't fit data with less than 4 points
         # make guesses
         if components > 1:
+            # Choose guess partitions independently of the x-axis origin.
+            elapsed = xdata_fixed - xdata_fixed[0]
             split_points = np.logspace(
-                np.log(xdata_fixed[xdata_fixed > 0].min()),
-                np.log(xdata_fixed.max()),
+                np.log(elapsed[elapsed > 0].min()),
+                np.log(elapsed.max()),
                 components + 1,
                 base=np.e,
             )
             # convert to indices
-            split_idxs = np.searchsorted(xdata_fixed, split_points)
+            split_idxs = np.searchsorted(elapsed, split_points)
             # add endpoints, make sure we don't have 0 twice
             split_idxs = [None] + list(split_idxs[1:-1]) + [None]
             ranges = [slice(start, stop) for start, stop in zip(split_idxs[:-1], split_idxs[1:])]
@@ -472,6 +477,7 @@ class PowerLaw(object):
 
     def _fit_continuous(self, xmin=1):
         """Fit a continuous power-law to data."""
+        self.xmin = xmin
         data = self.data
 
         data = data[data >= xmin]

@@ -265,10 +265,10 @@ def calc_LPSVD_error(LPSVD_coefs, data):
     LPSVD_coefs.insert(7, "phase_error", np.nan)
     # Fill up the Error wave with the errors.
     for i in range(len(LPSVD_coefs)):
-        LPSVD_coefs.amps_error.loc[i] = np.sqrt((FisherMat[1 + i * 4][1 + i * 4]))
-        LPSVD_coefs.freqs_error.loc[i] = np.sqrt((FisherMat[0 + i * 4][0 + i * 4]))
-        LPSVD_coefs.damps_error.loc[i] = np.sqrt((FisherMat[2 + i * 4][2 + i * 4]))
-        LPSVD_coefs.phase_error.loc[i] = np.sqrt((FisherMat[3 + i * 4][3 + i * 4]))
+        LPSVD_coefs.loc[i, "amps_error"] = np.sqrt((FisherMat[1 + i * 4][1 + i * 4]))
+        LPSVD_coefs.loc[i, "freqs_error"] = np.sqrt((FisherMat[0 + i * 4][0 + i * 4]))
+        LPSVD_coefs.loc[i, "damps_error"] = np.sqrt((FisherMat[2 + i * 4][2 + i * 4]))
+        LPSVD_coefs.loc[i, "phase_error"] = np.sqrt((FisherMat[3 + i * 4][3 + i * 4]))
 
     return LPSVD_coefs
 
