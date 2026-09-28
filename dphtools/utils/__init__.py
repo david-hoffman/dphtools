@@ -538,7 +538,7 @@ def montage(stack):
     ntiles, ny, nx = stack.shape[:3]
     # Find the prime factor that makes the montage most square
     primes = find_prime_facs(ntiles)
-    dx = primes[::2].prod()
+    dx = int(primes[::2].prod())
     dy = ntiles // dx
     new_shape = (dy, dx, ny, nx) + stack.shape[3:]
     # sanity check
