@@ -1,0 +1,451 @@
+"""SETUP-001 L2/L3/L5: Agg-rendered plot data and documented geometry."""
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from matplotlib.colors import ListedColormap, to_rgba
+from matplotlib.patches import Rectangle
+from numpy.testing import assert_allclose, assert_array_equal
+
+from dphtools import display
+
+
+@pytest.fixture(autouse=True)
+def close_figures():
+    yield
+    plt.close("all")
+
+
+@pytest.mark.parametrize(
+    "x, y, expected",
+    [
+        ([0, 2, 5], [1, 3, -1], [[[0, 1], [2, 3]], [[2, 3], [5, -1]]]),
+        ([0, 2], [1, 3], [[[0, 1], [2, 3]]]),
+    ],
+)
+def test_make_segments_connects_adjacent_points(x, y, expected):
+    assert_array_equal(display.make_segments(x, y), expected)
+
+
+def test_make_segments_single_point_has_no_lines():
+    assert display.make_segments([2], [3]).shape == (0, 2, 2)
+
+
+@pytest.mark.parametrize("autoscale", [False, True])
+def test_colorline_plots_coordinates_and_requested_colors(autoscale):
+    fig, ax = plt.subplots()
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    display.colorline(
+        [0, 2, 5], [1, 3, -1], z=[0.2, 0.8], linewidth=2, alpha=0.4, ax=ax, autoscale=autoscale
+    )
+    assert len(ax.collections) == 1
+    collection = ax.collections[0]
+    assert_allclose(collection.get_segments(), [[[0, 1], [2, 3]], [[2, 3], [5, -1]]])
+    assert_allclose(collection.get_array(), [0.2, 0.8])
+    assert_allclose(collection.get_linewidths(), [2])
+    assert collection.get_alpha() == 0.4
+    if not autoscale:
+        assert_allclose(ax.get_xlim(), [-1, 1])
+        assert_allclose(ax.get_ylim(), [-1, 1])
+    fig.canvas.draw()
+
+
+def test_colorline_default_axes_and_color_values_render():
+    fig, ax = plt.subplots()
+    display.colorline([0, 1, 2], [2, 0, 3])
+    assert_allclose(ax.collections[0].get_segments(), [[[0, 2], [1, 0]], [[1, 0], [2, 3]]])
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("count, rows", [(1, None), (5, 2), (4, 2)])
+def test_make_grid_contains_requested_number_of_usable_axes(count, rows):
+    fig, axes = display.make_grid(count, nrows=rows)
+    axes = np.asarray(axes).ravel()
+    assert len(axes) >= count
+    assert all(ax.figure is fig for ax in axes)
+    for index, ax in enumerate(axes[:count]):
+        ax.plot([0, 1], [index, index + 1])
+    display.clean_grid(fig, axes)
+    assert len(fig.axes) == count
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("contours", [False, True])
+def test_display_grid_contains_each_named_image(contours):
+    images = {"first": np.arange(20).reshape(4, 5), "second": np.arange(20, 40).reshape(4, 5)}
+    display.display_grid(images, showcontour=contours, nrows=1, cmap="viridis")
+    fig = plt.gcf()
+    plotted = [
+        (ax.get_title(), np.asarray(image.get_array())) for ax in fig.axes for image in ax.images
+    ]
+    assert len(plotted) == 2
+    for title, pixels in plotted:
+        assert title in images
+        assert_array_equal(pixels, images[title])
+    fig.canvas.draw()
+
+
+def assert_image_planes(fig, expected):
+    """Allow display transposes; do not invent undocumented axis orientation."""
+    actual = [np.asarray(image.get_array()) for ax in fig.axes for image in ax.images]
+    assert len(actual) == len(expected)
+    remaining = list(actual)
+    for plane in expected:
+        match = next(
+            (
+                index
+                for index, candidate in enumerate(remaining)
+                if np.array_equal(candidate, plane) or np.array_equal(candidate, plane.T)
+            ),
+            None,
+        )
+        assert match is not None
+        remaining.pop(match)
+
+
+@pytest.mark.parametrize("allaxes", [False, True])
+def test_slice_plot_uses_requested_center(allaxes):
+    data = np.arange(60).reshape(3, 4, 5)
+    fig, _ = display.slice_plot(data, center=(1, 2, 3), allaxes=allaxes)
+    assert_image_planes(fig, [data[1, :, :], data[:, 2, :], data[:, :, 3]])
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("projection", [np.amax, np.mean])
+@pytest.mark.parametrize("allaxes", [False, True])
+def test_mip_shows_each_requested_projection(projection, allaxes):
+    data = np.arange(60).reshape(3, 4, 5)
+    fig, _ = display.mip(data, func=projection, allaxes=allaxes, cmap="viridis")
+    assert_image_planes(fig, [projection(data, axis=axis) for axis in range(3)])
+    fig.canvas.draw()
+
+
+def test_mip_accepts_two_dimensional_image():
+    data = np.arange(20).reshape(4, 5)
+    fig, _ = display.mip(data, plt_kwds={"color": "red"})
+    assert_image_planes(fig, [data])
+    fig.canvas.draw()
+
+
+def test_recolor_preserves_data_and_sets_requested_alpha():
+    fig, ax = plt.subplots()
+    (first,) = ax.plot([0, 1], [1, 2])
+    (second,) = ax.plot([0, 1], [3, 4])
+    display.recolor(ListedColormap(["red"]), ax=ax, new_alpha=0.4)
+    for line, expected_y in [(first, [1, 2]), (second, [3, 4])]:
+        # Alpha can be stored in the RGBA color or as a separate artist property.
+        assert_allclose(to_rgba(line.get_color(), alpha=line.get_alpha()), [1, 0, 0, 0.4])
+        assert_array_equal(line.get_xdata(), [0, 1])
+        assert_array_equal(line.get_ydata(), expected_y)
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("wavelength", [380, 440, 490, 510, 580, 645, 750])
+def test_visible_wavelength_returns_finite_rgb(wavelength):
+    # The packet promises an approximation, but specifies no numerical color table.
+    color = np.asarray(display.wavelength_to_rgb(wavelength))
+    assert color.shape == (3,)
+    assert np.isfinite(color).all()
+    assert (color >= 0).all()
+    assert color.max() > 0
+
+
+def test_scalebar_length_uses_pixel_size():
+    fig, ax = plt.subplots()
+    ax.imshow(np.zeros((20, 20)))
+    display.add_scalebar(ax, scalebar_size=2, pixel_size=0.25, unit="µm")
+    bars = [child for artist in ax.artists for child in artist.findobj(Rectangle)]
+    assert any(np.isclose(bar.get_width(), 8) for bar in bars)
+    fig.canvas.draw()
+
+
+def test_power_normalization_positive_range_matches_documented_formula():
+    norm = display.SymPowerNorm(2, vmin=0, vmax=4)
+    assert_allclose(norm([0, 2, 4]), [0, 0.25, 1])
+
+
+@pytest.mark.parametrize("gamma", [0.5, 1, 2])
+def test_power_normalization_inverse_recovers_values(gamma):
+    norm = display.SymPowerNorm(gamma, vmin=-2, vmax=4)
+    values = np.array([-2.0, -1.0, 0.0, 1.0, 4.0])
+    assert_allclose(norm.inverse(norm(values)), values, atol=1e-12)
+
+
+def test_power_normalization_autoscale_and_clip():
+    norm = display.SymPowerNorm(1, clip=True)
+    norm.autoscale(np.array([-2.0, 4.0]))
+    assert (norm.vmin, norm.vmax) == (-2, 4)
+    assert_allclose(norm([-8, -2, 1, 4, 10]), [0, 0, 0.5, 1, 1])
+    norm.autoscale_None(np.array([-10.0, 10.0]))
+    assert (norm.vmin, norm.vmax) == (-2, 4)
+
+
+def test_power_normalization_autoscales_only_missing_limit():
+    norm = display.SymPowerNorm(1, vmin=-5)
+    norm.autoscale_None(np.array([-2.0, 4.0]))
+    assert (norm.vmin, norm.vmax) == (-5, 4)
+
+
+def test_rectangle_is_centered_on_requested_coordinates():
+    rectangle = display.make_rec(y=10, x=20, width=6, height=4, linewidth=2)
+    assert_allclose(rectangle.get_xy(), [17, 8])
+    assert rectangle.get_width() == 6
+    assert rectangle.get_height() == 4
+    assert rectangle.get_linewidth() == 2
+
+
+def test_rectangle_from_slice_has_slice_dimensions():
+    rectangle = display.make_rec_from_slice((slice(2, 6), slice(3, 9)), linewidth=2)
+    assert rectangle.get_width() == 6
+    assert rectangle.get_height() == 4
+
+
+@pytest.mark.parametrize("log", [False, True])
+def test_drift_plot_converts_sample_spacing_and_pixel_displacements(log):
+    import pandas as pd
+
+    frame = pd.DataFrame({"x0": [-2.0, -1.0, 0.0, 1.0, 2.0], "y0": [2.0, 1.0, 0.0, -1.0, -2.0]})
+    fig, axes = display.drift_plot(frame, dt=0.5, dx=2.0, log=log)
+    real_axis, fourier_axis, scatter_axis = axes
+    assert len(real_axis.lines) == 2
+    for line, coordinate in zip(real_axis.lines, ["x0", "y0"]):
+        assert_allclose(np.diff(line.get_xdata()), 0.5)
+        assert_allclose(line.get_ydata(), frame[coordinate].to_numpy() * 2, atol=1e-12)
+    assert fourier_axis.figure is scatter_axis.figure is fig
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("log", [False, True])
+def test_histogram_and_cumulative_plot_have_valid_distribution_ranges(log):
+    fig, ax = plt.subplots()
+    display.hist_and_cumulative(np.array([1.0, 2.0, 2.0, 3.0]), ax=ax, log=log)
+    assert len(fig.axes) == 2
+    histogram_axis, cumulative_axis = fig.axes
+    assert histogram_axis.patches
+    assert all(np.isfinite(patch.get_path().vertices).all() for patch in histogram_axis.patches)
+    assert len(cumulative_axis.lines) == 1
+    line = cumulative_axis.lines[0]
+    assert np.all(np.diff(line.get_xdata()) >= 0)
+    assert np.all(np.diff(line.get_ydata()) >= 0)
+    assert np.all((line.get_ydata() >= 0) & (line.get_ydata() <= 1))
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("gamma, expected", [(0.5, [0, 0.5, 1]), (2, [0, 1 / 16, 1])])
+def test_power_normalization_shifted_positive_range(gamma, expected):
+    # The public formula says to map linearly into [0,1] before exponentiation.
+    norm = display.SymPowerNorm(gamma, vmin=1, vmax=5)
+    assert_allclose(norm([1, 2, 5]), expected)
+
+
+@pytest.mark.parametrize("axis, expected_shape", [(0, (4, 5)), (1, (3, 5)), (2, (3, 4))])
+def test_take_slice_default_preserves_constant_and_removes_selected_axis(axis, expected_shape):
+    # G2: every possible plane has the same values, regardless of midpoint convention.
+    data = np.full((3, 4, 5), -3.25)
+    result = display.take_slice(data, axis=axis)
+    assert result.shape == expected_shape
+    assert_array_equal(result, np.full(expected_shape, -3.25))
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_take_slice_explicit_coordinate_vector_selects_requested_plane(axis):
+    data = np.arange(60).reshape(3, 4, 5)
+    expected = (data[0, :, :], data[:, 1, :], data[:, :, 4])[axis]
+    assert_array_equal(display.take_slice(data, axis=axis, midpoint=(0, 1, 4)), expected)
+
+
+def test_make_segments_empty_coordinates_has_no_segments():
+    assert display.make_segments([], []).shape == (0, 2, 2)
+
+
+@pytest.mark.parametrize("shape", [(1, 4), (4, 1), (1, 1)])
+def test_mip_singleton_image_dimensions_preserve_pixels(shape):
+    data = np.arange(np.prod(shape)).reshape(shape)
+    fig, _ = display.mip(data)
+    assert_image_planes(fig, [data])
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_take_slice_singleton_axis_with_explicit_vector(axis):
+    shape = [2, 3, 4]
+    shape[axis] = 1
+    data = np.arange(np.prod(shape)).reshape(shape)
+    result = display.take_slice(data, axis, midpoint=(0, 0, 0))
+    assert_array_equal(result, np.take(data, 0, axis=axis))
+
+
+def test_slice_plot_default_center_preserves_constant_planes():
+    fig, _ = display.slice_plot(np.full((3, 4, 5), 7.25))
+    assert_image_planes(fig, [np.full((4, 5), 7.25), np.full((3, 5), 7.25), np.full((3, 4), 7.25)])
+    fig.canvas.draw()
+
+
+def test_recolor_single_line_on_current_axis_preserves_coordinates():
+    fig, ax = plt.subplots()
+    (line,) = ax.plot([0, 1], [3, 4], alpha=0.3)
+    display.recolor(ListedColormap(["blue"]))
+    assert_allclose(to_rgba(line.get_color())[:3], [0, 0, 1])
+    assert_array_equal(line.get_xdata(), [0, 1])
+    assert_array_equal(line.get_ydata(), [3, 4])
+    fig.canvas.draw()
+
+
+def test_scalebar_forwards_edgecolor_and_custom_unit():
+    fig, ax = plt.subplots()
+    ax.imshow(np.zeros((10, 10)))
+    display.add_scalebar(ax, scalebar_size=6, pixel_size=2, unit="nm", edgecolor="red")
+    bars = [child for artist in ax.artists for child in artist.findobj(Rectangle)]
+    assert any(np.isclose(bar.get_width(), 3) for bar in bars)
+    assert any(np.allclose(bar.get_edgecolor(), [1, 0, 0, 1]) for bar in bars)
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("explicit_clip", [False, True])
+def test_power_normalization_call_clip_overrides_constructor(explicit_clip):
+    norm = display.SymPowerNorm(1, vmin=1, vmax=5, clip=not explicit_clip)
+    values = [-3, 1, 3, 5, 9]
+    expected = [0, 0, 0.5, 1, 1] if explicit_clip else [-1, 0, 0.5, 1, 2]
+    assert_allclose(norm(values, clip=explicit_clip), expected)
+
+
+@pytest.mark.parametrize("cmap_object", [False, True])
+def test_drift_plot_integrates_real_drift_with_frequency_band_and_display_options(cmap_object):
+    import pandas as pd
+
+    from dphtools.utils import beads
+
+    sample = np.arange(64.0)
+    x = np.sin(2 * np.pi * 4 * sample / 64)
+    y = np.cos(2 * np.pi * 8 * sample / 64)
+    tracks = [
+        pd.DataFrame({"slice": sample.astype(int), "x0": x + shift, "y0": y - shift})
+        for shift in (0, 10)
+    ]
+    drift = beads.calc_drift(tracks, weighted="")
+    cmap = ListedColormap(["red", "blue"], name="drift-test") if cmap_object else "viridis"
+    fig, (real_axis, fourier_axis, scatter_axis) = display.drift_plot(
+        drift,
+        dt=0.5,
+        dx=2,
+        lf=0.05,
+        hf=0.4,
+        title="Known periodic drift",
+        xc="green",
+        yc="cyan",
+        cmap=cmap,
+    )
+    assert_allclose(drift[["x0", "y0"]], np.column_stack((x, y)), atol=1e-12)
+    for line, coordinate, color in zip(real_axis.lines, (x, y), ("green", "cyan")):
+        assert_allclose(line.get_xdata(), sample * 0.5)
+        assert_allclose(line.get_ydata(), 2 * coordinate, atol=1e-12)
+        assert_allclose(to_rgba(line.get_color()), to_rgba(color))
+    assert len(real_axis.lines) == len(fourier_axis.lines) == 2
+    for line, frequency, color in zip(fourier_axis.lines, (0.125, 0.25), ("green", "cyan")):
+        frequency_axis, spectrum = np.asarray(line.get_xdata()), np.asarray(line.get_ydata())
+        # Four/eight cycles in 64 samples at 0.5 s/sample give 0.125/0.25 Hz.
+        assert_allclose(frequency_axis[np.argmax(spectrum)], frequency, atol=1e-12)
+        # A cutoff may trim plotted data or set the viewport; do not prescribe
+        # which plotting mechanism supplies the same visible frequency band.
+        low, high = fourier_axis.get_xlim()
+        visible = frequency_axis[(frequency_axis >= low) & (frequency_axis <= high)]
+        assert visible.size > 0
+        assert np.all((visible >= 0.05) & (visible <= 0.4))
+        assert_allclose(to_rgba(line.get_color()), to_rgba(color))
+    assert "Known periodic drift" in [text.get_text() for text in fig.texts] + [
+        axis.get_title() for axis in fig.axes
+    ]
+    collection = scatter_axis.collections[0]
+    assert_allclose(collection.get_offsets(), 2 * np.column_stack((x, y)), atol=1e-12)
+    assert collection.get_cmap().name == (cmap.name if cmap_object else cmap)
+    fig.canvas.draw()
+
+
+def test_display_grid_combines_contours_auto_limits_filtering_and_shared_axes():
+    images = {
+        "first": np.arange(25.0).reshape(5, 5),
+        "second": np.arange(25.0, 50.0).reshape(5, 5),
+    }
+    display.display_grid(
+        images,
+        showcontour=True,
+        contourcolor="red",
+        filter_size=1,
+        auto=True,
+        nrows=1,
+        sharex=True,
+        sharey=True,
+    )
+    fig = plt.gcf()
+    axes = [axis for axis in fig.axes if axis.images]
+    assert len(axes) == 2
+    assert axes[0].get_shared_x_axes().joined(*axes)
+    assert axes[0].get_shared_y_axes().joined(*axes)
+    for axis in axes:
+        assert axis.get_title() in images
+        pixels = np.asarray(axis.images[0].get_array())
+        assert pixels.shape == images[axis.get_title()].shape
+        assert np.isfinite(pixels).all()
+        low, high = axis.images[0].get_clim()
+        assert np.isfinite([low, high]).all() and low < high
+        assert axis.collections
+        for collection in axis.collections:
+            colors = collection.get_edgecolor()
+            assert len(colors) > 0
+            assert_allclose(colors, np.broadcast_to([1, 0, 0, 1], colors.shape))
+    # No ImageJ auto-adjust threshold or filtering kernel is selected by this test.
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("shape", [(4, 5), (3, 4, 5)])
+def test_mip_forwards_image_color_limits_and_colormap(shape):
+    data = np.arange(np.prod(shape)).reshape(shape)
+    fig, _ = display.mip(data, vmin=3, vmax=17, cmap="viridis")
+    images = [image for axis in fig.axes for image in axis.images]
+    assert len(images) == (1 if len(shape) == 2 else 3)
+    for image in images:
+        assert_allclose(image.get_clim(), [3, 17])
+        assert image.get_cmap().name == "viridis"
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize("count", [1, 4, 5])
+def test_square_montage_preserves_each_tile_when_displayed(count):
+    from dphtools import utils
+
+    # Distinct positive patterns distinguish lost, repeated, transposed, or
+    # scrambled tiles. No tile order or padding intensity is prescribed.
+    stack = np.arange(1, count * 9 + 1).reshape(count, 3, 3)
+    montage = utils.square_montage(stack)
+    assert montage.ndim == 2
+    assert montage.shape[0] == montage.shape[1]
+    blocks = [
+        montage[y : y + 3, x : x + 3]
+        for y in range(0, montage.shape[0], 3)
+        for x in range(0, montage.shape[1], 3)
+    ]
+    for tile in stack:
+        assert sum(np.array_equal(tile, block) for block in blocks) == 1
+    fig, _ = display.mip(montage, cmap="viridis")
+    assert_image_planes(fig, [montage])
+    fig.canvas.draw()
+
+
+def test_slice_maker_rectangle_and_slice_display_agree_on_selected_pixels():
+    from dphtools import utils
+
+    data = np.arange(12 * 16).reshape(12, 16)
+    selection = utils.slice_maker((6, 8), (4, 6))
+    # Integer even widths have an unambiguous center and no rounding boundary.
+    assert selection == (slice(4, 8), slice(5, 11))
+    rectangle = display.make_rec_from_slice(selection, linewidth=2)
+    assert_allclose(rectangle.get_xy(), [5, 4])
+    assert_allclose([rectangle.get_width(), rectangle.get_height()], [6, 4])
+    fig, _ = display.mip(data[selection])
+    assert_image_planes(fig, [data[4:8, 5:11]])
+    fig.canvas.draw()

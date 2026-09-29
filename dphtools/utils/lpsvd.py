@@ -8,6 +8,11 @@ LPSVD was developed by Tufts and Kumaresan (Tufts, D.; Kumaresan, R. IEEE Transa
 Speech and signal Processing 1982, 30, 671 – 675.) as a method of harmonic inversion, i.e. decomposing
 a time signal into a linear combination of (decaying) sinusoids.
 
+The backward-prediction equations for damped signals are given by Kumaresan, R.;
+Tufts, D. W. IEEE Transactions on Acoustics, Speech, and Signal Processing 1982,
+30 (6), 833–840, equations (2)–(4), DOI: 10.1109/TASSP.1982.1163974.
+https://www.math.ucdavis.edu/~saito/data/sonar/KumaresanTufts.pdf
+
 A great reference that is easy to read for the non-EECS user is:
 Barkhuijsen, H.; De Beer, R.; Bovée, W. M. M. .; Van Ormondt, D. J. Magn. Reson. (1969) 1985, 61, 465–481.
 
@@ -36,14 +41,25 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     ----------
     signal : ndarray
         The signal to be analyzed
-    M : int
-        Model order, if None, it will be estimated
+    M : int, optional
+        Model order, at most min(len(signal) - L, L). If None, use the
+        numerical rank when the prediction matrix is rank deficient at
+        floating-point precision; otherwise use the minimum description
+        length estimate.
     lfactor : float
-        How to size the Hankel matrix, Tufts and Kumaresan suggest 1/3-1/2
-        Default number of prediction coefficients is half the number of points
-        in the input wave
+        Set L = floor(len(signal) * lfactor) prediction coefficients and
+        len(signal) - L prediction equations. The default uses half the samples
+        for the coefficient count. Both matrix dimensions must accommodate
+        the signal rank.
     removebias    : bool
-        If true bias will be removed from the singular values of A
+        If true bias will be removed from the singular values of A.
+        Requires M < min(len(signal) - L, L), leaving unused noise singular values.
+
+    Raises
+    ------
+    ValueError
+        If M exceeds the prediction matrix dimensions, or bias removal has
+        no unused noise singular values.
 
     """
     if lfactor > 3 / 4:
@@ -56,8 +72,8 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     L = int(np.floor(N * lfactor))
     # Shift the signal forward by 1
     rollsig = np.roll(signal, -1)
-    # Generate the Hankel matrix
-    A = hankel(rollsig[: N - L], signal[L:])
+    # A[i, j] = signal[i + j + 1]; the last row has L samples starting at N - L.
+    A = hankel(rollsig[: N - L], signal[N - L :])
     # Take the conjugate of the Hankel Matrix to form the prediction matrix
     A = np.conj(A)
     # Set up the data vector, the vector to be "predicted"
@@ -68,12 +84,21 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
 
     # We can estimate the model order if the user hasn't selected one
     if M is None:
-        M = estimate_model_order(S, N, L) + 8
+        # Noiseless signals have a numerical null space. Inverting its roundoff
+        # singular values destabilizes prediction; use the standard SVD rank
+        # tolerance, scaled by the matrix size and largest singular value.
+        tolerance = S[0] * max(A.shape) * np.finfo(S.dtype).eps
+        M = np.count_nonzero(S > tolerance)
+        if M == len(S):
+            # MDL needs the number of available singular values, including
+            # for wide prediction matrices where that number is less than L.
+            M = estimate_model_order(S, N, len(S))
         print("Estimated model order: {}".format(M))
 
     if M > len(S):
-        M = len(S)
-        print("M too large, set to max = ".format(M))
+        raise ValueError("M must not exceed min(N - L, L) = {}".format(len(S)))
+    if removebias and M == len(S):
+        raise ValueError("Bias removal requires unused noise singular values (M < min(N - L, L))")
 
     # remove bias if needed
     if removebias:
@@ -104,8 +129,8 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     # so we have to reverse the coefficients before finding the roots.
     myroots = np.roots(lp_coefs[::-1])
 
-    # Remove the poles that lie within the unit circle on the complex plane as directed by Kurmaresan
-    # Actually it seems the correct thing to do is to remove roots with positive damping constants
+    # Reversing the polynomial uses q = 1/z relative to Kumaresan–Tufts Eq. (3).
+    # Damped signal roots satisfy |q| <= 1; conj(log(q)) recovers their exponents.
     usedroots = np.array([np.conj(np.log(root)) for root in myroots if np.abs(root) <= 1])
 
     # Error checking: see if we removed all roots!
@@ -265,10 +290,10 @@ def calc_LPSVD_error(LPSVD_coefs, data):
     LPSVD_coefs.insert(7, "phase_error", np.nan)
     # Fill up the Error wave with the errors.
     for i in range(len(LPSVD_coefs)):
-        LPSVD_coefs.amps_error.loc[i] = np.sqrt((FisherMat[1 + i * 4][1 + i * 4]))
-        LPSVD_coefs.freqs_error.loc[i] = np.sqrt((FisherMat[0 + i * 4][0 + i * 4]))
-        LPSVD_coefs.damps_error.loc[i] = np.sqrt((FisherMat[2 + i * 4][2 + i * 4]))
-        LPSVD_coefs.phase_error.loc[i] = np.sqrt((FisherMat[3 + i * 4][3 + i * 4]))
+        LPSVD_coefs.loc[i, "amps_error"] = np.sqrt((FisherMat[1 + i * 4][1 + i * 4]))
+        LPSVD_coefs.loc[i, "freqs_error"] = np.sqrt((FisherMat[0 + i * 4][0 + i * 4]))
+        LPSVD_coefs.loc[i, "damps_error"] = np.sqrt((FisherMat[2 + i * 4][2 + i * 4]))
+        LPSVD_coefs.loc[i, "phase_error"] = np.sqrt((FisherMat[3 + i * 4][3 + i * 4]))
 
     return LPSVD_coefs
 

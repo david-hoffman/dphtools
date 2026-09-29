@@ -38,14 +38,19 @@ def calc_drift(
 
     Given a list of DataFrames with each DF containing the coordinates
     of a single fiducial calculate the mean or weighted mean of the coordinates
-    in each frame.
+    in each frame. ``weighted=""`` selects the unweighted mean; ``"coords"``
+    selects inverse coordinate-variance weights, and other nonempty strings
+    name the weight column (``"amp"`` by default).
     """
     if len(fiducials_df) == 1:
         # if there is only one fiducial then return that
         logger.debug("Only on fiducial passed to calc_drift")
-        toreturn = remove_coord_mean(fiducials_df[0])[coords]
+        track = remove_coord_mean(fiducials_df[0], coords=coords)
+        if frame_name in track.columns:
+            track = track.set_index(frame_name)
+        toreturn = track[coords]
     else:
-        mean_removed = [remove_coord_mean(ff) for ff in fiducials_df]
+        mean_removed = [remove_coord_mean(ff, coords=coords) for ff in fiducials_df]
         if diagnostics:
             # debugging diagnostics
             _, axs = plt.subplots(len(coords))
@@ -92,7 +97,7 @@ def calc_drift(
         else:
             toreturn = df_means.groupby(frame_name)[coords].mean()
         # remove mean of total drift.
-        toreturn = remove_coord_mean(toreturn)
+        toreturn = remove_coord_mean(toreturn, coords=coords)
     if diagnostics:
         toreturn.plot(subplots=True)
     if frames_index is None:

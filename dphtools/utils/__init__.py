@@ -12,6 +12,7 @@ import os
 import subprocess
 import time
 from functools import partial
+from typing import Tuple
 
 import numpy as np
 import scipy
@@ -20,6 +21,7 @@ from numpy.fft import ifftshift, irfftn, rfftn
 from scipy.fft import next_fast_len
 from scipy.ndimage import fourier_gaussian
 from scipy.ndimage._ni_support import _normalize_sequence
+from scipy.spatial.transform import Rotation
 
 logger = logging.getLogger(__name__)
 
@@ -116,15 +118,15 @@ def scale(data, dtype=None):
     >>> from numpy.random import randn
     >>> a = randn(10)
     >>> b = scale(a)
-    >>> b.max()
-    1.0
-    >>> b.min()
-    0.0
+    >>> bool(b.max() == 1.0)
+    True
+    >>> bool(b.min() == 0.0)
+    True
     >>> b = scale(a, dtype = np.uint16)
-    >>> b.max()
-    65535
-    >>> b.min()
-    0
+    >>> bool(b.max() == 65535)
+    True
+    >>> bool(b.min() == 0)
+    True
     """
     if np.issubdtype(data.dtype, np.complexfloating):
         raise TypeError("`scale` is not defined for complex values")
@@ -212,7 +214,7 @@ def radial_profile(data, center=None, binsize=1.0):
     return radial_mean, radial_std
 
 
-def mode(data: np.ndarray) -> int:
+def mode(data: np.ndarray) -> np.signedinteger:
     """Get mode of non-negative integer data.
 
     up to 1000 times faster than scipy mode
@@ -234,8 +236,8 @@ def mode(data: np.ndarray) -> int:
     Example
     -------
     >>> a = np.array([0, 0, 0, 1, 2, 3, 4, 4, 4, 4, 10])
-    >>> mode(a)
-    4
+    >>> bool(mode(a) == 4)
+    True
     """
     # will not work with negative numbers (for now)
     return np.bincount(data.ravel()).argmax()
@@ -265,10 +267,10 @@ def slice_maker(xs, ws):
 
     Examples
     --------
-    >>> slice_maker((30, 20), 10)
-    (slice(25, 35, None), slice(15, 25, None))
-    >>> slice_maker((30, 20), 25)
-    (slice(18, 43, None), slice(8, 33, None))
+    >>> slice_maker((30, 20), 10) == (slice(25, 35, None), slice(15, 25, None))
+    True
+    >>> slice_maker((30, 20), 25) == (slice(18, 43, None), slice(8, 33, None))
+    True
     """
     # normalize inputs
     xs = np.asarray(xs)
@@ -333,7 +335,8 @@ def _padding_slices(oldshape, newshape):
 
 
 # add np.pad docstring
-fft_pad.__doc__ += np.pad.__doc__
+if fft_pad.__doc__ is not None and np.pad.__doc__ is not None:
+    fft_pad.__doc__ += np.pad.__doc__
 
 
 def _calc_crop(s1, s2):
@@ -535,7 +538,7 @@ def montage(stack):
     ntiles, ny, nx = stack.shape[:3]
     # Find the prime factor that makes the montage most square
     primes = find_prime_facs(ntiles)
-    dx = primes[::2].prod()
+    dx = int(primes[::2].prod())
     dy = ntiles // dx
     new_shape = (dy, dx, ny, nx) + stack.shape[3:]
     # sanity check
@@ -568,7 +571,7 @@ def square_montage(stack):
 def latex_format_e(num, pre=2):
     """Format a number for nice latex presentation, the number will *not* be enclosed in "$"."""
     s = ("{:." + "{:d}".format(pre) + "e}").format(num)
-    fp, xp = s.split("e+")
+    fp, xp = s.split("e")
     return "{} \\times 10^{{{}}}".format(fp, int(xp))
 
 
@@ -677,24 +680,30 @@ def rot_matrix(source, target):
     # https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
     v1, v2, v3 = np.cross(source, target)
     c = np.inner(source, target)
+    if not np.any((v1, v2, v3)) and c < 0:
+        # A half-turn about any perpendicular axis maps antiparallel vectors.
+        axis = np.cross(source, np.eye(3)[np.argmin(np.abs(source))])
+        axis /= np.linalg.norm(axis)
+        return 2 * np.outer(axis, axis) - np.eye(3)
     vx = np.array(((0, -v3, v2), (v3, 0, -v1), (-v2, v1, 0)))
     return np.eye(3) + vx + vx @ vx * 1 / (1 + c)
 
 
 def calc_angles(mat_b):
-    """Calculate angles based on rotation matrix."""
-    atan2 = np.arctan2
-    return (
-        atan2(mat_b[1, 2], mat_b[2, 2]),
-        atan2(-mat_b[2, 0], np.sqrt(mat_b[1, 2] ** 2 + mat_b[2, 2] ** 2)),
-        atan2(mat_b[0, 1], mat_b[0, 0]),
-    )
+    """Return principal extrinsic xyz angles in radians for an active rotation.
+
+    The right-handed matrix satisfies ``mat_b = Rz(z) @ Ry(y) @ Rx(x)``.
+    The returned tuple has x and z in [-pi, pi] and y in [-pi/2, pi/2].
+    At gimbal lock, warn and set z to zero while preserving the rotation.
+    The input matrix is not modified.
+    """
+    return tuple(Rotation.from_matrix(mat_b).as_euler("xyz"))
 
 
 # TODO: refactor the below as methods of a point cloud object, maybe
 
 
-def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+def fit_quadratic(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Fit quadratic to point data.
 
     Parameters are:
@@ -837,12 +846,12 @@ def split_img(img, sides):
     for dim, side, divisor in zip(img.shape, sides, divisors):
         assert side == dim / divisor, "Side {}, not equal to {}/{}".format(side, dim, divisor)
 
-    # reshape array so that it's a tiled image
-    img_s0 = img.reshape(divisors[0], sides[0], divisors[1], sides[1])
-    # roll one axis so that the tile's y, x coordinates are next to each other
-    img_s1 = np.rollaxis(img_s0, -3, -1)
-    # combine the tile's y, x coordinates into one axis.
-    return img_s1.reshape(np.product(divisors), sides[0], sides[1])
+    # Separate each grid dimension from its tile dimension.
+    img_s0 = img.reshape(np.column_stack((divisors, sides)).ravel())
+    # Group grid axes first, then the coordinates within each tile.
+    axes = tuple(range(0, 2 * img.ndim, 2)) + tuple(range(1, 2 * img.ndim, 2))
+    img_s1 = img_s0.transpose(axes)
+    return img_s1.reshape((np.prod(divisors), *sides))
 
 
 def crop_image_for_split(img, sides):
@@ -860,11 +869,14 @@ def crop_image_for_split(img, sides):
 
 
 def combine_img(stack):
-    """Combine tiled stack."""
+    """Reassemble a square grid of tiles returned by ``split_img``."""
     length = len(stack)
     ny = int(np.sqrt(length))
 
     assert length % ny == 0
     assert length // ny == ny
 
-    return stack.reshape(ny, ny)
+    height, width = stack.shape[1:]
+    return (
+        stack.reshape(ny, ny, height, width).transpose(0, 2, 1, 3).reshape(ny * height, ny * width)
+    )

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Verify the actual committed checkout. CI still verifies independently.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+pending_changes=$(git status --porcelain --untracked-files=normal)
+if test -n "$pending_changes"; then
+    echo "pre-push: commit or stash tracked and untracked changes before the full gate." >&2
+    exit 1
+fi
+checked_head=$(git rev-parse HEAD)
+while read -r local_ref local_oid remote_ref remote_oid; do
+    if test "$local_ref" != "(delete)"; then
+        pushed_commit=$(git rev-parse "$local_oid^{commit}")
+        if test "$pushed_commit" != "$checked_head"; then
+            echo "pre-push: check out and verify each pushed commit; $local_ref differs from HEAD." >&2
+            exit 1
+        fi
+    fi
+done
+"${DPHTOOLS_PYTHON:-python}" tools/verification.py full
+current_head=$(git rev-parse HEAD)
+pending_changes=$(git status --porcelain --untracked-files=normal)
+if test "$current_head" != "$checked_head" || test -n "$pending_changes"; then
+    echo "pre-push: HEAD or checkout changed during full verification; verify again." >&2
+    exit 1
+fi

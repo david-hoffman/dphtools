@@ -4,4 +4,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# Git's shell hooks must remain executable by sh on Windows checkouts too.
+.githooks/* text eol=lf
+
+# Preserve archived source bytes so Git objects match retrieval hashes.
+docs/references/** -text
+
 dphtools/_version.py export-subst
