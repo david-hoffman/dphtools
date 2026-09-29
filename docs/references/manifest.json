@@ -65,6 +65,21 @@
       "license": "CC-BY-4.0",
       "attribution": "Agent Skills contributors",
       "archive_path": "docs/references/licenses/agentskills-docs-CC-BY-4.0.txt"
+    },
+    "openclaw": {
+      "id": "openclaw-license-pinned",
+      "requested_url": "https://raw.githubusercontent.com/openclaw/openclaw/80930af448ebabc84174146b56bc106d37fab3b4/LICENSE",
+      "retrieved_utc": "2026-09-29T18:12:14.799749+00:00",
+      "completed_utc": "2026-09-29T18:12:15.231279+00:00",
+      "status": "200",
+      "final_url": "https://raw.githubusercontent.com/openclaw/openclaw/80930af448ebabc84174146b56bc106d37fab3b4/LICENSE",
+      "curl_exit": 0,
+      "error": null,
+      "bytes": 1170,
+      "sha256": "73571b25326281d369087f469842c02444fe39faaecebda4d82ed21ff3a1c29d",
+      "license": "MIT",
+      "attribution": "Copyright (c) 2026 OpenClaw Foundation",
+      "archive_path": "docs/references/licenses/openclaw-MIT.txt"
     }
   },
   "sources": [
@@ -374,6 +389,38 @@
       "limitations": [
         "No applicable LICENSE found in repository license endpoint or tree (the only LICENSE found was for apps/snap-happy). Full README remains outside the committed archive."
       ]
+    },
+    {
+      "id": "R10",
+      "title": "OpenClaw test-audit judgment criteria",
+      "reference_url": "https://github.com/openclaw/openclaw/blob/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit/SKILL.md",
+      "retrieval": {
+        "id": "openclaw-test-audit",
+        "requested_url": "https://raw.githubusercontent.com/openclaw/openclaw/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit/SKILL.md",
+        "retrieved_utc": "2026-09-29T18:12:14.798859+00:00",
+        "completed_utc": "2026-09-29T18:12:15.314558+00:00",
+        "status": "200",
+        "final_url": "https://raw.githubusercontent.com/openclaw/openclaw/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit/SKILL.md",
+        "curl_exit": 0,
+        "error": null,
+        "bytes": 7750,
+        "sha256": "01c421239797a8950fe1287f293d2e05f127e69ac457d1b9cdf9b296ac77eacd"
+      },
+      "source_version": {
+        "kind": "git_commit",
+        "commit": "80930af448ebabc84174146b56bc106d37fab3b4"
+      },
+      "read_scope": "Complete pinned skill text read; linked campaign, testing, review, landing instructions, and source implementations were not read or executed.",
+      "read_completed_utc": "2026-09-29T18:12:15.317315+00:00",
+      "archive_path": "docs/references/openclaw/test-audit.source.txt",
+      "license": "openclaw",
+      "source_sha256": "01c421239797a8950fe1287f293d2e05f127e69ac457d1b9cdf9b296ac77eacd",
+      "limitations": [
+        "Only test-judgment criteria are adopted. OpenClaw implementation-reading audit and campaign workflows, commands, helper scripts, and linked skills are not adopted or installed.",
+        "Retain independently meaningful contracts and legitimate external public callers; tests need meaningful correctness checks, not a literal assert keyword.",
+        "This source does not establish numerical tolerances or authorize blind test roles to inspect implementation."
+      ],
+      "license_record": "licenses/openclaw-MIT.txt"
     },
     {
       "id": "O1",

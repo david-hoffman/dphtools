@@ -24,6 +24,9 @@ overwrite working choices. Do not implement product features during setup.
 Show the small setup plan and obtain approval. Separate delivery-tooling installation
 from existing-product remediation, with effort, measurement gaps, and owner decisions.
 Installation approval does not authorize product repairs or resolve missing behavior.
+Expose legacy baseline dependencies that make small slices unable to pass the full
+gate, including global 100% coverage. Let the owner choose adoption scope case by case,
+including an explicitly larger slice where needed; do not weaken readiness criteria.
 Adapt paths and instructions without creating two live specs or overwriting the
 product README. Put LESSONS.md at the repo root. Install the four skills in the
 selected harness's supported location, with
@@ -42,16 +45,21 @@ DOCTOR-PROMPT.md. No daemon or scheduled LLM loop. Default behavior writes an ev
 spec/instruction patch on a docs branch, then waits for owner approval; --check only
 reports. Keep every delivery document at version 1.0. Git versions edits.
 
-Use spec sections 3–4 and the task template for fresh sessions, narrow role packets,
-coherent reviewed checkpoints, expectation sources, oracle review, failure routing,
-and current state. Carry the recorded repair allowance and budget through any
-renamed/regrouped work.
+Use spec sections 3–4 and the task template for the jointly approved slice plan,
+five-scenario default, fresh root roles, numerical oracle review, initially passing
+existing-code tests, and B's diagnosis after two unaccepted reviews. Independent tasks
+use separate worktrees; dependent slices wait for completed, integrated prerequisites.
+Keep the scenario/round/repair/spend line in Current state under section 9; preserve
+history and consumed budget/repairs when work is renamed or split.
 
-Demonstrate valid baseline evidence and a local reviewed test checkpoint, fresh C,
-full local verification passing on the exact candidate before push, fresh D, and a
-normal passing PR. Known failures, including incomplete coverage, block submission.
+Demonstrate valid baseline evidence and a reviewed test checkpoint, fresh C,
+full local verification passing on the exact candidate, fresh D, and a normal PR.
+Apply section 4's gate before opening/reopening a PR (drafts included) or pushing an
+update to an open PR. Pre-PR pushes may back up failing checkpoints. Use fast generic
+hooks and the full command at submission, not a custom controller or backup branch.
+Known failures, including incomplete coverage, block submission.
 CI repeats verification on its configured platforms. Inspect native protections and
-reuse existing failure-blocking evidence; do not push a known failure to create it.
+reuse existing failure-blocking evidence; do not submit a known failure to create it.
 Add one honest lesson and demonstrate doctor editing the spec.
 Label setup evidence honestly; do not fabricate independent sessions
 or active protections. Preserve required source references once; do not make routine

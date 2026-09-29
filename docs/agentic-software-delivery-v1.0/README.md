@@ -10,20 +10,25 @@
 
 First, inventory existing failures, measured coverage, environment problems, and unresolved behavior. Separate installing delivery tooling from repairing the product, including their cost and required decisions. Reuse approved architecture or clarify the missing decisions with the owner. Keep the 100% statement and branch coverage requirement; installation alone does not make the product ready.
 
-For each change:
+For a large request, intake proposes small end-to-end slices; the owner approves the plan and all contracts in one read-back. A request that fits one slice needs only its task document. Each task has one checkpoint lineage and, by default, at most five distinct contract scenarios. Independent tasks may run in separate worktrees; dependent slices wait for completed, integrated prerequisites. A legacy baseline that makes a slice unable to reach full verification and global 100% coverage is an adoption decision to expose up front, not an exception to the gate.
+
+For each approved slice:
 
 ```text
-Clarify the request → you approve the task
+Approved task or slice
     → A writes tests → B reviews tests and their decision logic
-    → establish valid baseline evidence; save the local test checkpoint
-    → C implements → full local verification passes on the exact candidate
-    → push and CI; D reviews the passing candidate
+    → establish valid baseline evidence; save the test checkpoint
+    → C implements or confirms no product change is needed
+    → full local verification passes on the exact candidate
+    → open/update the PR and run CI; D reviews the passing candidate
     → normal GitHub merge after green CI and D's review
 ```
 
-A–D are fresh sessions with narrow packets and concrete completion conditions. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, applicable primary references, or mathematical invariants. Missing units or conventions return to intake. Smaller tests fill genuine gaps.
+A–D are fresh root sessions with narrow packets and concrete completion conditions. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, applicable primary references, or mathematical invariants. Existing-code tests may pass initially; no artificial red result or product mutation is required. A claimed bug still needs the intended failure.
 
-Classify failures before repair: environment/tooling failure, test defect, product defect, or unresolved requirement. Group related approved cases into checkpoints. Keep one concise current-state section, reuse applicable evidence, and count repairs against the same task/checkpoint even if work is renamed.
+Full verification gates opening or reopening a PR, including a draft, and pushes updating an open PR. Before a PR exists, pushes may back up failing checkpoints. Backup is not submission or readiness; closing a PR or moving a branch does not bypass the submission gate.
+
+Classify failures before repair. After two B reviews without acceptance, B diagnoses contract ambiguity or an oversized slice before another rewrite. Keep A/B rounds separate from C repairs and total budget. One compact line in Current state records scenario count, A/B rounds, C repair use, and spend when known; renaming or splitting work does not erase history or consumed resources.
 
 ## What you do
 

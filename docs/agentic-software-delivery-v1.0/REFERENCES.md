@@ -1,10 +1,12 @@
 # References and reading scope
 
-**Version 1.0** Current review: September 26, 2026. This is the source register and adoption note. The selected source archive is [../references/README.md](../references/README.md); it is not a code/security audit or a second operating specification.
+**Version 1.0** Source register updated: September 29, 2026; original setup reading: September 26, 2026. This is the source register and adoption note. The selected source archive is [../references/README.md](../references/README.md); it is not a code/security audit or a second operating specification.
 
 ## Current sources read
 
 During setup, the complete pstack README, five selected skill texts below, and claude-trace README were read at recorded Git commits. Complete selected GitHub and Playwright source texts and rendered substantive articles were also read. The Agent Skills format and AGENTS.md guidance were read, plus two directly relevant GitHub settings/check references. Original-article reading scope is recorded below. Images and videos are not claimed inspected. Links here identify upstream sources; [the manifest](../references/manifest.json) records the exact selected versions, original-byte hashes, retrieval times, access results, licenses, and archive paths.
+
+On September 29, the complete pinned OpenClaw test-audit skill and license were read and added as R10. Earlier sources were not recrawled or reread for this addition.
 
 ### R1 — pstack overview
 
@@ -60,6 +62,16 @@ For browser projects, adapt user-visible behavior, isolated data/state, resilien
 
 The documented tool records Claude Code interactions and raw API data with a viewer; its optional indexing uses Claude calls and additional tokens. This is a diagnostic transcript tool, not a small reusable-lesson record. Do not install it by default. Native harness logs can be consulted for a specific problem when permitted; they stay out of the shared lesson file and blind-role inputs. Implementation, runtime compatibility, and security were not audited or executed.
 
+### R10 — OpenClaw test audit
+
+[OpenClaw test-audit skill](https://github.com/openclaw/openclaw/blob/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit/SKILL.md), read in full at commit `80930af448ebabc84174146b56bc106d37fab3b4`.
+
+Adapt its behavioral-refactor test: an assertion should survive an implementation change that preserves the approved behavior. Tests should not require production exports, hooks, or wrappers with no production purpose. Reject execution that only increases coverage, negative cases passing because an unrelated check rejects the input, fixtures that manufacture the result the product must produce, and names claiming behavior the inputs do not exercise.
+
+Apply these as judgment criteria. A meaningful correctness check need not use a literal `assert` keyword; approved exception and completion behavior can be checked. Legitimate external callers count for a library's public interfaces. Independently meaningful interface, architecture, platform, and ordering contracts remain valid even when their tests resemble implementation checks; existing tests are not automatically deletable.
+
+Do not import OpenClaw's implementation-reading audit, campaign, or landing workflows into blind A/B roles. Linked skills and commands were not read or installed. This source supplies no numerical-tolerance authority. The [inert archive](../references/openclaw/test-audit.source.txt) preserves the complete source with its [MIT notice](../references/licenses/openclaw-MIT.txt).
+
 ## Original articles and earlier supporting references
 
 The original four articles were revisited during setup. Their complete substantive prose was read, except that Symphony's embedded 1,363-line controller specification was deliberately excluded. The full narrative before and after that embed was read. OpenAI article bytes returned HTTP 403; the web tool supplied readable narrative text. No original-byte OpenAI article snapshot or article hash is claimed. Anthropic article bytes were retrieved and hashed, but full text is not republished without an identified redistribution license. [Reading notes](../references/READING-NOTES.md) distinguish the adopted ideas from excluded machinery.
@@ -79,6 +91,6 @@ Known inherited gaps: an introductory Agent Skills course returned HTTP 403; nin
 
 ## Archived setup evidence
 
-The archive contains 17 selected source records. It preserves unchanged licensed pstack and documentation source bytes, their license notices, separately labeled rendered text extracts, and metadata or original summaries where full-source redistribution was not established. Exact source copies occur only under `docs/references/` with inert `.txt` filenames; they are not installed skills. All authored delivery notes remain Version 1.0; upstream source bytes and license versions remain unchanged.
+The archive contains 18 selected source records. It preserves unchanged licensed pstack, OpenClaw, and documentation source bytes, their license notices, separately labeled rendered text extracts, and metadata or original summaries where full-source redistribution was not established. Exact source copies occur only under `docs/references/` with inert `.txt` filenames; they are not installed skills. All authored delivery notes remain Version 1.0; upstream source bytes and license versions remain unchanged.
 
 [Archive index](../references/README.md), [retrieval and hash manifest](../references/manifest.json), and [reading scope and adoption notes](../references/READING-NOTES.md) are the setup evidence. Full unlicensed articles, inaccessible original OpenAI article bytes, image/video assets, and the embedded Symphony controller specification remain deliberate limitations. No downloaded instructions were executed; no private material was archived. Keep these sources out of routine worker context. Do not carry forward superseded architecture requirements because an older source proposed them.

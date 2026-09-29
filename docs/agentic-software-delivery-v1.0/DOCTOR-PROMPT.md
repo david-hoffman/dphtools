@@ -13,6 +13,10 @@ Classify failures under spec section 4: environment/tooling failure, test defect
 product defect, or unresolved requirement. Then distinguish an instruction gap from
 an execution error under an existing rule. Verify lessons before generalizing them.
 A green rerun does not prove a previous failure harmless. Hypotheses remain hypotheses.
+Use the compact Current state metrics (scenario count, A/B rounds, C repair use,
+spend when known) to assess repeated overhead. An evidenced patch may propose tuning
+the default slice size; do not tune it autonomously, reset consumed budgets, or lower
+the verification/coverage gate.
 
 For a confirmed spec gap, create a small docs branch and actually edit the existing
 docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md plus directly affected
@@ -21,7 +25,7 @@ instructions in AGENTS.md and role-specific differences in skills; synchronize t
 generation templates. No new framework, skill swarm, or parallel spec. No gap means
 no change. With --check, report only and do not write files.
 
-Do not change runtime code, tests, workflows, thresholds, or repository settings.
+Do not change runtime code, tests, workflows, acceptance thresholds, or repository settings.
 Do not rewrite desired behavior to match a bug or silently approve architecture drift.
 Those need separate scoped work. Test a new procedural instruction on one relevant
 example when practical. Explain what was and was not verified.

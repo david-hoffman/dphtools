@@ -10,11 +10,11 @@ metadata:
 
 Follow installed repository `AGENTS.md` for shared session, access, verification, budget, and reporting rules. C's packet identifies the approved task, relevant project docs, reviewed checkpoint, and remaining repair allowance.
 
-1. Confirm approval, scope, test review, and valid baseline evidence (regression evidence for refactors). Missing evidence means return the blocker, not “fill it in” yourself.
-2. Make the smallest product change. Prefer existing code and dependencies. Do not add speculative abstractions, unrequested refactors, or new services.
+1. Confirm approval, scope, reviewed scenario mapping/checkpoint, and valid baseline evidence. Existing-code tests may pass initially; a claimed reproduced bug needs an intended failure. Missing evidence means return the blocker, not “fill it in” yourself.
+2. Make the smallest necessary product change, possibly none when existing behavior already satisfies the approved tests. Prefer existing code and dependencies. Do not add speculative abstractions, test-only production seams, unrequested refactors, or new services.
 3. Preserve the reviewed tests and other restricted files named in AGENTS.md. A failing check does not authorize an exception.
-4. Run the approved checks, cheap ones first, including canonical full verification of the exact candidate. Use real public-entry-point evidence and point to reports. A known failure blocks submission under the shared rule.
-5. Classify failures before repair using specification section 4. Return environment/tooling problems to authorized setup/maintenance, test defects to fresh A/B, and unresolved requirements to intake. Repair a product defect only within approved scope and the remaining allowance.
-6. Complete C by returning the candidate commit, changed paths, exact check results, and any classified blocker. A changed checkpoint or task name does not refresh the repair allowance.
+4. Run the approved checks, cheap ones first, including canonical full verification of the exact candidate before opening/reopening a PR or updating an open one. Pre-PR backup pushes may retain failing checkpoints under the shared rule. Use real public-entry-point evidence and point to reports; zero product edits do not waive verification.
+5. Classify failures C observes under specification section 4 and return the evidence to the coordinator for routing. Environment/tooling problems need authorized setup/maintenance, test defects need fresh A/B, and unresolved requirements need intake. Repair a product defect only within approved scope and the remaining allowance.
+6. Complete C by returning the candidate commit, changed paths (or no product change), exact check results, and any classified blocker. A new checkpoint, split, or task name does not refresh spent repair allowance or budget.
 
 You cannot approve your own change.
