@@ -1,0 +1,2 @@
+# Preserve archived retrieval bytes, including original line endings.
+*.txt -text
