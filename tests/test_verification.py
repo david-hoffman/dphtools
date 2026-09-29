@@ -817,17 +817,25 @@ import errno
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 
 def deny_black_launch(event, args):
     if event != "subprocess.Popen":
         return
     argv = args[1]
-    if not isinstance(argv, (list, tuple)):
+    command_prefix = [sys.executable, "-m", "black"]
+    if isinstance(argv, str):
+        # Windows audits the serialized command line, not an argv sequence.
+        prefix = subprocess.list2cmdline(command_prefix)
+        is_black = argv == prefix or argv.startswith(prefix + " ")
+    elif isinstance(argv, (list, tuple)):
+        is_black = list(argv[:3]) == command_prefix
+    else:
         return
-    if any(list(argv[index:index + 2]) == ["-m", "black"] for index in range(len(argv))):
+    if is_black:
         Path(os.environ["VERIFICATION_TEST_DENIED_LAUNCH"]).write_text(
-            json.dumps({"command": list(argv)}), encoding="utf-8"
+            json.dumps({"command": argv}), encoding="utf-8"
         )
         raise PermissionError(errno.EACCES, "fixture scheduled launch unavailable")
 
@@ -848,7 +856,10 @@ sys.addaudithook(deny_black_launch)
     assert data["document_version"] == "1.0" and data["mode"] == "fast"
     steps = [step for step in data["steps"] if step["command"] is not None]
     assert len(steps) == 3
-    assert steps[0]["command"] == denied
+    reported_command = steps[0]["command"]
+    if isinstance(denied, str):
+        reported_command = subprocess.list2cmdline(reported_command)
+    assert reported_command == denied
     assert isinstance(steps[0]["returncode"], int) and steps[0]["returncode"] != 0
     for step, call in zip(steps[1:], verifier.calls()):
         assert step["command"] == [sys.executable, "-m", call["tool"], *call["args"]]

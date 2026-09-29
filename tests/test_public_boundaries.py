@@ -198,13 +198,18 @@ def test_latex_scientific_notation_preserves_value_without_dollar_delimiters(num
     assert_allclose(float(match.group(1)) * 10.0**exponent, number, rtol=1e-12)
 
 
-def test_timer_reports_elapsed_quantity_and_preserves_body_return(capsys, caplog):
+@pytest.mark.parametrize("sleep_seconds", [0.025, 0.075])
+def test_timer_reports_elapsed_quantity_and_preserves_body_return(
+    sleep_seconds, capsys, caplog, record_property
+):
     marker = object()
-    sleep_seconds = 0.025
+    body_elapsed = []
 
     def timed_body():
         with utils.EasyTimer("boundary duration"):
+            body_start = time.perf_counter()
             time.sleep(sleep_seconds)
+            body_elapsed.append(time.perf_counter() - body_start)
             return marker
 
     start = time.perf_counter()
@@ -212,8 +217,13 @@ def test_timer_reports_elapsed_quantity_and_preserves_body_return(capsys, caplog
         result = timed_body()
     elapsed = time.perf_counter() - start
     assert result is marker
+    assert 0 < body_elapsed[0] <= elapsed
     captured = capsys.readouterr()
     emitted = captured.out + captured.err + "\n".join(r.getMessage() for r in caplog.records)
+    record_property(
+        "timer_observation",
+        {"inner_seconds": body_elapsed[0], "outer_seconds": elapsed, "emitted": emitted},
+    )
     assert "boundary duration" in emitted
     quantities = re.findall(
         r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*"
@@ -232,10 +242,12 @@ def test_timer_reports_elapsed_quantity_and_preserves_body_return(capsys, caplog
             )
         )
         seconds = float(magnitude) * scale
-        # Tolerance follows the printed resolution; no precision or unit-switch
-        # threshold is required. The outer clock bounds the measured context.
+        # Bracket actual elapsed work, not the requested sleep. Allow the printed
+        # resolution without prescribing precision, rounding or a unit switch.
         resolution = 10.0 ** Decimal(magnitude).as_tuple().exponent * scale
-        consistent.append(sleep_seconds - resolution <= seconds <= elapsed + resolution)
+        consistent.append(
+            seconds > 0 and body_elapsed[0] - resolution <= seconds <= elapsed + resolution
+        )
     assert any(consistent), emitted
 
 
