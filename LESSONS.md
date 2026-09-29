@@ -100,3 +100,6 @@ Independent helper-test review found that array container dtype did not reliably
 ### 2026-09-29 — Truncated-count dispersion
 
 For a zero-truncated count estimator, compare the conditional likelihood and its boundary models directly. A sample variance below its mean does not by itself exclude a finite negative-binomial optimum; nine 1s, three 2s, one 3 and one 4 provide an independently checked counterexample. Evidence: A's independent Decimal calculation and B's separate likelihood review in `reports/A-six-approved/first-handoff.md` and `reports/B-six-approved/first-review.md`.
+
+
+- A count histogram preserves the empirical conditional likelihood while permitting tests of sample multiplicities too large to materialize. Numerical outcome equivalence alone does not establish public delegation or solver-budget enforcement. In the reviewed negative-binomial component, static inspection plus non-replacing call observation established both; a maxiter stopping option of1 produced two reported evaluations under the real solver. Evidence: SETUP-001 histogram repair and reports/coverage-finalization/ztnb-coordinator-integration.json. This observation describes that solver's stopping semantics, not a universal work limit.

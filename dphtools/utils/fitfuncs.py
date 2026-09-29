@@ -680,17 +680,26 @@ def fit_ztnb(data, x0=(0.5, 0.5)):
     try:
         with np.errstate(over="raise", divide="raise", invalid="raise"):
             seed = float(initial[0] / (1.0 + initial[0]))
-            return _fit_ztnb_profile(data, seed)
+            counts, frequencies = np.unique(data, return_counts=True)
+            return _fit_ztnb_profile(counts, frequencies, seed)
     except (ValueError, ArithmeticError) as error:
         raise RuntimeError(
             "Could not establish a finite zero-truncated negative-binomial fit"
         ) from error
 
 
-def _fit_ztnb_profile(data, seed):
-    """Resolve the conditional likelihood profile and both analytic boundaries."""
-    counts, frequencies = np.unique(data.astype(np.float64), return_counts=True)
-    weights = frequencies / frequencies.sum()
+def _fit_ztnb_profile(counts, frequencies, seed, maxiter=500):
+    """Resolve the conditional likelihood profile of an integer-count histogram.
+
+    The distinct positive integer counts and their positive integer observation
+    multiplicities are not modified. The seed is a compactified initial shape.
+    Positive integer maxiter is forwarded to each bounded scalar refinement as
+    its stopping option. Actual iteration/evaluation counts follow SciPy's
+    solver semantics; this is not an aggregate work or time limit and does not
+    constrain the mean root solves or mesh evaluations.
+    """
+    counts = counts.astype(np.float64)
+    weights = frequencies / sum(map(int, frequencies))
     mean = counts @ weights
     if not np.isfinite(mean) or mean <= 1:
         raise RuntimeError("The sample mean cannot be represented for fitting")
@@ -758,7 +767,7 @@ def _fit_ztnb_profile(data, seed):
                 objective,
                 bounds=(mesh[index - 1], mesh[index + 1]),
                 method="bounded",
-                options={"xatol": 1e-13},
+                options={"xatol": 1e-13, "maxiter": maxiter},
             )
             if not optimum.success:
                 raise RuntimeError(
