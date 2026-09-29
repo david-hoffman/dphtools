@@ -314,6 +314,7 @@ def _powerlaw_discrete_partition(alpha, lower, upper):
     logs = _powerlaw_log_ratio(np.arange(lower, stop, dtype=float), lower)
     weights = np.exp(-alpha * logs)
     total, moment = weights.sum(), np.dot(weights, logs)
+    precision_failed = False
     if stop <= upper:
         start_log = float(_powerlaw_log_ratio(stop, lower))
         start_weight = np.exp(-alpha * start_log)
@@ -353,12 +354,13 @@ def _powerlaw_discrete_partition(alpha, lower, upper):
                 reciprocal += 1 / (alpha + offset)
         # Reject unresolved tail corrections rather than passing a visibly
         # unconverged series evaluation to the likelihood solver.
-        if np.abs(correction).sum() > 1e-13 * total or np.abs(log_correction).sum() > 1e-13 * max(
-            moment, np.finfo(float).tiny
-        ):
-            raise RuntimeError("Discrete partition precision is insufficient.")
-    if not np.isfinite(total + moment) or total <= 0 or moment < 0:
-        raise RuntimeError("Discrete partition is outside numerical range.")
+        precision_failed = np.abs(correction).sum() > 1e-13 * total or np.abs(
+            log_correction
+        ).sum() > 1e-13 * max(moment, np.finfo(float).tiny)
+    if precision_failed or not np.isfinite(total + moment) or total <= 0 or moment < 0:
+        raise RuntimeError(
+            "Discrete partition has insufficient precision or is outside numerical range."
+        )
     return total, moment
 
 
@@ -473,19 +475,14 @@ class PowerLaw(object):
                 return moment / total - mean
 
             left = np.nextafter(1.0, 2.0) if np.isinf(upper) else 1.0
+            # The unbounded left score is positive for finite integer samples.
             if score(left) <= 0:
-                if np.isfinite(upper):
-                    raise ValueError("Bounded likelihood has no interior alpha > 1 optimum.")
-                raise RuntimeError("Exponent is too close to one to represent.")
+                raise ValueError("Bounded likelihood has no interior alpha > 1 optimum.")
             right = 2.0
+            # The scaled moment reaches zero before exponent doubling can overflow.
             while score(right) > 0:
                 right = 1 + 2 * (right - 1)
-                if not np.isfinite(right):
-                    raise RuntimeError("Cannot bracket a finite power-law exponent.")
-            try:
-                alpha = brentq(score, left, right, xtol=5e-14, rtol=1e-14)
-            except ValueError as error:
-                raise RuntimeError("Discrete likelihood root could not be resolved.") from error
+            alpha = brentq(score, left, right, xtol=5e-14, rtol=1e-14)
             total, _ = _powerlaw_discrete_partition(alpha, lower, upper)
             log_c = alpha * np.log(lower) - np.log(total)
         else:
@@ -671,16 +668,13 @@ class PowerLaw(object):
             label="$x_{{min}} = {}$".format(self.xmin),
         )
 
-        try:
-            ax.axvline(
-                self.xmax,
-                color="y",
-                linewidth=4,
-                alpha=0.5,
-                label="$x_{{max}} = {}$".format(self.xmax),
-            )
-        except AttributeError:
-            pass
+        ax.axvline(
+            self.xmax,
+            color="y",
+            linewidth=4,
+            alpha=0.5,
+            label="$x_{{max}} = {}$".format(self.xmax),
+        )
 
         return fig, ax
 
