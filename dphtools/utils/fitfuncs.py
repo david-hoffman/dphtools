@@ -582,6 +582,14 @@ def fit_ztp(data):
         mean = float(np.mean(data, dtype=np.float64))
         if not np.isfinite(mean) or mean <= 1:
             raise RuntimeError("The sample mean cannot be represented for fitting")
+    except (ValueError, ArithmeticError) as error:
+        raise RuntimeError("Fitting zero-truncated Poisson failed") from error
+    return _fit_ztp_mean(mean)
+
+
+def _fit_ztp_mean(mean):
+    """Fit the conditional Poisson rate for a finite binary64 mean above one."""
+    try:
 
         def mean_residual(lam):
             """Evaluate the likelihood equation, including its limit at zero."""

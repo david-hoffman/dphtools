@@ -118,16 +118,53 @@ def _wrap_jac_ls(jac, xdata):
 
 
 def make_lambda(j, d0):
-    """Make the diagonal matrix which takes care of scaling.
+    """Return diagonal scaling from column norms and previous parameter scales.
 
-    according to J. J. Moré's paper
+    Parameters
+    ----------
+    j : array_like, shape (m, n)
+        Finite real numeric Jacobian with nonempty dimensions.
+    d0 : scalar or array_like, shape (n,)
+        Finite nonnegative previous scale, shared or one per parameter.
+
+    Returns
+    -------
+    scaling : ndarray, shape (n, n)
+        Diagonal matrix with each entry equal to the maximum of that column's
+        Euclidean norm and its previous scale. Neither input is modified.
+
+    Raises
+    ------
+    ValueError
+        If either input has invalid shape, nonreal, nonnumeric, boolean or
+        nonfinite storage, or a previous scale is negative.
+    RuntimeError
+        If a resulting column norm cannot be represented numerically.
+
+    Notes
+    -----
+    This implements the per-parameter maximum recurrence in section 6 of
+    Moré's "The Levenberg-Marquardt Algorithm: Implementation and Theory".
     """
-    # Calculate the norm of the jacobian columns
-    ds = la.norm(j, axis=0)
-    ds[0] = d0
-    # return an increasing diagnonal matrix
+    j = np.asarray(j)
+    d0 = np.asarray(d0)
+    if j.ndim != 2 or 0 in j.shape or j.dtype.kind not in "iuf":
+        raise ValueError("Expected a nonempty two-dimensional real numeric Jacobian")
+    if not np.isfinite(j).all():
+        raise ValueError("Jacobian entries must be finite")
+    if d0.ndim > 1 or (d0.ndim == 1 and d0.shape != (j.shape[1],)):
+        raise ValueError("Previous scales must be a scalar or one value per column")
+    if d0.dtype.kind not in "iuf" or not np.isfinite(d0).all() or np.any(d0 < 0):
+        raise ValueError("Previous scales must be finite nonnegative real numeric values")
 
-    return np.diag([max(ds[i], ds[i - 1]) for i in range(1, len(ds))])
+    # Hypotenuse reduction avoids squaring large or tiny entries directly.
+    try:
+        norms = np.hypot.reduce(j, axis=0, dtype=np.result_type(j.dtype, d0.dtype, np.float64))
+    except FloatingPointError as error:
+        raise RuntimeError("Jacobian column norm cannot be represented numerically") from error
+    if not np.isfinite(norms).all():
+        raise RuntimeError("Jacobian column norm cannot be represented numerically")
+    return np.diag(np.maximum(norms, d0))
 
 
 def lm(
