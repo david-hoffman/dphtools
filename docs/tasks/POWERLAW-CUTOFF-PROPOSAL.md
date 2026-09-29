@@ -1,6 +1,6 @@
 # PowerLaw automatic lower-cutoff proposal
 
-**Version 1.0** Status: draft, awaiting owner approval. Git versions revisions.
+**Version 1.0** Status: owner-approved contract; implementation held for coverage-first sequencing. Git versions revisions.
 
 ## Recommendation and meaning
 
@@ -12,7 +12,7 @@ Observed at baseline `8ca6cf2`: floating data with `xmin=None` use 1 without sea
 
 ## Proposed public contract
 
-Scope is `PowerLaw.fit(xmin=None, xmin_max=200, opt_max=False)` and the corresponding explicit-`xmin` likelihood. Preserve the call signature, `(C, alpha)` return, and fitted `xmin`, `C`, `alpha`, and `clipped_data` interface. The following policies require approval; they are not all prescribed by the paper.
+Scope is `PowerLaw.fit(xmin=None, xmin_max=200, opt_max=False)` and the corresponding explicit-`xmin` likelihood. Preserve the call signature, `(C, alpha)` return, and fitted `xmin`, `C`, `alpha`, and `clipped_data` interface. The following policies were approved as recorded below; they are not all prescribed by the paper.
 
 | Choice | Proposed behavior |
 | --- | --- |
@@ -70,4 +70,8 @@ Minimized distance estimates a fitting region; it is not a p-value or evidence t
 
 The main tradeoff is the hard 50-observation floor: it prevents very small automatically selected tails but can reject exploratory datasets or exclude their best-looking small tail. The alternative is a smaller mathematical minimum with a warning; that accepts more data at the cost of easier overinterpretation. Ordinary versus weighted KS is also a choice: retain weighted KS only if extra sensitivity at distribution extremes is wanted and its boundary behavior is separately specified.
 
-The owner requested a proposal on 2026-09-28 and explicitly deferred `fit_ztp`. The approved architecture and unlimited setup budget remain in [PROJECT.md](../PROJECT.md). **No numerical change or proposed policy here is approved.** The requested decision is whether to adopt this lower-cutoff contract, including its 50-observation floor and ordinary KS score. After approval, prepare a source-free behavioral packet and fresh A/B tests before implementation. The coordinator must resolve `opt_max=True` separately before claiming all of `PowerLaw.fit` is covered by this contract. This intake changed only this proposal document; it ran arithmetic checks for the examples, not the product or an acceptance suite.
+The owner requested a proposal on 2026-09-28 and explicitly deferred `fit_ztp`. The approved architecture and unlimited setup budget remain in [PROJECT.md](../PROJECT.md). The original intake changed only this proposal document and ran arithmetic checks for the examples, not the product or an acceptance suite.
+
+In the continuation from clean checkout `1fc9b5d9ee8d3fc8bd5bffd8a8a32bafed7fa710`, the coordinator asked whether to approve this proposal as written, explicitly including ordinary KS and the 50-observation floor. The owner's exact response was: “Sure do that. Stay on this branch and PR. Get coverage to 100% first then implement the cutoff plan”. This approves the complete lower-cutoff contract above, subject to that implementation order. Remain on `codex/scientific-maintenance` and retain PR #10; do not create a replacement PR or switch branches.
+
+Prepare source-free behavioral inputs and fresh independent A/B tests before any C implementation. Cutoff implementation remains held while coverage work proceeds. A coverage percentage with failing tests is not a passing local gate. This approval does not choose upper-cutoff selection (`opt_max=True`), bootstrap/generation, other scientific conventions, or the deferred `fit_ztp` estimator. Those remaining decisions cannot be inferred from the coverage target. The final whole-project gate and fresh D review remain required before pushing; no merge or release is authorized.

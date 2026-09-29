@@ -1,8 +1,8 @@
 # SETUP-001: Remaining scientific contract decisions
 
-**Version 1.0** Draft for unresolved behavior. This record does not authorize implementation or replace the delivery specification.
+**Version 1.0** Intake record for unresolved behavior, with the later lower-cutoff approval recorded below. This record does not replace the delivery specification.
 
-On 2026-09-28 the owner deferred `fit_ztp`, requested a proposal for automatic power-law cutoff selection, and requested original-paper validation of LPSVD. The [lower-cutoff proposal](POWERLAW-CUTOFF-PROPOSAL.md) awaits approval. The [LPSVD paper review](LPSVD-PAPER-REVIEW.md) establishes the Hankel/root convention, identifies a default-order failure, and separates complex support and uncertainty calibration from the approved real-signal baseline tests. None of these open scientific choices is resolved by requiring 100% coverage; do not fill the gaps with implementation-derived expected values.
+On 2026-09-28 the owner deferred `fit_ztp`, requested a proposal for automatic power-law cutoff selection, and requested original-paper validation of LPSVD. The [lower-cutoff proposal](POWERLAW-CUTOFF-PROPOSAL.md) was subsequently approved with coverage-first implementation sequencing; see Owner approval below. The [LPSVD paper review](LPSVD-PAPER-REVIEW.md) establishes the Hankel/root convention, identifies a default-order failure, and separates complex support and uncertainty calibration from the approved real-signal baseline tests. None of these open scientific choices is resolved by requiring 100% coverage; do not fill the gaps with implementation-derived expected values.
 
 The approved Python architecture, unlimited budget, and maintenance scope remain in [PROJECT.md](../PROJECT.md) and [the maintenance contract](SETUP-001-maintenance-contract.md). The owner-approved Laurence–Chromy repairs are committed as `2504ecb`; all 380 then-reviewed tests pass on three CI platforms. Further independent tests have exposed additional ordinary defects and contract gaps. Their review is separate from the choices below. The preceding issue map is preserved in Git, including commit `85139ca`.
 
@@ -48,4 +48,8 @@ The coordinator withdrew a draft test that selected normalized-density units. Su
 
 ## Owner approval
 
-The earlier setup/compatibility approval and the `lm.py` caveat remain in force. **No approval of the new scientific choices above has been received.** Record answers here, with the exact clauses accepted, before updating the blind behavior packet. Untested or ambiguous behavior does not authorize exclusions, skipped tests, or reduced coverage thresholds.
+The earlier setup/compatibility approval and the `lm.py` caveat remain in force. The original open-decision descriptions above are historical evidence, not approval of their proposed policies.
+
+After checkout `1fc9b5d`, the owner approved the [complete lower-cutoff proposal](POWERLAW-CUTOFF-PROPOSAL.md), including ordinary KS, the automatic 50-observation floor, exact likelihoods, boundary inclusion, validation, tie handling and fitted-state behavior: “Sure do that. Stay on this branch and PR. Get coverage to 100% first then implement the cutoff plan”. This supersedes only the lower-cutoff deferral above. Stay on `codex/scientific-maintenance` and PR #10. Prepare/review tests before implementation, and hold cutoff implementation for the requested coverage-first order. `opt_max=True`, generation/bootstrap and the other scientific choices remain unresolved; `fit_ztp` remains deferred.
+
+Record further answers here, with the exact clauses accepted, before updating blind behavior inputs. Untested or ambiguous behavior does not authorize exclusions, skipped tests, reduced coverage thresholds, or treating a coverage report with failing tests as a passing gate.
