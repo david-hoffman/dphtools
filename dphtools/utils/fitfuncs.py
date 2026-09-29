@@ -9,9 +9,9 @@ Copyright (c) 2021, David Hoffman
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import brentq, minimize, minimize_scalar
+from scipy.optimize import brentq, minimize_scalar
 from scipy.signal import signaltools as sig
-from scipy.special import zeta
+from scipy.special import betaln, exprel, gammaln, zeta
 from scipy.stats import nbinom
 
 from .lm import curve_fit
@@ -625,10 +625,177 @@ def negloglikelihoodZTNB(args, x):
 
 
 def fit_ztnb(data, x0=(0.5, 0.5)):
-    """Fit the data assuming it follows a zero-truncated Negative Binomial model."""
-    opt = minimize(negloglikelihoodZTNB, x0, (data,), bounds=((0, np.inf), (0, np.inf)))
+    """Fit a zero-truncated negative binomial by conditional maximum likelihood.
 
-    if not opt.success:
-        raise RuntimeError("Fitting zero-truncated negative binomial", opt)
+    Parameters
+    ----------
+    data : ndarray
+        Nonempty one-dimensional real numeric array of finite positive
+        integer-valued counts. The input is not modified.
+    x0 : pair of float, optional
+        Positive finite initial shape and untruncated mean. The shape seeds
+        the global profile search; the mean is profiled out analytically.
+        The pair is not modified and does not select a different estimator.
 
-    return opt.x
+    Returns
+    -------
+    parameters : ndarray
+        Finite positive shape and untruncated mean, in that order.
+
+    Raises
+    ------
+    ValueError
+        If observations or the initial pair are invalid, or all counts are one.
+    RuntimeError
+        If a finite optimum cannot be resolved against both limiting models,
+        or the global profile search and numerical checks do not converge.
+
+    Notes
+    -----
+    The entire positive shape domain is searched in compact coordinates,
+    including the optimized logarithmic-series and truncated-Poisson limits.
+    Competing interior maxima are refined on two successively finer meshes.
+    This is a numerical global check, not a proof of profile unimodality.
+    """
+    if (
+        not isinstance(data, np.ndarray)
+        or data.ndim != 1
+        or data.size == 0
+        or data.dtype.kind not in "iuf"
+    ):
+        raise ValueError("Expected a nonempty one-dimensional real numeric NumPy array")
+    if not np.isfinite(data).all() or np.any(data <= 0) or np.any(data != np.floor(data)):
+        raise ValueError("Observations must be finite positive integer-valued counts")
+    initial = np.asarray(x0)
+    if (
+        initial.shape != (2,)
+        or initial.dtype.kind not in "iuf"
+        or not np.isfinite(initial).all()
+        or np.any(initial <= 0)
+    ):
+        raise ValueError("Initial shape and mean must be a finite positive numeric pair")
+    if np.all(data == 1):
+        raise ValueError("All-ones data has no finite positive maximum-likelihood parameters")
+
+    try:
+        with np.errstate(over="raise", divide="raise", invalid="raise"):
+            seed = float(initial[0] / (1.0 + initial[0]))
+            return _fit_ztnb_profile(data, seed)
+    except (ValueError, ArithmeticError) as error:
+        raise RuntimeError(
+            "Could not establish a finite zero-truncated negative-binomial fit"
+        ) from error
+
+
+def _fit_ztnb_profile(data, seed):
+    """Resolve the conditional likelihood profile and both analytic boundaries."""
+    counts, frequencies = np.unique(data.astype(np.float64), return_counts=True)
+    weights = frequencies / frequencies.sum()
+    mean = counts @ weights
+    if not np.isfinite(mean) or mean <= 1:
+        raise RuntimeError("The sample mean cannot be represented for fitting")
+
+    root_options = dict(xtol=np.finfo(float).tiny, rtol=8 * np.finfo(float).eps)
+    rate = brentq(lambda z: 1 / exprel(-z) - mean, 0, mean, **root_options)
+    t0 = brentq(lambda t: exprel(t) - mean, 0, 2 * np.log(mean) + 2, **root_options)
+    log_counts = np.log(counts)
+    log_factorials = weights @ gammaln(counts + 1)
+    boundaries = np.array(
+        [
+            mean * np.log(-np.expm1(-t0)) - np.log(t0) - weights @ log_counts,
+            mean * np.log(rate) - log_factorials - rate - np.log(-np.expm1(-rate)),
+        ]
+    )
+    # Allow for cancellation in log probabilities; replication must not change
+    # the estimator, so all likelihoods and tolerances are per observation.
+    tolerance = 1024 * np.finfo(float).eps * (1 + log_factorials + mean * np.log1p(mean))
+
+    def profile(w):
+        """Evaluate an interior shape after matching the conditional mean."""
+        shape = w / (1 - w)
+        # With t=log(1+m/a), z=a*t, write t=(1-w)*h and z=w*h.
+        # E[X|X>0]=exprel(t)/exprel(-z). This remains stable at both
+        # boundaries, and t<=t0, z<=rate bracket the unique mean root.
+        upper = min(t0 / (1 - w), rate / w) * (1 + 1e-12)
+        h = brentq(
+            lambda h: exprel((1 - w) * h) / exprel(-w * h) - mean,
+            0,
+            upper,
+            **root_options,
+        )
+        t, z = (1 - w) * h, w * h
+        # (a)_k/k! = 1/(k*B(a,k)); no PMF underflow or large gamma values.
+        likelihood = (
+            -weights @ (log_counts + betaln(shape, counts))
+            + mean * np.log(-np.expm1(-t))
+            - z
+            - np.log(-np.expm1(-z))
+        )
+        return likelihood, np.array([shape, z * exprel(t)])
+
+    def objective(w):
+        """Attach the exact limiting likelihoods to the compact interval."""
+        if w == 0:
+            return -boundaries[0]
+        if w == 1:
+            return -boundaries[1]
+        return -profile(w)[0]
+
+    solutions = []
+    for size in (129, 513):
+        # Cluster near both boundaries and also sample the caller's start.
+        mesh = np.unique(np.r_[np.sin(np.linspace(0, np.pi / 2, size)) ** 2, seed])
+        values = np.array([objective(w) for w in mesh])
+        if not np.isfinite(values).all():
+            raise RuntimeError("Nonfinite negative-binomial profile likelihood")
+        minima = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] <= values[2:])) + 1
+        # Refine edge intervals even when their best sampled value is a limit:
+        # a near-boundary interior maximum must not be replaced by a shape cap.
+        minima = np.unique(np.r_[1, minima, len(mesh) - 2])
+        candidates = [(values.min(), mesh[values.argmin()])]
+        for index in minima:
+            optimum = minimize_scalar(
+                objective,
+                bounds=(mesh[index - 1], mesh[index + 1]),
+                method="bounded",
+                options={"xatol": 1e-13},
+            )
+            if not optimum.success:
+                raise RuntimeError(
+                    f"Negative-binomial profile refinement failed: {optimum.message}"
+                )
+            candidates.append((optimum.fun, optimum.x))
+        solutions.append(min(candidates))
+
+    best, w = solutions[-1]
+    if w in (0, 1) or -best - boundaries.max() <= tolerance:
+        boundary = ("logarithmic-series", "Poisson")[boundaries.argmax()]
+        raise RuntimeError(
+            f"Could not establish a finite optimum: the {boundary} boundary is competitive "
+            "at numerical precision"
+        )
+    likelihood, parameters = profile(w)
+    previous_value, previous_w = solutions[0]
+    if (
+        previous_w in (0, 1)
+        or abs(best - previous_value) > tolerance
+        or not np.allclose(parameters, profile(previous_w)[1], rtol=1e-4, atol=0)
+    ):
+        raise RuntimeError("Global negative-binomial profile refinement did not converge")
+
+    # Check stationarity independently of the local optimizer's success flag.
+    # Differences in log(shape) avoid an automatically tiny raw score at infinity.
+    shape, fitted_mean = parameters
+    adjacent_shapes = shape * np.exp(np.array([-1e-4, 1e-4]))
+    adjacent = np.array([profile(a / (1 + a))[0] for a in adjacent_shapes])
+    conditional_mean = fitted_mean / -np.expm1(-shape * np.log1p(fitted_mean / shape))
+    if (
+        not np.isfinite(parameters).all()
+        or np.any(parameters <= 0)
+        or not np.isclose(conditional_mean, mean, rtol=1e-10, atol=0)
+        or abs(adjacent[1] - adjacent[0]) / 2e-4 > 1e-6
+        or adjacent.max() > likelihood + tolerance
+    ):
+        raise RuntimeError("Negative-binomial likelihood equations could not be resolved")
+
+    return parameters
