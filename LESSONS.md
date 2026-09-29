@@ -92,3 +92,6 @@ Evidence: `reports/A-powerlaw-cutoff/handoff-before-near-undamped.md`, `reports/
 ### Numerical observers must preserve scalar meaning before conversion
 
 Independent helper-test review found that array container dtype did not reliably describe each returned scalar's precision, that float conversion admitted numeric strings, and that conversion erased finite nonzero Decimal values before structural zero checks. The corrected observer validates real numeric scalars first, tests exact zeros in the original representation, and applies precision per scalar. Independent positive and negative controls verified the correction without replacing the production algorithm. Evidence: `reports/B-coverage-finish/helper-review.md`, `helper-review-corrected.md`, and `helper-review-final.md`. These are test-observer findings, not changes to the approved scientific contract.
+
+
+- A Matplotlib path can report visible geometry while painting nothing because its effective opacity is zero. When testing a calibrated drawn object, tie the paint observation to the same path whose transformed length is checked; a canvas difference from an unrelated object is insufficient. Restore artist state after the observation. Native positive/negative controls established this in `reports/B-coverage-resume/display-review-corrected.md`; the rejected observer/report remain preserved.
