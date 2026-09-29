@@ -362,3 +362,27 @@ B independently confirmed that the helper's first precision correction resolves 
 
 
 B independently accepted the final helper hash `5548131f98cd9b9f768dc08be7b8b16d5bd0f015665b6098e536ccd041591e67` in `reports/B-coverage-finish/helper-review-final.md`. All three observer findings are resolved, with **26 passing independent controls** and the unchanged **13 passing/34 failing public cases**, two retained warnings, zero errors/skips. No source exposure or new numerical convention was reported. The scalar component tests were committed separately at **`a67608d`**, with fast checks passing (`reports/verification/fast-td4pynyx`). This helper checkpoint precedes a fresh C session confined to the approved standalone helper and the reviewed actual-likelihood extraction; all tests and delivery rules remain frozen. No runtime work, D approval, full-gate pass or push is claimed by the checkpoint.
+
+
+### Standalone scaling repair and final measured checkpoint
+
+Reviewed helper checkpoint **`23c5a12`** preceded fresh root C **`01a0ebda-4260-7200-a14c-75b1c3beb25e`**, with memory and delegation disabled. C implemented the approved per-parameter scaling recurrence using stable column norms and preserved every unsupported solver path. It also extracted the accepted scalar conditional-Poisson calculation and integrated it after existing public input/mean validation. Actual call tracing on both interpreters confirmed public `fit_ztp([1,1,2,4])` invokes the component with mean 2 and returns `1.59362426004004`; the numerical calculation remains unchanged.
+
+C reported **258 selected passes on each interpreter**, zero failures/errors/skips and two retained boundary-overflow warnings per run. Its first fast check failed only formatting; the recorded single repair cycle added Black's required blank line before the nested residual. Final fast checks passed on both interpreters. That cycle is consumed, not silently reset for another implementation retry. The final syntax tree matches the targeted-tested bytes, and the subsequent complete gates tested the final formatted source. Evidence: `reports/C-coverage-finish/handoff.md` and its commands/check receipts.
+
+Coordinator hash and syntax-tree audits confirmed that the other **128 tracked files** and all other module-level definitions/imports were preserved. Reviewed tests, delivery rules, four skills, hooks and verification settings remain unchanged. These are C/coordinator scope checks, not independent D review. Runtime changes are committed as **`fd93741`**; the commit's fast hook passed (`reports/verification/fast-wt3viuqt`).
+
+The unchanged canonical full command reports the same result on Python **3.13.12** and **3.10.18**: **1002 tests/doctests, 881 passed, 121 failed, zero errors/skips, 136 retained warnings**. All failures remain in the held lower-cutoff suites: 116 contract and five numerical-boundary cases. Formatting, critical lint, docstrings, configured types, dependency audit, build, installation, coverage erase and combination passed. Tests, report validation and the full command exited 1; native coverage JSON/XML/text exited 2. No failed check or warning was hidden.
+
+| Interpreter | Complete canonical report |
+| --- | --- |
+| Python 3.13 | `reports/verification/full-__m29q8a` |
+| Python 3.10 with the documented loader workaround | `reports/verification/full-vgpdsnsk` |
+
+Coverage is **1842/1914 statements (96.238245%)** and **432/454 branches (95.154185%)**: **72 statements and 22 branches remain**, with zero exclusions. `dphtools/utils/lm.py` now has 100% measured statements and branches. The runtime denominator changed with validation and component extraction. The two scalar numerical exception-translation lines remain uncovered; finite dependency probes do not prove universal unreachability, and no invalid fixture, mock, exclusion or guard deletion was used to fill them. Exact current gaps and limits are in `reports/coverage-finish/final-gap-inventory.md`; paired machine-readable results are in `full-gates.json` there.
+
+Both freshly installed wheels match all ten handwritten library files. Bounded public-API smoke checks outside the checkout reproduce the approved scaling example and Poisson rate on both interpreters; see `reports/coverage-finish/installed-smoke-313.json` and `installed-smoke-310.json`. These are installation diagnostics, not independent acceptance evidence. The full runs used final runtime bytes before their commit; package metadata records the preceding dirty checkpoint. Post-run hashes bind those same runtime bytes to `fd93741`.
+
+The final native usage reports are retained in `reports/coverage-finish/native-usage.json`: A 3,071,688 input/70,187 output tokens; B 3,745,412 input/59,158 output; C 1,104,731 input/11,680 output. These last reported counters replace earlier reports for the same sessions; no dollar estimate is inferred.
+
+The owner has not answered the separate angle, coordinate-uncertainty or display proposals. Other recorded scientific choices and justified reachability work remain; current implementation is not blanket intent. The approved lower-cutoff implementation remains held for the requested coverage-first order. No passing gate, final D review, push, new PR, merge, release or settings change occurred. The original branch and PR #10 remain the destination, with all earlier commits and local reports preserved.
