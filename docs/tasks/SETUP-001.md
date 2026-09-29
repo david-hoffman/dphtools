@@ -258,3 +258,20 @@ Before the final two passing invariants, a coordinator test/coverage-only measur
 A real LPSVD fit with `N=83`, explicit `M=4` and `lfactor=.8` independently matches analytic coefficients and held-out cosines; the maximum observed signal error is about `3e-14`. An explicit power-law cutoff above every observation correctly rejects the empty tail. These use existing contracts, not automatic-order/cutoff decisions. The coordinator's selected Python 3.10 run reproduced **114 passes/the same ten failures**, zero errors/skips and 48 retained warnings (`reports/coverage-continuation/python310-selected/`), not a full gate or role review. The unchanged lock's alternate native SciPy artifact restored scientific execution; environment evidence is in `reports/coverage-continuation/python310-environment.md`.
 
 Final cumulative native usage: A 10,280,401 input/117,944 output tokens; B 3,454,143 input/27,041 output tokens. These replace earlier cumulative figures for these roles; no dollar estimate is available.
+
+### Coverage continuation: committed repair and final local result
+
+Reviewed test checkpoint **`d36aaef`** preceded fresh C `01a0ea5f-784b-7503-84c7-f8f7dbadb37f`, with memory/delegation disabled. C committed **`d1c9d86`**, then refined the same validation repair in **`9189914`** after coordinator review: the outer radius-only retry cannot repair its caught search state, so the original error now propagates. The legitimate paired-estimate-to-CPD fallback remains. Other changes fix invalid-generator error masking, positive variance at zero tolerance and contradictory completion logs, and remove the redundant Jacobian guard. Only three runtime files changed. All 119 out-of-scope files, reviewed tests, public signatures and docstrings stayed unchanged. This is implementation/coordinator evidence, not D approval. Final cumulative C usage: 2,847,903 input/20,798 output tokens, replacing its earlier cumulative figure. Evidence: `reports/C-coverage-continuation/validation-followup.md` and `reports/coverage-continuation/coordinator-integrity.json`.
+
+The canonical full command at runtime commit **`9189914`** independently reported the same result on Python **3.13.12** and **3.10.18**: **756 passed, zero failures/errors/skips, 70 retained warnings**. Formatting, critical lint, NumPy docstrings, configured types, normal hashed dependency audit, build, artifact installation and coverage combination passed. Coverage is **1791/1886 statements (94.962884%) and 408/436 branches (93.577982%)**, zero exclusions. JSON/XML/text coverage steps exited 2; strict report validation and the full command exited 1.
+
+| Interpreter | Exact final reports |
+| --- | --- |
+| Python 3.13 | `reports/verification/full-mkayeupb/` |
+| Python 3.10 | `reports/verification/full-885rlxla/` |
+
+Both freshly installed wheels matched all ten handwritten library files and passed real public-API smoke checks outside the checkout, including the repaired validation/state behavior and custom LS/MLE fits. Diagnostic logs remain visible; these smokes do not assert convergence within the bounded registration budget. Evidence: `reports/coverage-continuation/final-installed-smoke-313.json` and `final-installed-smoke-310.json`.
+
+Python 3.10 required an already-admitted alternative SciPy wheel and a complete disposable interpreter prefix for pip-audit's nested bootstrap. The original full-run audit failure and all environment attempts remain preserved. [PROJECT.md](../PROJECT.md) records the actual working command; no lock, audit flags, thresholds or system settings changed.
+
+The gap fell from **220 statements/69 branches to 95/28**. The exact remaining locations and decisions are in `reports/coverage-continuation/final-gap-inventory.md`; the [scientific intake](SETUP-001-intake.md) and [cutoff proposal](POWERLAW-CUTOFF-PROPOSAL.md) remain unapproved, with `fit_ztp` deferred. Retained numerical guards are not declared unreachable. Shell coverage remains unsupported. No exclusions, skips, xfails, push, hosted run, D, merge or release occurred. The whole-project gate remains red.

@@ -39,7 +39,7 @@ The invocation is `python tools/delivery doctor [--check]`; `PATH="$PWD/tools:$P
 
 ## Canonical verification commands
 
-Create an isolated environment with an appropriate installed Python (`python3.10 -m venv .venv-delivery` for the existing CI target, or `python3.13 -m venv .venv` on this macOS 27 host). The initial local Python 3.10/SciPy 1.15.3 wheel could not load on macOS 27; current Python 3.13 wheels do load. This environment gap is not a product regression reproduction. Install using `python -m pip install --require-hashes -r requirements-dev.lock`. The universal lock carries interpreter/platform markers, including Windows-only dependencies. It is a verification lock, not a narrowing of the library's declared Python >=3.8 metadata.
+Create an isolated environment with an appropriate installed Python (`python3.10 -m venv .venv-delivery` for the existing CI target, or `python3.13 -m venv .venv`). Install using `python -m pip install --require-hashes -r requirements-dev.lock`. This macOS 27 host needs the Python 3.10 artifact/bootstrap workaround recorded below; its ordinary Python 3.13 environment works. The universal lock carries interpreter/platform markers, including Windows-only dependencies. It is a verification lock, not a narrowing of the library's declared Python >=3.8 metadata.
 
 Use one shared verification command locally and in CI. Fast checks give feedback while editing; the full check must pass before any push, including the 100% statement and branch gate:
 
@@ -57,6 +57,17 @@ Installed in this clone on 2026-09-28 after confirming no existing hook configur
 Local measurement note: Python 3.13 skips hidden `.pth` startup files. On this host the checkout's `.venv` coverage hook had that flag, and clearing it did not persist. A fresh environment created by `/Users/davidhoffman/miniconda3/bin/python3.13 -m venv /private/tmp/dphtools-verify-313-jmr47yhf`, followed by its `python -m pip install --require-hashes -r requirements-dev.lock`, restored subprocess measurement. Its 39 launcher tests measured all 24 statements. Use that environment's `bin/python` for the canonical commands on this host; the ordinary hosted CI environments also measure the launcher. This changes no dependency, test, or coverage rule. See Python's [startup-file handling](https://github.com/python/cpython/blob/3.13/Lib/site.py) and coverage.py's [subprocess documentation](https://coverage.readthedocs.io/en/7.16.1/subprocess.html).
 
 On this host, use `/private/tmp/dphtools-verify-313-jmr47yhf/bin/python tools/verification.py full` and set `DPHTOOLS_PYTHON=/private/tmp/dphtools-verify-313-jmr47yhf/bin/python` for Git operations. The script sets `MPLBACKEND=Agg` and `PYTHONHASHSEED=0` itself. Its recursive owned-source discovery includes never-imported `dphtools` modules, `tools/*.py` descendants, and `tools/delivery`; extend discovery for any new runtime outside those directories. Coverage paths combine copied CLI fixtures into `tools`; subprocess measurement is enabled. Global 100% with zero missing statements/branches implies every included file and package is complete; the validator checks exact per-file counts. Generated `dphtools/_version.py` is the only omitted runtime file. Vendor Versioneer tooling, notebooks, and tests are not product/runtime coverage targets; handwritten module demo/error paths remain included. Python coverage cannot measure the shell hooks' statements/branches; process-boundary tests do not erase that reported measurement limit.
+
+Python 3.10 verification also works locally after selecting the already-locked `scipy-1.15.3-cp310-cp310-macosx_12_0_arm64.whl` (SHA-256 `ad3432cb0f9ed87477a8d97f03b763fd1d57709f1bbde3c9369b1dff5503b253`); the default macOS-14 artifact has a malformed Mach-O section. The standalone interpreter's nested virtual environments also lose their library/stdlib paths during pip-audit bootstrap. A complete disposable copy of the existing Python distribution, with its own locked dependencies and process-local loader fallback, resolves that separately. Original runtimes, system settings, lock and audit flags remain unchanged. Artifact acquisition, prefix-copy/install commands and failed attempts are recorded in `reports/coverage-continuation/python310-environment.md` and `reports/coverage-continuation/python310-audit-recovery.md`.
+
+The actual additional full-check command on this host is:
+
+```sh
+DYLD_FALLBACK_LIBRARY_PATH=/private/tmp/dphtools-python310-prefix-pijntny1/python/lib \
+  /private/tmp/dphtools-python310-prefix-pijntny1/python/bin/python3.10 tools/verification.py full
+```
+
+Both interpreters ran the same canonical verifier on runtime commit `9189914`. All tests and noncoverage checks passed; the 100% coverage gate still failed. Exact results belong in the setup record. These two local interpreter runs do not establish the hosted operating-system matrix or Python 3.8 compatibility.
 
 Type checking is gradual, not a claim that this predominantly unannotated library is fully typed. SciPy's dynamic, untyped exports produced false missing-attribute reports for working public imports; the narrowly named SciPy import boundary is skipped by mypy and remains a static-checking gap. Owned annotated code still reports errors. Public numerical tests, not a suppressed type error, must establish the real behavior.
 
