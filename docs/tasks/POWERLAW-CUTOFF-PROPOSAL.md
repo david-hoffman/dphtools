@@ -1,6 +1,6 @@
 # PowerLaw automatic lower-cutoff proposal
 
-**Version 1.0** Status: owner-approved contract; implementation held for coverage-first sequencing. Git versions revisions.
+**Version 1.0** Status: owner-approved contract; coverage-first prerequisite satisfied, implementation authorized under the existing approval. Git versions revisions.
 
 ## Recommendation and meaning
 
@@ -77,3 +77,6 @@ In the continuation from clean checkout `1fc9b5d9ee8d3fc8bd5bffd8a8a32bafed7fa71
 Prepare source-free behavioral inputs and fresh independent A/B tests before any C implementation. Cutoff implementation remains held while coverage work proceeds. A coverage percentage with failing tests is not a passing local gate. This approval does not choose upper-cutoff selection (`opt_max=True`), bootstrap/generation, other scientific conventions, or the deferred `fit_ztp` estimator. Those remaining decisions cannot be inferred from the coverage target. The final whole-project gate and fresh D review remain required before pushing; no merge or release is authorized.
 
 The owner then clarified: “This should be on the original branch for PR10?” The existing local `codex/agentic-software-delivery` branch was verified to be an ancestor, fast-forwarded from `8ca6cf2` to the current `7e4f71e`, and selected without changing HEAD or working files. Continue on **`codex/agentic-software-delivery`**, the existing head branch of PR #10, targeting `codex-main`. No remote push or PR mutation occurred.
+
+
+On 2026-09-29, checkpoint `9c9dc436c98c275f7515276ff5445b346c7a5a3c` measured all 1,981 statements and 484 branches on both required local interpreters, with zero exclusions. The existing coverage-first prerequisite is satisfied; the earlier hold is historical. The already-approved cutoff implementation may now proceed through C against independently reviewed tests. The 150 remaining contract-test failures still prevent a passing local gate or push. Later upper-window and generation/bootstrap approvals are recorded in the existing SETUP-001 intake; this status update selects no additional behavior.
