@@ -9,7 +9,7 @@ Copyright (c) 2021, David Hoffman
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import minimize, minimize_scalar
+from scipy.optimize import brentq, minimize, minimize_scalar
 from scipy.signal import signaltools as sig
 from scipy.special import zeta
 from scipy.stats import nbinom
@@ -545,24 +545,56 @@ class PowerLaw(object):
 
 
 def fit_ztp(data):
-    """Fit the data assuming it follows a zero-truncated Poisson model."""
-    n = len(data)
-    sum_x = data.sum()
-    # ignore the constant offset
-    # sum_log_x_fac = np.log(gamma(data)).sum()
+    """Fit a zero-truncated Poisson rate by conditional maximum likelihood.
 
-    def negloglikelihood(lam):
-        """Negative log-likelihood of ZTP."""
-        # ignore the constant offset
-        return n * np.log(np.exp(lam) - 1) - np.log(lam) * sum_x  # + sum_log_x_fac
+    Parameters
+    ----------
+    data : ndarray
+        Nonempty one-dimensional array of finite positive integer-valued
+        observations with real numeric storage. The input is not modified.
 
-    with np.errstate(divide="ignore", invalid="ignore"):
-        opt = minimize_scalar(negloglikelihood)
+    Returns
+    -------
+    rate : float
+        Positive rate satisfying ``rate / (1 - exp(-rate)) = mean(data)``.
 
-    if not opt.success:
-        raise RuntimeError("Fitting zero-truncated poisson failed")
+    Raises
+    ------
+    ValueError
+        If observations are invalid or all ones, for which no positive rate
+        attains the likelihood supremum.
+    RuntimeError
+        If an eligible sample cannot be fitted numerically.
+    """
+    if (
+        not isinstance(data, np.ndarray)
+        or data.ndim != 1
+        or data.size == 0
+        or data.dtype.kind not in "iuf"
+    ):
+        raise ValueError("Expected a nonempty one-dimensional real numeric NumPy array")
+    if not np.isfinite(data).all() or np.any(data <= 0) or np.any(data != np.floor(data)):
+        raise ValueError("Observations must be finite positive integer-valued counts")
+    if np.all(data == 1):
+        raise ValueError("All-ones data has no positive maximum-likelihood rate")
 
-    return opt.x
+    try:
+        mean = float(np.mean(data, dtype=np.float64))
+        if not np.isfinite(mean) or mean <= 1:
+            raise RuntimeError("The sample mean cannot be represented for fitting")
+
+        def mean_residual(lam):
+            """Evaluate the likelihood equation, including its limit at zero."""
+            return (1.0 if lam == 0 else lam / -np.expm1(-lam)) - mean
+
+        # The conditional mean increases from 1 and exceeds lam for lam > 0.
+        # Thus [0, mean] brackets the unique positive likelihood optimum.
+        rate = brentq(mean_residual, 0.0, mean)
+    except (ValueError, ArithmeticError) as error:
+        raise RuntimeError("Fitting zero-truncated Poisson failed") from error
+    if not np.isfinite(rate) or rate <= 0:
+        raise RuntimeError("Fitting zero-truncated Poisson returned an invalid rate")
+    return rate
 
 
 def NegBinom(a, m):
