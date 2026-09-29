@@ -41,15 +41,25 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
     ----------
     signal : ndarray
         The signal to be analyzed
-    M : int
-        Model order, if None, it will be estimated
+    M : int, optional
+        Model order, at most min(len(signal) - L, L). If None, use the
+        numerical rank when the prediction matrix is rank deficient at
+        floating-point precision; otherwise use the minimum description
+        length estimate.
     lfactor : float
         Set L = floor(len(signal) * lfactor) prediction coefficients and
         len(signal) - L prediction equations. The default uses half the samples
         for the coefficient count. Both matrix dimensions must accommodate
         the signal rank.
     removebias    : bool
-        If true bias will be removed from the singular values of A
+        If true bias will be removed from the singular values of A.
+        Requires M < min(len(signal) - L, L), leaving unused noise singular values.
+
+    Raises
+    ------
+    ValueError
+        If M exceeds the prediction matrix dimensions, or bias removal has
+        no unused noise singular values.
 
     """
     if lfactor > 3 / 4:
@@ -74,12 +84,21 @@ def LPSVD(signal, M=None, lfactor=1 / 2, removebias=True):
 
     # We can estimate the model order if the user hasn't selected one
     if M is None:
-        M = estimate_model_order(S, N, L) + 8
+        # Noiseless signals have a numerical null space. Inverting its roundoff
+        # singular values destabilizes prediction; use the standard SVD rank
+        # tolerance, scaled by the matrix size and largest singular value.
+        tolerance = S[0] * max(A.shape) * np.finfo(S.dtype).eps
+        M = np.count_nonzero(S > tolerance)
+        if M == len(S):
+            # MDL needs the number of available singular values, including
+            # for wide prediction matrices where that number is less than L.
+            M = estimate_model_order(S, N, len(S))
         print("Estimated model order: {}".format(M))
 
     if M > len(S):
-        M = len(S)
-        print("M too large, set to max = {}".format(M))
+        raise ValueError("M must not exceed min(N - L, L) = {}".format(len(S)))
+    if removebias and M == len(S):
+        raise ValueError("Bias removal requires unused noise singular values (M < min(N - L, L))")
 
     # remove bias if needed
     if removebias:
