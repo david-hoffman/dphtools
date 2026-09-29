@@ -87,3 +87,8 @@ B, scale-boundary evidence: Separate stored-input validity, mathematical conditi
 B, representability and reached assertions: At a representability boundary, validate a legitimate finite success path as well as failure handling. Record the assertion actually reached: failing initial public-state validation is not evidence that a subsequent rollback condition was tested.
 
 Evidence: `reports/A-powerlaw-cutoff/handoff-before-near-undamped.md`, `reports/B-powerlaw-cutoff/review.md`, `additions-review.md` and `final-review.md`. These are reusable observations, not policy or permission to change behavior.
+
+
+### Numerical observers must preserve scalar meaning before conversion
+
+Independent helper-test review found that array container dtype did not reliably describe each returned scalar's precision, that float conversion admitted numeric strings, and that conversion erased finite nonzero Decimal values before structural zero checks. The corrected observer validates real numeric scalars first, tests exact zeros in the original representation, and applies precision per scalar. Independent positive and negative controls verified the correction without replacing the production algorithm. Evidence: `reports/B-coverage-finish/helper-review.md`, `helper-review-corrected.md`, and `helper-review-final.md`. These are test-observer findings, not changes to the approved scientific contract.
