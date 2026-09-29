@@ -7,7 +7,6 @@ Testing for fitfuncs.
 Copyright (c) 2021, David Hoffman
 """
 
-
 import unittest
 
 import numpy as np

@@ -15,6 +15,7 @@ import itertools
 
 # get a logger
 import logging
+from typing import Tuple
 
 # plotting
 import matplotlib.pyplot as plt
@@ -69,11 +70,11 @@ class BaseCPD(object):
 
     @property
     def scale(self):
-        """Return the estimated scale of the transformation matrix"""
+        """Return the estimated scale of the transformation matrix."""
         return self.B.mean(axis=1)
 
     @property
-    def matches(self) -> np.ndarray:
+    def matches(self) -> Tuple[np.ndarray, ...]:
         """Return X, Y matches."""
         return np.where(self.p_old > max(min(self.w, 0.9), np.finfo(float).eps))[::-1]
 
@@ -228,8 +229,7 @@ class BaseCPD(object):
         logger.debug("Variance is {}".format(self.var))
         # make sure self.var is positive
         if self.var < np.finfo(float).eps:
-            # self.var = np.finfo(float).eps
-            self.var = self.tol
+            self.var = max(self.tol, np.finfo(float).eps)
             logger.warning(
                 "Variance has dropped below machine precision, setting to {}".format(self.var)
             )
@@ -345,8 +345,6 @@ class BaseCPD(object):
                 # now update Q to follow convergence
                 # we want to minimize Q so Q_old should be more positive than the new Q
                 Q_delta = np.abs(self.Q_old - self.Q)  # / np.abs(self.Q_old)
-                if Q_delta < 0:
-                    logger.warning("Q_delta = {}".format(Q_delta))
                 logger.debug("Q_delta = {}".format(Q_delta))
                 if Q_delta <= tol:
                     logger.info("Objective function converged, Q_delta = {:.3e}".format(Q_delta))
@@ -420,15 +418,9 @@ class SimilarityCPD(BaseCPD):
         return self.B
 
     def calc_init_scale(self):
-        """Calculate scale: for similarity we have isotropic scaling for each point cloud."""
-        # we can prescale by the same anisotropic scaling factor we use in
-        # TranslationCPD and then augment it by an isotropic scaling factor
-        # for each point cloud.
-        anisotropic_scale = np.concatenate((self.X, self.Y)).std()
-        # self.scale_x = anisotropic_scale / self.X.var()
-        # self.scale_y = anisotropic_scale / self.Y.var()
-        # NOTE: the above doesn't work
-        self.scale_x = self.scale_y = 1 / np.array((anisotropic_scale, anisotropic_scale))
+        """Use one isotropic scale for both centered point clouds."""
+        scale = np.concatenate((self.X, self.Y)).std()
+        self.scale_x = self.scale_y = np.full(self.D, 1 / scale)
 
     def _umeyama(self):
         """Calculate Umeyama: for similarity we want to have scaling."""
@@ -461,9 +453,6 @@ class RigidCPD(SimilarityCPD):
         # the call signature for _umeyama is (src, dst)
         # which is the reverse of ours
         return _umeyama(self.Y, self.X, False)
-
-    # for rigid we also want to avoid anything other than uniform scaling
-    calc_init_scale = TranslationCPD.calc_init_scale
 
 
 EuclideanCPD = RigidCPD
@@ -642,28 +631,25 @@ def align(
     def sub_func(rmse, transform, coords):
         for i in range(iters):
             r = max(rmse * 2, 1)
-            try:
-                fids0_filt, fids1_filt = nearest_neighbors(
-                    fids0, fids1, r=r, transform=transform, coords=coords
-                )
-            except ValueError:
-                rmse *= 2
-                continue
+            fids0_filt, fids1_filt = nearest_neighbors(
+                fids0, fids1, r=r, transform=transform, coords=coords
+            )
             reg = register(fids0_filt, fids1_filt, coords)
             transform = reg.transform
             rmse_new = reg.rmse
             rmse_rel = (rmse - rmse_new) / rmse
             if rmse_new < atol or rmse_rel < rtol:
+                logger.info(
+                    "{} succeeded, rmse = {}, rel = {}, i = {}".format(
+                        coords, rmse_new, rmse_rel, i
+                    )
+                )
                 break
             rmse = rmse_new
         else:
             logger.error(
                 "{} failed, rmse = {}, rel = {}, i = {}".format(coords, rmse_new, rmse_rel, i)
             )
-
-        logger.info(
-            "{} succeeded, rmse = {}, rel = {}, i = {}".format(coords, rmse_new, rmse_rel, i)
-        )
 
         if diagnostics:
             reg.plot()

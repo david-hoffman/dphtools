@@ -65,3 +65,10 @@ material, and source implementations were not inspected or archived.
 This is a finite source snapshot, not a mirror, executable tool installation,
 security audit, or second operating specification. Git records later edits to
 the authored Version 1.0 notes.
+
+Owner-supplied scientific reference P1 was added during the approved library
+maintenance on 2026-09-27: [Laurence–Chromy C supplement](laurence-chromy-2010/Readme.txt).
+Its six files retain the original bytes, names (with inert `.txt` suffixes for C
+source/headers), notices, and accompanying license. The manifest records exact
+hashes and reading limits. This reference is available to implementation/review;
+blind test roles receive only their separate public mathematical contract.

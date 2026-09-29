@@ -9,6 +9,7 @@ Copyright (c) 2021, David Hoffman
 
 import textwrap
 from functools import partial
+from typing import Optional
 
 import matplotlib as mpl
 import matplotlib.font_manager as fm
@@ -16,7 +17,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cbook
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Colormap, Normalize
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
@@ -130,9 +130,8 @@ def display_grid(
         aspects = np.array([v.shape[0] / v.shape[1] for v in data.values() if v.ndim > 1])
         # if len is zero then everything was 1d
         if len(aspects):
+            # Standard array dimensions and their count cannot overflow a float64 sum.
             grid_aspect = aspects.mean()
-            if not np.isfinite(grid_aspect):
-                raise RuntimeError(f"grid_aspect isn't finite, grid_aspect = {grid_aspect}")
         else:
             grid_aspect = 1
     fig, axs = make_grid(
@@ -181,9 +180,8 @@ def make_grid(numitems, nrows=None, figsize=3, grid_aspect=1, **kwargs):
     if nrows is None:
         nrows = int(np.sqrt(numitems))
     if nrows == 0:
-        nrows = ncols = 1
-    else:
-        ncols = int(np.ceil(numitems / nrows))
+        raise ValueError("nrows can't be zero.")
+    ncols = int(np.ceil(numitems / nrows))
 
     fig, axs = plt.subplots(
         nrows,
@@ -207,7 +205,7 @@ def clean_grid(fig, axs):
 def take_slice(data, axis, midpoint=None):
     """Take slices."""
     if midpoint is None:
-        midpoint = np.array(data.shape, dtype=np.int) // 2
+        midpoint = np.array(data.shape, dtype=int) // 2
     my_slice = [slice(None, None, None) for i in range(data.ndim)]
     my_slice[axis] = midpoint[axis]
     return data[tuple(my_slice)]
@@ -232,21 +230,21 @@ def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
     objs = getattr(ax, to_change)
     num_objs = len(objs)
     # set the new alpha mapping, if wanted
-    if new_alpha is not None:
-        if "best" == new_alpha:
-            r = 1 / num_objs
-            try:
-                expon = new_alpha["best"]
-            except TypeError:
-                expon = 2
-            new_alpha = 1 - ((1 - np.sqrt(r)) / (1 + np.sqrt(r))) ** expon
+    best_alpha = new_alpha == "best"
+    if best_alpha:
+        if num_objs == 0:
+            return
+        root_count = np.sqrt(num_objs)
+        new_alpha = 4 * root_count / (1 + root_count) ** 2
     # cycle through colors and recolor lines
     for i, obj in enumerate(objs):
         # generate new color
-        new_color = list(cmap(i / (num_objs - 1)))
+        new_color = list(cmap(i / max(num_objs - 1, 1)))
         # replace alpha is wanted
         if new_alpha is not None:
             new_color[-1] = new_alpha
+        if best_alpha:
+            obj.set_alpha(new_alpha)
         # set the color
         obj.set_color(new_color)
 
@@ -430,7 +428,9 @@ def auto_adjust(img):
 
     Returns
     -------
-    (vmin, vmax) : tuple of numbers
+    limits : dict
+        Mapping with numeric ``vmin`` and ``vmax`` values, suitable for
+        passing as keyword arguments to plotting functions.
     """
     # calc statistics
     pixel_count = int(np.array((img.shape)).prod())
@@ -520,7 +520,7 @@ def add_scalebar(
     scalebar_size: float,
     pixel_size: float,
     unit: str = "µm",
-    edgecolor: str = None,
+    edgecolor: Optional[str] = None,
     **kwargs,
 ) -> None:
     """Add a scalebar to the axis."""
@@ -573,7 +573,6 @@ class SymPowerNorm(Normalize):
         result, is_scalar = self.process_value(value)
 
         self.autoscale_None(result)
-        gamma = self.gamma
         vmin, vmax = self.vmin, self.vmax
         if vmin > vmax:
             raise ValueError("minvalue must be less than or equal to maxvalue")
@@ -584,10 +583,7 @@ class SymPowerNorm(Normalize):
                 mask = np.ma.getmask(result)
                 result = np.ma.array(np.clip(result.filled(vmax), vmin, vmax), mask=mask)
             resdat = result.data
-            resdat = self._transform(resdat)
-            vmin = self._transform(vmin)
-            vmax = self._transform(vmax)
-            resdat = (resdat - vmin) / (vmax - vmin)
+            resdat = self._transform((resdat - vmin) / (vmax - vmin))
 
             result = np.ma.array(resdat, mask=result.mask, copy=False)
         if is_scalar:
@@ -598,17 +594,13 @@ class SymPowerNorm(Normalize):
         """Invert scale."""
         if not self.scaled():
             raise ValueError("Not invertible until scaled")
-        gamma = self.gamma
         vmin, vmax = self.vmin, self.vmax
 
-        vmin = self._transform(vmin)
-        vmax = self._transform(vmax)
-
-        if cbook.iterable(value):
+        if np.iterable(value):
             val = np.ma.asarray(value)
-            return self._transform_inv(val * (vmax - vmin) + vmin)
+            return self._transform_inv(val) * (vmax - vmin) + vmin
         else:
-            return self._transform_inv(value * (vmax - vmin) + vmin)
+            return self._transform_inv(value) * (vmax - vmin) + vmin
 
     def autoscale(self, A):
         """Set *vmin*, *vmax* to min, max of *A*."""

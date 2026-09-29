@@ -1,0 +1,5 @@
+[tool.black]
+line-length = 99
+required-version = "26.5.1"
+# Vendored/generated Versioneer code is maintained by its upstream generator.
+force-exclude = '/(versioneer|_version)\.py$'

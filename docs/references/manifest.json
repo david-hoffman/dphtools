@@ -728,6 +728,67 @@
         "derived_from_response_sha256": "a9e6330dbcafeabb0c5cc1f1d28462594a807bd2f43ad4fd65576f29cda00341",
         "transformation": "Extracted visible text from the retrieved HTML; removed scripts, styles, SVG, markup, and outer navigation/footer; normalized whitespace. Code indentation and table layout may be reduced. Not original source bytes."
       }
+    },
+    {
+      "id": "P1",
+      "title": "Laurence and Chromy (2010) supplementary C implementation, owner-provided copy",
+      "reference_url": "https://www.nature.com/articles/nmeth0510-338",
+      "publisher_download_url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fnmeth0510-338/MediaObjects/41592_2010_BFnmeth0510338_MOESM611_ESM.zip",
+      "retrieval": {
+        "kind": "owner_provided_directory",
+        "provided_name": "41592_2010_BFnmeth0510338_MOESM611_ESM",
+        "recorded_utc": "2026-09-28T05:15:09.849354+00:00"
+      },
+      "source_version": {
+        "kind": "publication_supplement",
+        "year": 2010,
+        "identifier": "LLNL-CODE-424602"
+      },
+      "files": [
+        {
+          "provided_name": "Readme.txt",
+          "archive_path": "docs/references/laurence-chromy-2010/Readme.txt",
+          "bytes": 4441,
+          "sha256": "23de9e863cafe869cd353e79aac6df666ea69eff5ba1bd8d4181502db2191f6c"
+        },
+        {
+          "provided_name": "LLNL-Notice_gpl.2.0.txt",
+          "archive_path": "docs/references/laurence-chromy-2010/LLNL-Notice_gpl.2.0.txt",
+          "bytes": 13395,
+          "sha256": "b02647d72291651499142d936a4658ed5fd21015bba36bb71bd673c80150787f"
+        },
+        {
+          "provided_name": "lm_mle.c",
+          "archive_path": "docs/references/laurence-chromy-2010/lm_mle.c.txt",
+          "bytes": 13872,
+          "sha256": "a38da28cc2de4d00a60e5b3631b30a3f1f7fdc19bdddfb5712b9d7488e8291a8"
+        },
+        {
+          "provided_name": "levmar_mle.h",
+          "archive_path": "docs/references/laurence-chromy-2010/levmar_mle.h.txt",
+          "bytes": 2590,
+          "sha256": "8f16827535eb44d0524826d84afbdae89034e7f6d74eb133256dc0dc72717ed5"
+        },
+        {
+          "provided_name": "lm_mle_compiler.h",
+          "archive_path": "docs/references/laurence-chromy-2010/lm_mle_compiler.h.txt",
+          "bytes": 2076,
+          "sha256": "e161e9ca786d8ce17f287fe8d9860fff6aa112fc2e0ab5dc2179bead9dec21a2"
+        },
+        {
+          "provided_name": "convolvedexponential.c",
+          "archive_path": "docs/references/laurence-chromy-2010/convolvedexponential.c.txt",
+          "bytes": 8789,
+          "sha256": "57b97bbd4dcd15906423035fb90c4bb801187cc1a6a0d4154c1849e84cbc7d6d"
+        }
+      ],
+      "license_record": "docs/references/laurence-chromy-2010/LLNL-Notice_gpl.2.0.txt",
+      "read_scope": "All six supplied files read: README, license/notices, full lm_mle.c, both headers, and convolvedexponential.c. Reviewed objective, curvature, analytic-Jacobian requirement, damping/accepted-step state, and model parameterization. No reference executable was built or run.",
+      "limitations": [
+        "Publisher link resolved, but this owner-provided copy was not byte-compared with a publisher ZIP.",
+        "Reference material only; not compiled, run, translated, or installed as product code.",
+        "Blind A/B sessions do not receive this source implementation."
+      ]
     }
   ],
   "additional_access_failures": [

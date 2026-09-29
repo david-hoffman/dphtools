@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 # lm.py
 """
-A python implementation of Levenberg–Marquardt.
+Levenberg–Marquardt fitting with analytic derivatives.
 
-exposes a drop in replacement for scipy.curve_fit and
-allows the user to fit their function by maximizing the
-maximum likelihood for poisson deviates rather than for
-gaussian deviates, requires the jacobian to be defined.
+The custom ``mle`` method minimizes the Laurence–Chromy Poisson deviance;
+``ls`` provides an unweighted least-squares comparison. These custom methods
+support fewer options than SciPy. ``curve_fit`` delegates its other supported
+methods to SciPy; it is not a drop-in replacement for every SciPy option.
 
 ### References
 1. Methods for Non-Linear Least Squares Problems (2nd ed.) http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=3215 (accessed Aug 18, 2017).
@@ -53,29 +53,15 @@ def _update_ls(x0, f, Dfun):
 
 
 def _chi2_mle(f):
-    """Equivalent "chi2" for poisson deviates.
-
-    Minimizing this will maximize the likelihood for a data
-    model with gaussian deviates.
-    """
+    """Return half the Poisson deviance, including zero-count bins."""
     f, y = f
-    if f.min() < 0:
-        logger.debug("function has dropped below zero {}, this shouldn't happen".format(f.min()))
+    f, y = np.asarray(f), np.asarray(y)
+    if not np.isfinite(y).all() or (y < 0).any():
+        raise ValueError("Poisson counts must be finite and nonnegative")
+    if not np.isfinite(f).all() or (f <= 0).any():
         return np.inf
-
-    # don't include points where the data is less
-    # than zero as this isn't allowed.
-
-    # calculate the parts of chi2
-    part1 = (f - y).sum(0)
-
-    # make sure to change nans and infs to nums
-    with np.errstate(invalid="ignore", divide="ignore"):
-        part2 = -(y * np.log(f / y))
-    part2[~np.isfinite(part2)] = 0.0
-    part2 = part2.sum(0)
-
-    return part1 + part2
+    positive = y > 0
+    return (f - y).sum() + (y[positive] * (np.log(y[positive]) - np.log(f[positive]))).sum()
 
 
 def _update_mle(x0, f, Dfun):
@@ -83,15 +69,8 @@ def _update_mle(x0, f, Dfun):
     # calculate the jacobian
     # j shape (ndata, nparams)
     f, y = f
-    with np.errstate(invalid="ignore"):
-        y_f = y / f
-        y_f2 = y_f / f
-
-    # make sure we have finite results.
-    # any errors here are divide by zero problems
-    valid_points = np.isfinite(y_f2) & np.isfinite(y_f)
-    y_f[~valid_points] = 0
-    y_f2[~valid_points] = 0
+    y_f = y / f
+    y_f2 = y_f / f
 
     j = Dfun(x0)
     # calculate the linear term of Hessian
@@ -103,119 +82,89 @@ def _update_mle(x0, f, Dfun):
     return j, a, g
 
 
-def _ensure_positive(data):
-    """Make sure data is positive and has no zeros.
+def _wrap_func_mle(func, xdata, ydata):
+    """Return model predictions and unchanged Poisson counts."""
 
-    For numerical stability
+    def func_wrapped(params):
+        # return function and data
+        return np.asarray(func(xdata, *params)), ydata
 
-    If we realize that mutating data is not a problem
-    and that changing in place could lead to signifcant
-    speed ups we can lose the data.copy() line
-    """
-    # make a copy of the data
-    data = data.copy()
-    data[data <= 0] = 0
-    return data
-
-
-def _wrap_func_mle(func, xdata, ydata, transform):
-    """Return f and xdata.
-
-    This is the cost function as defined by Transtrum and Sethna
-    """
-    # add non-negativity constraint to data
-    ydata_nn = _ensure_positive(ydata)
-    if transform is None:
-
-        def func_wrapped(params):
-            # return function and data
-            return _ensure_positive(func(xdata, *params)), ydata_nn
-
-    elif transform.ndim == 1:
-        raise NotImplementedError
-    else:
-        # Chisq = (y - yd)^T C^{-1} (y-yd)
-        # transform = L such that C = L L^T
-        # C^{-1} = L^{-T} L^{-1}
-        # Chisq = (y - yd)^T L^{-T} L^{-1} (y-yd)
-        # Define (y-yd)' = L^{-1} (y-yd)
-        # by solving
-        # L (y-yd)' = (y-yd)
-        # and minimize (y-yd)'^T (y-yd)'
-        raise NotImplementedError
     return func_wrapped
 
 
-def _wrap_jac_mle(jac, xdata, transform):
-    if transform is None:
+def _wrap_jac_mle(jac, xdata):
 
-        def jac_wrapped(params):
-            return jac(xdata, *params)
+    def jac_wrapped(params):
+        return jac(xdata, *params)
 
-    elif transform.ndim == 1:
-        raise NotImplementedError
-    else:
-        raise NotImplementedError
     return jac_wrapped
 
 
-def _wrap_func_ls(func, xdata, ydata, transform):
+def _wrap_func_ls(func, xdata, ydata):
     """Cost function as defined by Transtrum and Sethna."""
-    if transform is None:
 
-        def func_wrapped(params):
-            return func(xdata, *params) - ydata
-
-    elif transform.ndim == 1:
-
-        def func_wrapped(params):
-            return transform * (func(xdata, *params) - ydata)
-
-    else:
-        # Chisq = (y - yd)^T C^{-1} (y-yd)
-        # transform = L such that C = L L^T
-        # C^{-1} = L^{-T} L^{-1}
-        # Chisq = (y - yd)^T L^{-T} L^{-1} (y-yd)
-        # Define (y-yd)' = L^{-1} (y-yd)
-        # by solving
-        # L (y-yd)' = (y-yd)
-        # and minimize (y-yd)'^T (y-yd)'
-        def func_wrapped(params):
-            return solve_triangular(transform, func(xdata, *params) - ydata, lower=True)
+    def func_wrapped(params):
+        return func(xdata, *params) - ydata
 
     return func_wrapped
 
 
-def _wrap_jac_ls(jac, xdata, transform):
-    if transform is None:
+def _wrap_jac_ls(jac, xdata):
 
-        def jac_wrapped(params):
-            return jac(xdata, *params)
-
-    elif transform.ndim == 1:
-
-        def jac_wrapped(params):
-            return transform[:, np.newaxis] * np.asarray(jac(xdata, *params))
-
-    else:
-
-        def jac_wrapped(params):
-            return solve_triangular(transform, np.asarray(jac(xdata, *params)), lower=True)
+    def jac_wrapped(params):
+        return jac(xdata, *params)
 
     return jac_wrapped
 
 
 def make_lambda(j, d0):
-    """Make the diagonal matrix which takes care of scaling.
+    """Return diagonal scaling from column norms and previous parameter scales.
 
-    according to J. J. Moré's paper
+    Parameters
+    ----------
+    j : array_like, shape (m, n)
+        Finite real numeric Jacobian with nonempty dimensions.
+    d0 : scalar or array_like, shape (n,)
+        Finite nonnegative previous scale, shared or one per parameter.
+
+    Returns
+    -------
+    scaling : ndarray, shape (n, n)
+        Diagonal matrix with each entry equal to the maximum of that column's
+        Euclidean norm and its previous scale. Neither input is modified.
+
+    Raises
+    ------
+    ValueError
+        If either input has invalid shape, nonreal, nonnumeric, boolean or
+        nonfinite storage, or a previous scale is negative.
+    RuntimeError
+        If a resulting column norm cannot be represented numerically.
+
+    Notes
+    -----
+    This implements the per-parameter maximum recurrence in section 6 of
+    Moré's "The Levenberg-Marquardt Algorithm: Implementation and Theory".
     """
-    # Calculate the norm of the jacobian columns
-    ds = la.norm(j, axis=0)
-    ds[0] = d0
-    # return an increasing diagnonal matrix
+    j = np.asarray(j)
+    d0 = np.asarray(d0)
+    if j.ndim != 2 or 0 in j.shape or j.dtype.kind not in "iuf":
+        raise ValueError("Expected a nonempty two-dimensional real numeric Jacobian")
+    if not np.isfinite(j).all():
+        raise ValueError("Jacobian entries must be finite")
+    if d0.ndim > 1 or (d0.ndim == 1 and d0.shape != (j.shape[1],)):
+        raise ValueError("Previous scales must be a scalar or one value per column")
+    if d0.dtype.kind not in "iuf" or not np.isfinite(d0).all() or np.any(d0 < 0):
+        raise ValueError("Previous scales must be finite nonnegative real numeric values")
 
-    return np.diag([max(ds[i], ds[i - 1]) for i in range(1, len(ds))])
+    # Hypotenuse reduction avoids squaring large or tiny entries directly.
+    try:
+        norms = np.hypot.reduce(j, axis=0, dtype=np.result_type(j.dtype, d0.dtype, np.float64))
+    except FloatingPointError as error:
+        raise RuntimeError("Jacobian column norm cannot be represented numerically") from error
+    if not np.isfinite(norms).all():
+        raise RuntimeError("Jacobian column norm cannot be represented numerically")
+    return np.diag(np.maximum(norms, d0))
 
 
 def lm(
@@ -234,126 +183,92 @@ def lm(
     diag=None,
     method="ls",
 ):
-    """Thorough implementation of levenburg-marquet for gaussian Noise.
+    """Fit unweighted least squares or Poisson counts with analytic derivatives.
 
-    ::
-        x = arg min(sum(func(y)**2,axis=0))
-                 y
     Parameters
     ----------
     func : callable
-        should take at least one (possibly length N vector) argument and
-        returns M floating point numbers. It must not return NaNs or
-        fitting might fail.
-    x0 : ndarray
-        The starting estimate for the minimization.
+        Called as ``func(params)``. For ``method="ls"``, return an M-vector
+        of residuals. For ``method="mle"``, return ``(predictions, counts)``:
+        strictly positive model predictions and nonnegative observed counts.
+        The objective is half the Poisson deviance,
+        ``sum(mu - y + y * log(y / mu))``, with the log term zero for y=0.
+        Invalid trial predictions are rejected, not clipped.
+    x0 : array_like
+        Initial N-vector of parameters; the initial objective must be finite.
     args : tuple, optional
-        Any extra arguments to func are placed in this tuple.
-    Dfun : callable, optional
-        A function or method to compute the Jacobian of func with derivatives
-        across the rows. If this is None, the Jacobian will be estimated.
+        Extra-argument forwarding is unimplemented; only the empty tuple is
+        supported. Bind additional data in ``func`` and ``Dfun`` instead.
+    Dfun : callable
+        Analytic Jacobian, called as ``Dfun(params)``, of residuals (ls) or
+        predictions (mle). Return shape (M, N): one row per observation and
+        one column per parameter. Numerical derivatives are unimplemented.
     full_output : bool, optional
-        non-zero to return all optional outputs.
+        If True, return the five-item result described below. Default False.
     col_deriv : bool, optional
-        non-zero to specify that the Jacobian function computes derivatives
-        down the columns (faster, because there is no transpose operation).
+        Must be True (the default). This legacy flag does not use SciPy's
+        orientation convention; the Jacobian still has shape (M, N).
+        False is unimplemented.
     ftol : float, optional
-        Relative error desired in the sum of squares.
+        Stop after an accepted step reduces the objective by at most this
+        fraction of its previous value. Default 1.49012e-8.
     xtol : float, optional
-        Relative error desired in the approximate solution.
+        Stop when the proposed step norm is at most
+        ``xtol * (norm(params) + xtol)``. Default 1.49012e-8.
     gtol : float, optional
-        Orthogonality desired between the function vector and the columns of
-        the Jacobian.
+        Stop when the largest absolute gradient component is at most gtol.
+        The default 0 disables this check.
     maxfev : int, optional
-        The maximum number of calls to the function. If `Dfun` is provided
-        then the default `maxfev` is 100*(N+1) where N is the number of elements
-        in x0, otherwise the default `maxfev` is 200*(N+1).
+        Legacy name for the trial-iteration limit, including unsuccessful
+        linear solves. Default ``100 * (N + 1)``. There is also one initial
+        function evaluation; the actual count is returned in ``nfev``.
     epsfcn : float, optional
-        A variable used in determining a suitable step length for the forward-
-        difference approximation of the Jacobian (for Dfun=None).
-        Normally the actual step length will be sqrt(epsfcn)*x
-        If epsfcn is less than the machine precision, it is assumed that the
-        relative errors are of the order of the machine precision.
+        Unused inherited argument; does not enable numerical derivatives.
     factor : float, optional
-        A parameter determining the initial step bound
-        (``factor * || diag * x||``). Should be in interval ``(0.1, 100)``.
+        Damping multiplier after a singular linear solve. Default 100.
+        This is not SciPy's initial-step-bound option.
     diag : sequence, optional
-        N positive entries that serve as a scale factors for the variables.
-    method : "ls" or "mle"
-        What type of estimator to use. Maximum likelihood ("mle") assumes that the noise
-        in the measurement is poisson distributed while least squares ("ls") assumes
-        normally distributed noise.
+        Unused inherited argument; custom variable scaling is unimplemented.
+    method : {"ls", "mle"}, optional
+        Default "ls" minimizes half the residual sum of squares. "mle"
+        minimizes the Laurence–Chromy Poisson objective using approximate
+        curvature ``J.T @ diag(y / mu**2) @ J`` and adaptive damping.
+
+    Returns
+    -------
+    popt : ndarray
+        Last accepted parameters.
+    cov_x : None
+        This low-level solver does not compute covariance.
+    infodict : dict, optional
+        With full_output, contains ``fvec`` (residuals for ls, predictions
+        for mle), ``fjac`` at the returned parameters, and the actual number
+        of function calls ``nfev``.
+    message : str, optional
+        Termination description, returned with full_output.
+    status : int, optional
+        With full_output: 1 for objective convergence, 2 for step convergence,
+        4 for gradient convergence, or 5 for exhausted iterations. Without
+        full_output, exhaustion is logged and the last accepted point returned.
     """
     info = 0
     x0 = np.asarray(x0).flatten()
     n = len(x0)
-    if not isinstance(args, tuple):
-        args = (args,)
-    # shape, dtype = _check_func('leastsq', 'func', func, x0, args, n)
-    # m = shape[0]
-    # if n > m:
-    #     raise TypeError('Improper input: N=%s must not exceed M=%s' % (n, m))
-    if Dfun is None:
-        raise NotImplementedError
-        # if epsfcn is None:
-        #     epsfcn = np.finfo(dtype).eps
-    else:
-        if col_deriv:
-            pass
-            # _check_func('leastsq', 'Dfun', Dfun, x0, args, n, (n, m))
-        else:
-            raise NotImplementedError("Column derivatives required")
-        if maxfev is None:
-            maxfev = 100 * (n + 1)
-
-    # this is stolen from scipy.leastsq so it isn't fully implemented
-    errors = {
-        0: ["Improper input parameters.", TypeError],
-        1: [
-            "Both actual and predicted relative reductions "
-            "in the sum of squares are at most {}".format(ftol),
-            None,
-        ],
-        2: [
-            "The relative error between two consecutive " "iterates is at most {}".format(xtol),
-            None,
-        ],
-        3: [
-            "Both actual and predicted relative reductions in "
-            "the sum of squares\n  are at most %f and the "
-            "relative error between two consecutive "
-            "iterates is at \n  most %f" % (ftol, xtol),
-            None,
-        ],
-        4: [
-            "The cosine of the angle between func(x) and any "
-            "column of the\n  Jacobian is at most %f in "
-            "absolute value" % gtol,
-            None,
-        ],
-        5: ["Number of calls to function has reached " "maxfev = %d." % maxfev, ValueError],
-        6: [
-            "ftol=%f is too small, no further reduction "
-            "in the sum of squares\n  is possible."
-            "" % ftol,
-            ValueError,
-        ],
-        7: [
-            "xtol=%f is too small, no further improvement in "
-            "the approximate\n  solution is possible." % xtol,
-            ValueError,
-        ],
-        8: [
-            "gtol=%f is too small, func(x) is orthogonal to the "
-            "columns of\n  the Jacobian to machine "
-            "precision." % gtol,
-            ValueError,
-        ],
-        "unknown": ["Unknown error.", TypeError],
-    }
-
+    if not isinstance(args, tuple) or args:
+        raise NotImplementedError("Extra-argument forwarding has not been implemented")
+    if not callable(Dfun):
+        raise NotImplementedError("An analytic Jacobian is required")
+    if not col_deriv:
+        raise NotImplementedError("col_deriv=False has not been implemented")
     if maxfev is None:
-        maxfev = 100 * (len(x0) + 1)
+        maxfev = 100 * (n + 1)
+
+    errors = {
+        1: "Relative objective reduction is at most {}".format(ftol),
+        2: "Relative parameter step is at most {}".format(xtol),
+        4: "Maximum absolute gradient component is at most {}".format(gtol),
+        5: "Trial-iteration limit maxfev = {} reached.".format(maxfev),
+    }
 
     def gtest(g):
         """Test if the gradient has converged."""
@@ -388,40 +303,28 @@ def lm(
 
     # get initial function, jacobian, hessian and gradient
     f = func(x0)
-    # j is Jacobian, a is J.T @ J, g is J.T @ f
+    nfev = 1
+    chisq_old = chi2(f)
+    if not np.isfinite(chisq_old):
+        raise ValueError("Initial objective must be finite; Poisson predictions must be positive")
     j, a, g = update(x0, f)
     # initialize D.T @ D array
     dtd = np.diag(np.diag(a))
-    # initialize chi2
-    chisq_old = chi2(f)
     # lambda
     lambda_ = np.sqrt(x0.T @ dtd @ x0)
     if lambda_ <= 0 or ~np.isfinite(lambda_):
         lambda_ = np.array(100.0)
-
-    # make our scaling factor
-    # mu = factor * np.diagonal(a).max()
-
-    x = x0
 
     for ev in range(maxfev):
         logger.debug("Iteration #{}".format(ev))
         if gtest(g):
             info = 4
             break
-        # calculate proposed step
-        # equivalent to $\lambda D^TD$ except no scaling on D
-        # which is why it's a diagnonal matrix ...
-        # lambda_ = make_lambda(j, d0)
+        # Damping uses the diagonal curvature scale from accepted iterates.
         logger.debug("lambda_ = {}".format(lambda_))
-        logger.debug("x = {}".format(x))
-        logger.debug("delta = {}".format(np.sqrt(x.T @ dtd @ x)))
-        # lambda_ = np.ones_like(g)
+        logger.debug("x = {}".format(x0))
         aug_a = a + lambda_ * dtd
         try:
-            # https://software.intel.com/en-us/mkl-developer-reference-fortran-matrix-inversion-lapack-computational-routines
-            # dx = -la.inv(aug_a) @ g
-            # dx is called p_k in Jorge J Moré's paper
             dx = la.solve(aug_a, -g)
         except la.LinAlgError:
             lambda_ *= factor
@@ -430,49 +333,30 @@ def lm(
         if xtest(dx, x0):
             info = 2
             break
-        # make test move, I think I should be saving previous
-        # position so that I can "undo" if this is bad
-        x = x0 + dx
-        f = func(x)
-
-        # jtj = a
-        # v = -g
-        # temp1 = 0.5 * (g.T @ a @ g) / chisq_old
-        # temp2 = 0.5 * lambda_ * (g.T @ dtd @ g) / chisq_old
-        # pred_red = temp1 + 2.0 * temp2
-        # dirder = -1.0 * (temp1 + temp2)
-
-        chisq_new = chi2(f)
-        if method == "mle":
-            chisq_predicted = chi2((f[0] + j @ dx, f[1]))
-        else:
-            chisq_predicted = chi2(f + j @ dx)
+        trial_x = x0 + dx
+        trial_f = func(trial_x)
+        nfev += 1
+        chisq_new = chi2(trial_f)
 
         actual_reduction = chisq_old - chisq_new
-        predicted_reduction = chisq_old - chisq_predicted
-        # see if we reduced chisq relative to what we predicted the reduction should be
-        rho = actual_reduction / predicted_reduction
-        if actual_reduction < 0:
-            logger.debug("Reduction negative setting to rho to 0")
-            rho = 0
-        elif predicted_reduction < 0:
-            logger.debug("Predicted negative setting to rho to 1")
-            rho = 0
-        elif not np.isfinite(rho):
-            logger.debug("rho = {} setting to 0".format(rho))
-            rho = 0
-        else:
-            logger.debug("rho = {}".format(rho))
+        # Quadratic model at the accepted point, for the half-deviance or
+        # half-squared-residual objective. Do not linearize at the trial point.
+        predicted_reduction = -g @ dx - 0.5 * (dx @ a @ dx)
+        rho = 0.0
+        if actual_reduction > 0 and predicted_reduction > 0:
+            rho = actual_reduction / predicted_reduction
+        if not np.isfinite(rho):
+            rho = 0.0
         if rho > 1e-2:
-            # ftest
-            if actual_reduction <= ftol * chisq_old:
-                info = 1
-                break
+            converged = actual_reduction <= ftol * chisq_old
             # update params, chisq and a and g
-            x0, chisq_old = x, chisq_new
+            x0, f, chisq_old = trial_x, trial_f, chisq_new
             j, a, g = update(x0, f)
             dtd = np.fmax(dtd, np.diag(np.diag(a)))
             lambda_ = max(lambda_ / 5, 1e-7)
+            if converged:
+                info = 1
+                break
         else:
             lambda_ = min(lambda_ * 1.5, 1e7)
 
@@ -484,22 +368,16 @@ def lm(
         # remember we return the data with f?
         f = f[0]
 
-    logger.debug("Ended with {} function evaluations".format(ev + 1))
+    logger.debug("Ended with {} function evaluations".format(nfev))
 
-    infodict = dict(fvec=f, fjac=j, nfev=ev)
+    infodict = dict(fvec=f, fjac=j, nfev=nfev)
 
-    if info not in [1, 2, 3, 4] and not full_output:
-        if info in [5, 6, 7, 8]:
-            logger.warning(errors[info][0], RuntimeWarning)
-        else:
-            try:
-                raise errors[info][1](errors[info][0])
-            except KeyError:
-                raise errors["unknown"][1](errors["unknown"][0])
+    if info == 5 and not full_output:
+        logger.warning(errors[info])
 
-    errmsg = errors[info][0]
+    errmsg = errors[info]
     logger.debug(errmsg)
-    popt, cov_x = x, None
+    popt, cov_x = x0, None
 
     if full_output:
         return popt, cov_x, infodict, errmsg, info
@@ -520,84 +398,68 @@ def curve_fit(
     jac=None,
     **kwargs
 ):
-    """Use non-linear least squares to fit a function, f, to data.
-
-    Assumes ``ydata = poisson(f(xdata, *params))``
+    """Fit a model using SciPy or the custom analytic-derivative solvers.
 
     Parameters
     ----------
     f : callable
-        The model function, f(x, ...).  It must take the independent
-        variable as the first argument and the parameters to fit as
-        separate remaining arguments.
-    xdata : An M-length sequence or an (k,M)-shaped array for functions with k predictors
-        The independent variable where the data is measured.
-    ydata : M-length sequence
-        The dependent data --- nominally f(xdata, ...)
-    p0 : None, scalar, or N-length sequence, optional
-        Initial guess for the parameters.  If None, then the initial
-        values will all be 1 (if the number of parameters for the function
-        can be determined using introspection, otherwise a ValueError
-        is raised).
-    sigma : None or M-length sequence or MxM array, optional
-        Determines the uncertainty in `ydata`. If we define residuals as
-        ``r = ydata - f(xdata, *popt)``, then the interpretation of `sigma`
-        depends on its number of dimensions:
-            - A 1-d `sigma` should contain values of standard deviations of
-              errors in `ydata`. In this case, the optimized function is
-              ``chisq = sum((r / sigma) ** 2)``.
-            - A 2-d `sigma` should contain the covariance matrix of
-              errors in `ydata`. In this case, the optimized function is
-              ``chisq = r.T @ inv(sigma) @ r``.
-              .. versionadded:: 0.19
-        None (default) is equivalent of 1-d `sigma` filled with ones.
+        Model called as ``f(xdata, *params)``. For custom "mle", predictions
+        must be strictly positive; use a suitable model parameterization.
+    xdata : array_like or object
+        Independent variables passed to the model.
+    ydata : array_like
+        Observations. Custom "mle" requires finite nonnegative Poisson counts,
+        including zero-count bins. Other methods minimize squared residuals.
+    p0 : scalar or array_like or None, optional
+        Initial guess for SciPy. If None, SciPy infers the parameter count and
+        starts at ones. Custom methods first run an unweighted SciPy
+        least-squares fit, then use its result as their initial parameters.
+    sigma : scalar or array_like or None, optional
+        Passed to delegated SciPy methods. Custom methods require None;
+        weighting is unimplemented, including a supplied all-ones sigma.
     absolute_sigma : bool, optional
-        If True, `sigma` is used in an absolute sense and the estimated parameter
-        covariance `pcov` reflects these absolute values.
-        If False, only the relative magnitudes of the `sigma` values matter.
-        The returned parameter covariance matrix `pcov` is based on scaling
-        `sigma` by a constant factor. This constant is set by demanding that the
-        reduced `chisq` for the optimal parameters `popt` when using the
-        *scaled* `sigma` equals unity. In other words, `sigma` is scaled to
-        match the sample variance of the residuals after the fit.
-        Mathematically,
-        ``pcov(absolute_sigma=False) = pcov(absolute_sigma=True) * chisq(popt)/(M-N)``
+        Passed to SciPy. Custom covariance is unscaled for both True and
+        False (default); custom covariance rescaling is unimplemented.
     check_finite : bool, optional
-        If True, check that the input arrays do not contain nans of infs,
-        and raise a ValueError if they do. Setting this parameter to
-        False may silently produce nonsensical results if the input arrays
-        do contain nans. Default is True.
+        Check input arrays for NaNs and infinities. Default True.
     bounds : 2-tuple of array_like, optional
-        Lower and upper bounds on independent variables. Defaults to no bounds.
-        Each element of the tuple must be either an array with the length equal
-        to the number of parameters, or a scalar (in which case the bound is
-        taken to be the same for all parameters.) Use ``np.inf`` with an
-        appropriate sign to disable bounds on all or some parameters.
-        .. versionadded:: 0.17
-    method : {'lm', 'trf', 'dogbox'}, optional
-        Method to use for optimization.  See `least_squares` for more details.
-        Default is 'lm' for unconstrained problems and 'trf' if `bounds` are
-        provided. The method 'lm' won't work when the number of observations
-        is less than the number of variables, use 'trf' or 'dogbox' in this
-        case.
+        Parameter bounds passed to SciPy. Custom methods support only
+        unbounded parameters (the default ``(-inf, inf)``).
+    method : {None, "lm", "trf", "dogbox", "ls", "mle"}, optional
+        None (default), "lm", "trf", and "dogbox" delegate to SciPy curve_fit.
+        "ls" selects custom unweighted least squares. "mle" selects the
+        Laurence–Chromy Poisson objective, not least squares. "pyls" and
+        unknown methods raise TypeError.
+    jac : callable or str or None, optional
+        Custom methods require an analytic Jacobian ``jac(xdata, *params)``
+        with shape (observations, parameters); None and numerical derivative
+        selectors raise NotImplementedError. Delegated methods retain SciPy's
+        supported numerical derivative options.
+    **kwargs
+        Options for the delegated SciPy fit, or for both the SciPy initializer
+        and custom ``lm``. See ``lm`` for custom tolerances and limitations.
+        ``full_output=True`` requests a five-item result instead of two.
+        Custom ``col_deriv`` must be True despite its legacy name. Inherited
+        ``epsfcn`` and ``diag`` do not tune the custom iteration.
 
-        "ls", "mle"
-        What type of estimator to use. Maximum likelihood ("mle") assumes that the noise
-        in the measurement is poisson distributed while least squares ("ls") assumes
-        normally distributed noise. "pyls" is a python implementation, for testing only
-
-        .. versionadded:: 0.17
-    jac : callable, string or None, optional
-        Function with signature ``jac(x, ...)`` which computes the Jacobian
-        matrix of the model function with respect to parameters as a dense
-        array_like structure. It will be scaled according to provided `sigma`.
-        If None (default), the Jacobian will be estimated numerically.
-        String keywords for 'trf' and 'dogbox' methods can be used to select
-        a finite difference scheme, see `least_squares`.
-        .. versionadded:: 0.18
-    kwargs
-        Keyword arguments passed to `leastsq` for ``method='lm'`` or
-        `least_squares` otherwise.
+    Returns
+    -------
+    popt : ndarray
+        Fitted parameters.
+    pcov : ndarray
+        SciPy's covariance for delegated methods. Custom methods return the
+        unscaled pseudoinverse of ``J.T @ J`` at the fitted point, discarding
+        numerically zero singular values. This has no validated Poisson
+        confidence-interval interpretation and ignores ``absolute_sigma``.
+    infodict : dict or None, optional
+        With full_output, diagnostics from SciPy or custom ``lm``. Delegated
+        bounded fits and "trf"/"dogbox" retain the legacy placeholder None.
+    message : str, optional
+        Termination message with full_output. The legacy delegated placeholder
+        result uses "No error".
+    status : int, optional
+        Termination status with full_output. The legacy delegated placeholder
+        result uses 1. Failed custom convergence raises RuntimeError.
     """
     # fix kwargs
     return_full = kwargs.pop("full_output", False)
@@ -627,20 +489,32 @@ def curve_fit(
     else:
         raise TypeError("Method {} not recognized".format(method))
 
-    if bounds != (-np.inf, np.inf):
+    if np.any(np.asarray(bounds[0]) != -np.inf) or np.any(np.asarray(bounds[1]) != np.inf):
         raise NotImplementedError("Bounds has not been implemented")
 
     if sigma is not None:
         raise NotImplementedError("Weighting has not been implemented")
-    else:
-        transform = None
 
-    if jac is None:
-        raise NotImplementedError("You need a Jacobian")
+    if not callable(jac):
+        raise NotImplementedError("An analytic Jacobian is required")
+    if not kwargs.get("col_deriv", True):
+        raise NotImplementedError("col_deriv=False has not been implemented")
 
     # initialize p0 with standard LM
+    # The legacy custom col_deriv flag has different semantics from SciPy's.
+    initial_kwargs = {key: value for key, value in kwargs.items() if key != "col_deriv"}
     res = scipy.optimize.curve_fit(
-        f, xdata, ydata, p0, sigma, absolute_sigma, check_finite, bounds, None, jac, **kwargs
+        f,
+        xdata,
+        ydata,
+        p0,
+        sigma,
+        absolute_sigma,
+        check_finite,
+        bounds,
+        None,
+        jac,
+        **initial_kwargs
     )
 
     # grab p0
@@ -661,13 +535,11 @@ def curve_fit(
         else:
             xdata = np.asarray(xdata)
 
-    func = _wrap_func(f, xdata, ydata, transform)
-    if callable(jac):
-        jac = _wrap_jac(jac, xdata, transform)
+    func = _wrap_func(f, xdata, ydata)
+    jac = _wrap_jac(jac, xdata)
 
     res = lm(func, p0, Dfun=jac, full_output=1, method=method, **kwargs)
     popt, pcov, infodict, errmsg, info = res
-    cost = np.sum(infodict["fvec"] ** 2)
 
     # Do Moore-Penrose inverse discarding zero singular values.
     _, s, VT = la.svd(infodict["fjac"], full_matrices=False)
