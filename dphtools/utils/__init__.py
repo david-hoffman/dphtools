@@ -21,6 +21,7 @@ from numpy.fft import ifftshift, irfftn, rfftn
 from scipy.fft import next_fast_len
 from scipy.ndimage import fourier_gaussian
 from scipy.ndimage._ni_support import _normalize_sequence
+from scipy.spatial.transform import Rotation
 
 logger = logging.getLogger(__name__)
 
@@ -689,13 +690,14 @@ def rot_matrix(source, target):
 
 
 def calc_angles(mat_b):
-    """Calculate angles based on rotation matrix."""
-    atan2 = np.arctan2
-    return (
-        atan2(mat_b[1, 2], mat_b[2, 2]),
-        atan2(-mat_b[2, 0], np.sqrt(mat_b[1, 2] ** 2 + mat_b[2, 2] ** 2)),
-        atan2(mat_b[0, 1], mat_b[0, 0]),
-    )
+    """Return principal extrinsic xyz angles in radians for an active rotation.
+
+    The right-handed matrix satisfies ``mat_b = Rz(z) @ Ry(y) @ Rx(x)``.
+    The returned tuple has x and z in [-pi, pi] and y in [-pi/2, pi/2].
+    At gimbal lock, warn and set z to zero while preserving the rotation.
+    The input matrix is not modified.
+    """
+    return tuple(Rotation.from_matrix(mat_b).as_euler("xyz"))
 
 
 # TODO: refactor the below as methods of a point cloud object, maybe

@@ -130,9 +130,8 @@ def display_grid(
         aspects = np.array([v.shape[0] / v.shape[1] for v in data.values() if v.ndim > 1])
         # if len is zero then everything was 1d
         if len(aspects):
+            # Standard array dimensions and their count cannot overflow a float64 sum.
             grid_aspect = aspects.mean()
-            if not np.isfinite(grid_aspect):
-                raise RuntimeError(f"grid_aspect isn't finite, grid_aspect = {grid_aspect}")
         else:
             grid_aspect = 1
     fig, axs = make_grid(
@@ -181,9 +180,8 @@ def make_grid(numitems, nrows=None, figsize=3, grid_aspect=1, **kwargs):
     if nrows is None:
         nrows = int(np.sqrt(numitems))
     if nrows == 0:
-        nrows = ncols = 1
-    else:
-        ncols = int(np.ceil(numitems / nrows))
+        raise ValueError("nrows can't be zero.")
+    ncols = int(np.ceil(numitems / nrows))
 
     fig, axs = plt.subplots(
         nrows,
@@ -232,14 +230,12 @@ def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
     objs = getattr(ax, to_change)
     num_objs = len(objs)
     # set the new alpha mapping, if wanted
-    if new_alpha is not None:
-        if "best" == new_alpha:
-            r = 1 / num_objs
-            try:
-                expon = new_alpha["best"]
-            except TypeError:
-                expon = 2
-            new_alpha = 1 - ((1 - np.sqrt(r)) / (1 + np.sqrt(r))) ** expon
+    best_alpha = new_alpha == "best"
+    if best_alpha:
+        if num_objs == 0:
+            return
+        root_count = np.sqrt(num_objs)
+        new_alpha = 4 * root_count / (1 + root_count) ** 2
     # cycle through colors and recolor lines
     for i, obj in enumerate(objs):
         # generate new color
@@ -247,6 +243,8 @@ def recolor(cmap, ax=None, new_alpha=None, to_change="lines"):
         # replace alpha is wanted
         if new_alpha is not None:
             new_color[-1] = new_alpha
+        if best_alpha:
+            obj.set_alpha(new_alpha)
         # set the color
         obj.set_color(new_color)
 

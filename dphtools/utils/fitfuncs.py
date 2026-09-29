@@ -582,24 +582,21 @@ def fit_ztp(data):
         mean = float(np.mean(data, dtype=np.float64))
         if not np.isfinite(mean) or mean <= 1:
             raise RuntimeError("The sample mean cannot be represented for fitting")
+        return _fit_ztp_mean(mean)
     except (ValueError, ArithmeticError) as error:
         raise RuntimeError("Fitting zero-truncated Poisson failed") from error
-    return _fit_ztp_mean(mean)
 
 
 def _fit_ztp_mean(mean):
     """Fit the conditional Poisson rate for a finite binary64 mean above one."""
-    try:
 
-        def mean_residual(lam):
-            """Evaluate the likelihood equation, including its limit at zero."""
-            return (1.0 if lam == 0 else lam / -np.expm1(-lam)) - mean
+    def mean_residual(lam):
+        """Evaluate the likelihood equation, including its limit at zero."""
+        return (1.0 if lam == 0 else lam / -np.expm1(-lam)) - mean
 
-        # The conditional mean increases from 1 and exceeds lam for lam > 0.
-        # Thus [0, mean] brackets the unique positive likelihood optimum.
-        rate = brentq(mean_residual, 0.0, mean)
-    except (ValueError, ArithmeticError) as error:
-        raise RuntimeError("Fitting zero-truncated Poisson failed") from error
+    # The conditional mean increases from 1 and exceeds lam for lam > 0.
+    # Thus [0, mean] brackets the unique positive likelihood optimum.
+    rate = brentq(mean_residual, 0.0, mean)
     if not np.isfinite(rate) or rate <= 0:
         raise RuntimeError("Fitting zero-truncated Poisson returned an invalid rate")
     return rate
