@@ -103,3 +103,8 @@ For a zero-truncated count estimator, compare the conditional likelihood and its
 
 
 - A count histogram preserves the empirical conditional likelihood while permitting tests of sample multiplicities too large to materialize. Numerical outcome equivalence alone does not establish public delegation or solver-budget enforcement. In the reviewed negative-binomial component, static inspection plus non-replacing call observation established both; a maxiter stopping option of1 produced two reported evaluations under the real solver. Evidence: SETUP-001 histogram repair and reports/coverage-finalization/ztnb-coordinator-integration.json. This observation describes that solver's stopping semantics, not a universal work limit.
+
+
+## 2026-09-29 — Parameter accuracy does not always identify support
+
+Independent B review of the supplemental PowerLaw tests found that bounded and unbounded fits to49 ones and one two have exponents separated by about6.96e-19, while the test allows2e-6 relative error. Matching parameters and retained observations therefore cannot establish the selected support in that fixture. The corrected test preserves its numerical/error assertions and explicitly records support selection as unobserved; an ordinary40/10 control has distinguishable parameters. Keep observation claims within what assertions can discriminate. Evidence: `reports/B-six-approved/powerlaw-final-numerical-review.md` and the corrected R1 review; exact accepted test SHA-256 `c30837e83beab3255e5533a17e2c6dc92e87d0975e50fb3942068995d73ba646`. This is a test-claim correction, not evidence of a product defect.
