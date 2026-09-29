@@ -74,3 +74,16 @@ Copy below the marker and replace placeholders. Do not leave fake evidence.
 - Observation: the coordinator proposed an absolute power-law intercept assertion using normalized density, although the public docstring leaves the level's units unspecified. That draft assertion was withdrawn before the reviewed checkpoint.
 - Evidence: `docs/tasks/SETUP-001-intake.md` records the count-versus-density ambiguity; `reports/B-coverage-continuation/final-review.md` accepts amplitude-independent ratios and retains the unresolved units. No product fix was made for the withdrawn assertion.
 - Lesson: derive only the invariants supported by the contract while units remain undecided. Executing a method and checking its shape does not validate an unspecified absolute interpretation.
+
+
+## 2026-09-29 — independently reviewed numerical test lessons
+
+A, exact-discrete likelihood and KS oracle: A discrete KS oracle must evaluate unobserved integer gaps as well as observed atoms. For exact-discrete PowerLaw fitting of `[2,3,8]` at cutoff 2, an independent infinite-support likelihood calculation gives alpha approximately 2.20349903891 and the largest ordinary KS difference at integer 7, approximately 0.183068916435. Tests restricted to observed integers can miss that supremum.
+
+B, tolerance discriminator: A tolerance test must place at least one natural score gap strictly between the approved absolute threshold and a plausible relative threshold. A fixture at their shared boundary can let the wrong rule pass, or distinguish it only through floating-point rounding.
+
+B, scale-boundary evidence: Separate stored-input validity, mathematical conditioning and actual solver outcome at extreme scales. A permitted numerical exception can pass a diagnostic-consistency test without proving successful fitting; any successful result still needs a rescaled independent oracle and held-out checks.
+
+B, representability and reached assertions: At a representability boundary, validate a legitimate finite success path as well as failure handling. Record the assertion actually reached: failing initial public-state validation is not evidence that a subsequent rollback condition was tested.
+
+Evidence: `reports/A-powerlaw-cutoff/handoff-before-near-undamped.md`, `reports/B-powerlaw-cutoff/review.md`, `additions-review.md` and `final-review.md`. These are reusable observations, not policy or permission to change behavior.
