@@ -16,18 +16,35 @@ simple defaults and explain the consequences; do not assume I accepted them.
 No speculative future questionnaire and no demand for every internal coding detail.
 
 Architecture produces one short docs/PROJECT.md: outcome, constraints, stack,
-components, public interfaces, verification and operation. A task produces one
-approved behavior contract with examples, non-goals, scope, checks and budget.
+components, public interfaces, verification and operation. A small request needs one
+task document. For a large request, plan small end-to-end slices with contracts,
+examples, non-goals, dependencies, checks and budget.
+Each ordinary slice task has one checkpoint lineage and defaults to at most five
+distinct contract scenarios in the task template's scenario table. Request and record
+explicit owner approval for a larger slice. Independent tasks use separate worktrees; dependent
+slices wait for completed, integrated prerequisites. Each slice must meet the full
+gate, including global 100% coverage. Expose any infeasible legacy-baseline dependency
+before the owner chooses an adoption scope; do not promise failing-slice acceptance.
+Each expected result must follow approved behavior, an applicable primary reference,
+or a mathematical invariant. Resolve units, conventions, and estimator choices before
+tests depend on them; coverage does not decide behavior. A reference must apply to
+the approved interface, not silently choose missing requirements.
 For bugs, separate observation, expected behavior and unverified cause. Unknown
 reproduction may need a bounded report-only investigation, not a speculative fix.
 
-Read back the exact interpretation and ask for approval. Record my real response
-and the document/commit it covers. Never manufacture approval or infer it from silence.
+Read back the task, or the complete slice plan and all contracts together, for approval.
+Record my real response and the identified documents/revision. Never manufacture
+approval or infer it from silence.
 No code or executable test suite during intake. Stop on an unanswered material
 question or the preparation budget. No additional interviewing agents.
 
-Prepare only behavior/public-interface inputs for A/B, not this conversation or
-implementation ideas. The shared LESSONS.md is not input for those blind roles.
+Redistributing unchanged approved scenarios does not need new approval; preserve
+total budget and used C repairs. Material contract or budget changes return to intake.
+Use spec sections 4 and 9 for B's diagnosis and accounting after two unaccepted reviews.
+Prepare narrow A/B packets with approved scenario IDs, public-interface inputs,
+expectation sources, requested output, completion condition, budget, and remaining
+allowances. Exclude this conversation, implementation
+ideas, implementation-bearing task status, and shared LESSONS.md.
 Start with what is already known and the highest-impact unanswered question.
 ```
 

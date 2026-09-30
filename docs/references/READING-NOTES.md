@@ -2,7 +2,8 @@
 
 **Version 1.0**
 
-Read during setup on September 26, 2026 UTC. Exact source selection, retrieval
+Original sources read during setup on September 26, 2026 UTC; R10 added on
+September 29, 2026 UTC without rereading the earlier sources. Exact source selection, retrieval
 times, versions, hashes, and reading limitations are in
 [manifest.json](manifest.json). These are original summaries, not substitutes
 for upstream originals or additions to the delivery specification.
@@ -44,6 +45,24 @@ no tool was installed, and no private logs or credentials were accessed.
 The repository license endpoint returned 404; the only license found in its
 tree belongs to another application. Preserve metadata and this summary, not
 the full README. [Selected README](https://github.com/badlogic/lemmy/blob/92e4ba60328bb9e6d756f18bd5c1e2f166768a61/apps/claude-trace/README.md).
+
+R10: Read the complete pinned OpenClaw test-audit skill and MIT license. Adapt
+its behavioral-refactor criterion, rejection of unnecessary test-only production
+interfaces, and checks for coverage-only execution, wrong-reason negative
+results, fixtures providing the claimed output, and overstated test names.
+Retain independent contracts and legitimate external public callers; a local
+call-count search alone does not establish dead library code. Our adaptation
+requires meaningful correctness checks, not a particular assertion keyword.
+Approved exception or completion behavior can be checked without inventing
+another observable result. The source also cautions against automatically
+deleting existing tests that look coupled to implementation.
+
+Only these judgment criteria are adopted. Its implementation-reading audit
+workflow is incompatible with blind test roles. Campaign instructions, linked
+skills, commands, and production implementations were not read, installed, or
+executed. It provides no basis for choosing numerical tolerances. The exact
+skill bytes and license notice are retained under inert `.txt` filenames.
+[Pinned skill](https://github.com/openclaw/openclaw/blob/80930af448ebabc84174146b56bc106d37fab3b4/.agents/skills/test-audit/SKILL.md).
 
 ## Original articles
 

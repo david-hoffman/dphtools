@@ -30,6 +30,7 @@ not this archive. Rendered text extracts are separately labeled derivatives.
 | R7 | GitHub protected branches | [Original source](github/about-protected-branches.source.txt), [rendered text](github/about-protected-branches.rendered.txt) |
 | R8 | Playwright testing practice | [Original source](playwright/best-practices.source.txt), [rendered text](playwright/best-practices.rendered.txt) |
 | R9 | claude-trace | Metadata and [reading note](READING-NOTES.md) |
+| R10 | OpenClaw test judgment | [Original skill text](openclaw/test-audit.source.txt), [MIT notice](licenses/openclaw-MIT.txt) |
 | O1 | Claude Code skills lessons | Metadata and [reading note](READING-NOTES.md) |
 | O2 | Claude Code dynamic workflows | Metadata and [reading note](READING-NOTES.md) |
 | O3 | Symphony article | Metadata and [reading note](READING-NOTES.md) |
@@ -40,12 +41,18 @@ not this archive. Rendered text extracts are separately labeled derivatives.
 | L2 | Required-check troubleshooting | [Original source](github/troubleshooting-required-status-checks.source.txt), [rendered text](github/troubleshooting-required-status-checks.rendered.txt) |
 
 Full copies are retained only where a redistribution license was identified:
-pstack is MIT licensed; GitHub Docs, Playwright Docs, and the Agent Skills
+pstack and OpenClaw are MIT licensed; GitHub Docs, Playwright Docs, and the Agent Skills
 documentation are CC BY 4.0. Attribution and unchanged license notices are in
 [licenses/](licenses/) and the manifest. The nested Agent Skills `docs/LICENSE`
 applies to its specification; the repository's root Apache license is not used
 for that document. Text extraction removes markup, scripts, styling, and some
 site navigation; no substantive claims were added to those extracts.
+
+R10 was added on September 29, 2026 from pinned OpenClaw commit
+`80930af448ebabc84174146b56bc106d37fab3b4`; the earlier 17 records were not
+recrawled. Only test-judgment criteria are adapted. The source's audit, campaign,
+and landing workflows remain inert reference material; they are not installed
+instructions or authority for numerical tolerances.
 
 Full unlicensed article text is not republished. Both OpenAI article downloads
 returned HTTP 403; their article prose was readable through the web tool, but

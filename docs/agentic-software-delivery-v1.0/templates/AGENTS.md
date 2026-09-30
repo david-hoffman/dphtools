@@ -2,19 +2,25 @@
 
 **Version 1.0** Setup must adapt paths and reconcile existing instructions rather than overwrite them.
 
-Read your approved task, role-permitted public/project context, and the selected role skill. The delivery specification is the policy reference; do not load all source archives or lessons every turn.
+This installed AGENTS.md is the operational home for shared instructions. The delivery specification defines policy and rationale; skills contain role-specific procedures. Read your narrow role packet, role-permitted public/project context, and selected skill. Do not routinely load the whole package, source archives, or lessons.
 
-Use one task at a time and a fresh session for each A/B/C/D role. No reused/forked implementation conversation for review.
+Use one task per worktree and a fresh root session for each A/B/C/D role. Independent approved slices may use separate worktrees; dependent slices wait for completed prerequisites in their baseline. No reused/forked implementation conversation for review. Disable optional memory/delegation within each role where supported. Each packet identifies the approved slice/scenarios, permitted inputs, relevant revision, requested output, completion condition, budget, and remaining allowances.
 
-- Intake resolves material questions and requests explicit owner approval.
-- A/B do not read implementation, its history, or LESSONS.md. Receive only approved public-contract inputs; B also receives A's tests. Before probes/tests, use source-free warning/traceback rendering while retaining diagnostics and failure status; disclose accidental source exposure.
+- Intake resolves material questions and obtains approval for the task or, for a large request, one slice plan and all its contracts together. Default to at most five scenarios per slice, counted in the task's Contract table; larger slices need explicit approval. A redistribution of unchanged approved scenarios follows specification section 3 without another approval.
+- A/B do not read implementation, its history/conversations, LESSONS.md, or task state revealing implementation. Receive only approved public-contract inputs; B also receives A's tests. Before probes/tests, use source-free warning/traceback rendering while retaining diagnostics and failure status; disclose accidental source exposure.
 - C must not change reviewed tests, fixtures, snapshots, workflows, test discovery, coverage settings, or delivery instructions. Report defects rather than bypassing them.
 - D reviews actual behavior, evidence, and simplicity. Do not fix and approve your own repair.
 - Setup may create infrastructure when explicitly authorized. Doctor may edit documentation under its dedicated procedure; neither exception is permission for C to weaken checks.
 
-Prefer real end-to-end/public-entry-point tests. Smaller tests fill genuine gaps. Do not hide failures, fabricate results, or exceed the agreed budget.
+Prefer real end-to-end/public-entry-point tests. Smaller tests fill genuine gaps through interfaces production code or real callers also need. Existing-code tests may pass initially; do not manufacture red evidence or require mutation testing. Require 100% measured statements and branches across instrumentable owned runtime code, globally and per package, including never-imported files. Report unsupported measurement. Do not hide failures, exclusions, skips, or missing reports.
 
-Use the project's canonical commands; all local checks, including 100% coverage, must pass before pushing.
+Before repair, the observing role classifies failures using specification section 4: environment/tooling, test defect, product defect, or unresolved requirement. The coordinator routes work; classification grants no new editing scope. Diagnose uncertain causes before product repair. Only a valid test failing at the intended approved behavior supplies product-red evidence. Changed tests/fixtures need fresh A/B and a revised checkpoint; unchanged tests keep their checkpoint after environment repair.
+
+Require passing canonical full verification of the exact candidate before opening/reopening a PR (draft included) or pushing to an open PR. Any known failure, including incomplete coverage, blocks submission. A branch without an open PR may back up failing checkpoints; report their incomplete status. Record the commit, command, environment, and result, and confirm the candidate stays unchanged. CI repeats verification on configured platforms. Rerun for changed candidate/test/dependency/environment/base, required platforms, or unresolved evidence; reuse applicable results otherwise.
+
+Honor the agreed budget, default two A/B review rounds, and default one C repair after initial C. B's acceptance closes that review window; a later evidenced, authorized test/requirement correction opens a new one with its reason and prior rounds recorded. After two nonacceptances in a window, B diagnoses the blocker before another rewrite; restart only after the documented resolution or explicit extension in specification section 9. Retain all attempts and spending. Splits allocate remaining C repairs/budget rather than multiply them; renamed work and fresh sessions replenish neither. Further C repairs need explicit extension. Do not merge or release without the owner's explicit action.
+
+Keep one concise Current state section: approvals, candidate, reviewed checkpoint, role/check results, blockers, next action, and a metrics line for scenario count, A/B rounds, C repair use, and budget use. Record the final candidate's own hash/results in the conversation or linked PR, outside its tracked tree; prepare the task pointer before verification. Keep no competing status copy. Replace superseded status and link evidence; Git preserves document history. Only LESSONS.md requires append-only treatment.
 
 Append non-obvious, evidence-linked lessons to root LESSONS.md. Do not edit earlier entries; append corrections. Never store secrets, personal data, transcripts, or private reasoning. Blind roles append without reading or hand off the entry for append.
 
