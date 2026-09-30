@@ -101,13 +101,17 @@ Latest merged-PR CI evidence is passing on all configured platforms: [PR #10 run
 
 No separate handoff template is installed; the task template, shared instructions, and role skills already define required handoff fields. Preserve that small structure. The specification and correct templates need no speculative rewrite. Existing scientific remediation is a separate lane with **no work proposed** at this passing baseline; a new failure or missing requirement would require its own classification, dependency estimate, and owner decision.
 
-## Current state
+## Reviewed preparation checkpoint
 
-- Status: reviewed tests accepted; executable implementation is next. No passing candidate or submission is claimed yet.
+- Checkpoint status: reviewed tests accepted against the unchanged executable baseline; this is fixed preparation evidence, not a competing live status record.
 - Approval: owner “do it” on 2026-09-29 approves R1, the 14-scenario exception, unlimited budget, and one corrective implementation cycle; original draft identity is recorded above.
-- Reviewed test: `tests/test_verification_hooks.py`, SHA-256 `93b522508923270467b5504d8eb6a1be02cc97736c4da9a9ff861fc7121d2257`; commit pending. Public mapping is in the Contract table.
+- Reviewed test: `tests/test_verification_hooks.py`, SHA-256 `93b522508923270467b5504d8eb6a1be02cc97736c4da9a9ff861fc7121d2257`; reviewed checkpoint `2e81948e7b21a63c8d90c4b9785c3478d2e2b941`. Public mapping is in the Contract table.
 - Fresh native roles: A `01a0f097-0372-7bf2-863a-86afa00b0beb`; B round 1 `01a0f0a1-9b1f-7802-a407-a48f41ab9ceb` returned one unsupported tool-order restriction; fresh A correction `01a0f0a9-516a-70a0-828e-1f15d223f464`; B round 2 `01a0f0b0-4d41-7b72-a0b2-903929385085` accepted. Reports are `reports/delivery-reconciliation/A/HANDOFF.md`, `B/REVIEW.md`, `A2/HANDOFF.md`, and `B2/REVIEW.md` under the same evidence root. No implementation-source exposure was reported. B2 disclosed an ignored pytest-cache output outside its report directory; no tracked-file change occurred.
 - Baseline evidence: complete original gates pass as recorded above. Both A/B revisions reproduce 15 passing hook cases and nine valid R1 mode/backup failures on both interpreters. The corrected observers pass A's 129 and independent B's 212 distinguishing controls. The unchanged verifier's 48 cases pass on each interpreter. The coordinator's post-acceptance run also records 15 passes and the same nine failures, zero errors/skips (`reports/delivery-reconciliation/reviewed-baseline.xml`, exit 1). This is valid infrastructure behavior evidence, not scientific remediation or whole-candidate readiness.
 - Metrics: scenarios=14 approved; A/B rounds=2/2 used, first window closed by acceptance; implementation=not started; C repairs=0 used/1 remaining; budget=unlimited. Four native preparation roles report 2904755 input tokens (2678656 cached) and 59815 output tokens; whole-task/dollar totals remain unavailable. Preparation, diagnosis, corrections and rejected review all count; historical scientific repair allowances remain exhausted.
-- Final-candidate evidence pointer: this task's conversation and the new implementation PR will maintain the candidate's own identity, final checks, C/D references, CI, and final metrics outside the tracked tree. Prepare that pointer before full verification; do not edit a verified commit to record its own hash/results.
-- Next action: commit the reviewed checkpoint after its post-review baseline run; start fresh infrastructure C with `.githooks/pre-push` as its sole editable tracked file. C cannot alter tests, delivery-policy documents, or scientific behavior. Full verification and fresh D precede submission; no merge or release is authorized.
+
+## Current state
+
+The current candidate identity, C/D outcomes, full-verification and CI results, blockers/next action, and scenario/round/repair/budget metrics are maintained in this Codex task's conversation and its new implementation PR. That external record is authoritative after the preparation checkpoint above. This pointer is prepared before the candidate is committed and verified; no later tracked edit is needed merely to record its own hash or results.
+
+The next authorized stage is fresh infrastructure C with `.githooks/pre-push` as its sole editable tracked file, followed by passing full verification, fresh D, and a new PR into `codex-main`. Reviewed tests and delivery-policy documents remain frozen for C. No merge or release is authorized.
