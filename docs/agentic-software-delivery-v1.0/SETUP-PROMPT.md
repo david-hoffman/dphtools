@@ -28,7 +28,8 @@ Expose legacy baseline dependencies that make small slices unable to pass the fu
 gate, including global 100% coverage. Let the owner choose adoption scope case by case,
 including an explicitly larger slice where needed; do not weaken readiness criteria.
 Adapt paths and instructions without creating two live specs or overwriting the
-product README. Put LESSONS.md at the repo root. Install the four skills in the
+product README. Create root LESSONS/ with a README.md format guide for one timestamped
+Markdown file per lesson, following specification section 7. Install the four skills in the
 selected harness's supported location, with
 one canonical copy of each. Generate or reconcile AGENTS.md as the single operational
 home for shared instructions; skills contain role-specific differences. Add a thin

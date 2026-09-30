@@ -36,7 +36,7 @@ Prefer removing unnecessary code and duplicate instructions before adding more. 
 
 [Show-me-your-work skill](https://github.com/cursor/plugins/blob/main/pstack/skills/show-me-your-work/SKILL.md).
 
-Adapt the compact evidence-linked append-only trail and superseding corrections into LESSONS.md. Do not copy its transcript-audit and cross-model-review stages, TSV-specific helper, or mandatory per-reply attention format. Our log captures selected reusable discoveries, not every decision.
+Adapt the compact evidence-linked append-only trail and superseding corrections into individual timestamped Markdown files under `LESSONS/`. Do not copy its transcript-audit and cross-model-review stages, TSV-specific helper, or mandatory per-reply attention format. Our log captures selected reusable discoveries, not every decision.
 
 ### R6 — Improve instructions from experience
 

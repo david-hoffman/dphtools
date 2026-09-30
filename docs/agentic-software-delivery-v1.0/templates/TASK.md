@@ -42,4 +42,4 @@ Use this section or a pointer to one current-state section in the linked PR/disc
 
 Replace superseded status here; Git preserves its history. Link reports instead of repeating them. A material contract change needs actual approval; unchanged-scenario subdivision follows the plan's approval. Revised checkpoints or renamed work do not erase attempts, spent budget, or C repair use. Acceptance closes an A/B review window; later authorized corrections and restarts after two nonacceptances follow specification section 9's distinct routes.
 
-Supply A/B only their approved behavior/public-interface packet and necessary revision identifiers, not implementation details from this section or full conversations. Only LESSONS.md is append-only; reusable discoveries belong there, not in a duplicate task log.
+Supply A/B only their approved behavior/public-interface packet and necessary revision identifiers, not implementation details from this section or full conversations. Only lesson entries in `LESSONS/` are append-only; record each reusable discovery in a new timestamped file there, not in a duplicate task log.
