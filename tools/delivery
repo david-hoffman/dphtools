@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-commands = parser.add_subparsers(required=True)
+commands = parser.add_subparsers(dest="command", required=True)
 doctor = commands.add_parser(
     "doctor",
     help="inspect delivery evidence and propose a documentation patch",
@@ -16,7 +16,24 @@ doctor = commands.add_parser(
 doctor.add_argument(
     "--check", action="store_true", help="inspect and report without writing files"
 )
+release = commands.add_parser("release", help="prepare or inspect a release", allow_abbrev=False)
+operations = release.add_subparsers(dest="operation", required=True)
+prepare = operations.add_parser("prepare", allow_abbrev=False)
+prepare.add_argument("--version", required=True)
+prepare.add_argument("--ref", default="main")
+prepare.add_argument("--resume")
+status = operations.add_parser("status", allow_abbrev=False)
+status.add_argument("--run", required=True)
 args = parser.parse_args()
+
+if args.command == "release":
+    from release import delivery
+
+    try:
+        sys.exit(delivery(args))
+    except (ValueError, OSError, KeyError, TypeError) as error:
+        print(f"Release command failed: {error}", file=sys.stderr)
+        sys.exit(1)
 
 root = Path(__file__).resolve().parents[1]
 prompt_path = root / "docs/agentic-software-delivery-v1.0/DOCTOR-PROMPT.md"

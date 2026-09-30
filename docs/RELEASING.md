@@ -107,3 +107,42 @@ Native reruns can require another environment review; do not bypass it.
 A published installation defect needs an explicit owner recovery decision and a
 reviewed corrected version. Git rollback does not remove registry files. Preserve
 the failure evidence and describe the actual partial state.
+
+## Installed workflow identity and diagnostics
+
+The top-level `make_release.yml` workflow owns Trusted Publishing. It records the
+trusted `github.workflow_sha` separately from the frozen package source. Recovery
+replays that original trusted helper revision, the original workflow-dispatch run, and its
+unexpired `release-bundle` artifact ID. Each consumer verifies the original archive
+SHA-256 digest before downloading by run and artifact ID, then validates manifest,
+package, and report digests. Unrelated progress on `main` may continue: the current top-level workflow and
+helper files must match the original Git blobs, and the original source must still
+belong to `main`. Changed workflow/helper files require an explicit maintenance
+and recovery decision; they cannot silently replace approved code.
+
+The optional dispatch `notes` input supplies release notes and compatibility
+impact. The CLI's default request leaves a visible owner-review placeholder.
+Replace that placeholder through manual preparation before approving publication,
+or explicitly review its limits. Do not infer compatibility from commit messages.
+
+Preparation retains full platform reports even when verification fails. Retained
+and published installation jobs retain their logs. Publication attempts retain a
+per-file receipt when reconciliation completes. Upload errors remain failed or
+partial outcomes; recovery rechecks the registry before staging missing files.
+Finalization keeps the GitHub Release in draft until its assets are attached. An
+existing asset must have the same digest; recovery never overwrites it.
+
+The workflow serializes publication without cancelling partial uploads. The
+protected publisher parses metadata and uploads retained bytes; it never installs
+or imports the candidate package. Only it receives OpenID Connect (OIDC) permission.
+Its GitHub write permission creates the frozen tag. Post-upload installation jobs
+have read access only. The finalizer gets GitHub write permission only after every
+published installation job passes. Tag creation uses this same dependency graph;
+it does not depend on a token-created tag triggering another workflow.
+
+Both environments still need the separately authorized activation changes listed
+above: allow requester approval, retain the owner as sole reviewer, keep admin
+bypass disabled, restrict deployment to `main`, and register the exact repository,
+workflow, and environment with the matching registry. YAML and local tests do not
+prove hosted enforcement. No remote setting, secret, tag, or publication changes
+are part of installing this implementation.
