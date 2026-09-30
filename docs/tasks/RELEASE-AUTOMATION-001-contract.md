@@ -1,8 +1,8 @@
 # Release automation public contract
 
-**Version 1.0. Contract R1.** This transcribes the owner's approval to implement proposal R3 on 2026-09-30, after selecting `main` releases and removing Conda publication. The proposal R3 SHA-256 at approval was `cd843be1a62550ddecd3022566fcc60d6f50248281da3c5c92ba1449febf53cb`. PR destination is a separate pending clarification; it never changes release eligibility.
+**Version 1.0. Contract R1.** This transcribes the owner's approval to implement proposal R3 on 2026-09-30, after selecting `main` releases and removing Conda publication. The proposal R3 SHA-256 at approval was `cd843be1a62550ddecd3022566fcc60d6f50248281da3c5c92ba1449febf53cb`. The owner subsequently clarified the implementation PR destination as `codex-main`; this never changes `main` release eligibility.
 
-One implementation task combines the approved preparation, distribution validation, and publication outcomes into the five public scenarios below. There is one reviewed test checkpoint, one initial infrastructure implementation, and at most one corrective implementation cycle for this combined work. Combining the outcomes does not multiply allowances. Default A/B window: two rounds. The owner supplied no explicit monetary/time cap; no reliable financial meter is available. Bound execution to this contract and its necessary checks.
+One implementation task combines the approved preparation, distribution validation, and publication outcomes into the five public scenarios below. There is one reviewed test checkpoint, one initial infrastructure implementation, and an original allowance of one corrective implementation cycle for this combined work. On 2026-09-30 the owner approved one additional corrective cycle for the remaining probe measurement repair; the original cycle is already used, so one remains. Combining the outcomes does not multiply allowances. Default A/B window: two rounds. The owner supplied no explicit monetary/time cap; no reliable financial meter is available. Bound execution to this contract and its necessary checks.
 
 ## Public behavior
 
