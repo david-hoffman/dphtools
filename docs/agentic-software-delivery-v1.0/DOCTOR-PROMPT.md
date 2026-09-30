@@ -6,7 +6,7 @@
 Run doctor under docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md section 8.
 Check the working tree and stop
 rather than overwrite unrelated/uncommitted work or interrupt an active delivery task.
-Read relevant project instructions, recent LESSONS.md entries, and concrete CI/test
+Read relevant project instructions, recent entries in LESSONS/, and concrete CI/test
 or repository evidence. Search narrowly; do not replay all sessions or recrawl sources.
 
 Classify failures under spec section 4: environment/tooling failure, test defect,
@@ -32,7 +32,8 @@ example when practical. Explain what was and was not verified.
 
 Present the exact diff, evidence/lesson IDs, and expected improvement. Wait for my
 approval before committing, pushing, or merging. Then use a normal Git commit/PR;
-append a LESSONS.md disposition linking it. Do not change an in-flight task's rules.
+add a new timestamped lesson file in LESSONS/ linking the disposition to that commit
+and the earlier entry. Do not change an in-flight task's rules.
 All delivery documents stay version 1.0; Git tracks their revisions.
 Stop at the approved budget. No additional reviewer or autonomous retry loop.
 ```

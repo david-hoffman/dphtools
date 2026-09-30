@@ -36,7 +36,7 @@ A chooses and justifies absolute and/or relative tolerances from the permitted a
 
 ## Learn, then improve the spec
 
-Suppose an E2E test fails because the test process does not wait for the application to become ready. The agent records an entry in `LESSONS.md`, with a reproducible failure and the readiness evidence—not “tests are flaky.”
+Suppose an E2E test fails because the test process does not wait for the application to become ready. The agent creates a new timestamped Markdown file in `LESSONS/`, with a reproducible failure and the readiness evidence—not “tests are flaky.”
 
 Use `delivery doctor` once installed, or its prompt beforehand. It classifies the failure and distinguishes an instruction gap from failure to follow an existing rule. If readiness is already covered, it reports the test or environment/tooling defect without adding another rule. The compact scenario/round/repair/spend metrics may also support a proposed slice-size adjustment. Doctor cannot activate that adjustment autonomously. The owner reviews an evidenced patch; Git records the approved change. The document still says version 1.0.
 

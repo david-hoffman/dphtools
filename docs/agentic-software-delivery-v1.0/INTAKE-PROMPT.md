@@ -44,7 +44,7 @@ Use spec sections 4 and 9 for B's diagnosis and accounting after two unaccepted 
 Prepare narrow A/B packets with approved scenario IDs, public-interface inputs,
 expectation sources, requested output, completion condition, budget, and remaining
 allowances. Exclude this conversation, implementation
-ideas, implementation-bearing task status, and shared LESSONS.md.
+ideas, implementation-bearing task status, and existing lesson entries in LESSONS/.
 Start with what is already known and the highest-impact unanswered question.
 ```
 

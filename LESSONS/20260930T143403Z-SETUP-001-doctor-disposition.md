@@ -1,0 +1,4 @@
+### 2026-09-27-SETUP-001-doctor-disposition | Approved instruction changes
+- Status: confirmed; disposition of `2026-09-26-SETUP-001-setup-archive-normalization` and `2026-09-26-SETUP-001-A-warning-source`.
+- Evidence: owner approved item 2 on 2026-09-27; commit `4e4c75d` adopts the doctor proposal in the canonical spec, native AGENTS.md, and its template for PR #10. Duplicate additions to the two role skills and setup prompt were removed at the owner's request. The Windows fixture lesson required no new rule.
+- Lesson: keep the rationale in the spec and the shared operational rule in native instructions; repeat it in the generation template so regeneration preserves the rule. These prospective instructions do not retroactively establish historical session blindness or fix product readiness gaps.

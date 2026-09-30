@@ -38,7 +38,7 @@ The agents are told not to change reviewed tests or workflows to make their work
 
 ## How the system learns
 
-During setup, create root `LESSONS.md` for useful, evidence-linked discoveries. Only that log requires append-only treatment; Git preserves superseded task status.
+During setup, create root `LESSONS/` with a `README.md` format guide. Record each useful, evidence-linked discovery in its own timestamped Markdown file. Add corrections as new files referencing earlier entries; do not update a shared index. Only lesson entries require append-only treatment; Git preserves superseded task status.
 
 Once installed, run `delivery doctor` when experience reveals a gap; before installation, use [DOCTOR-PROMPT.md](DOCTOR-PROMPT.md). It distinguishes instruction gaps from execution errors and proposes edits to the existing specification/instructions. You review the diff before it is committed and merged.
 
