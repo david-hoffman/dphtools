@@ -524,7 +524,14 @@ def smoke(payload, directory):
             word in key.upper() for word in ("TOKEN", "PASSWORD", "CREDENTIAL", "SECRET")
         ) or key.upper().startswith(("TWINE_", "PYPI_", "TESTPYPI_", "GH_", "GITHUB_", "AWS_")):
             env.pop(key)
-    for key in ("PYTHONPATH", "PYTHONHOME", "PIP_EXTRA_INDEX_URL"):
+    for key in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PIP_EXTRA_INDEX_URL",
+        "PIP_TARGET",
+        "PIP_PREFIX",
+        "PIP_USER",
+    ):
         env.pop(key, None)
     env.update(
         PYTHONNOUSERSITE="1",
