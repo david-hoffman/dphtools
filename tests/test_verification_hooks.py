@@ -1,5 +1,6 @@
 """Real Git hook entry points in isolated repositories, with local-only remotes."""
 
+from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,7 @@ from .test_verification import FULL_SEQUENCE, ROOT, VerificationCommand, _detail
 from .test_verification import _sequence
 from .test_verification import TOOL
 from .test_verification import _prove_executable_runtime
+from .test_verification import _check_manifest
 
 PYTHON_LAUNCHER = r"""
 import json
@@ -189,69 +191,171 @@ def test_pre_commit_rejects_failed_fast_checks(hook_repo):
 
 @pytest.mark.parametrize("selection", ["default", "explicit"])
 def test_pre_push_checks_head_once_for_multiple_refs(hook_repo, selection):
+    """S1-S2: both interpreter routes run the real fast verifier once for all refs."""
     if selection == "explicit":
         hook_repo.env["DPHTOOLS_PYTHON"] = str(hook_repo.selected_python)
+    _assert_clean_head(hook_repo)
     result = hook_repo.push("HEAD:refs/heads/one", "HEAD:refs/heads/two")
     assert result.returncode == 0, _detail(result)
-    assert _sequence(hook_repo.calls()) == FULL_SEQUENCE
-    calls = hook_repo.python_calls()
-    assert len(calls) == 1 and calls[0]["argv"][-1] == "full", calls
-    expected = hook_repo.selected_python if selection == "explicit" else hook_repo.default_python
-    assert Path(calls[0]["launcher"]) == expected
+    _assert_fast_invocation(hook_repo, selection)
+    _check_manifest(hook_repo, result, "fast")
     assert hook_repo.remote_refs().splitlines() == [
         f"refs/heads/one {hook_repo.head}",
         f"refs/heads/two {hook_repo.head}",
     ]
+    _assert_clean_head(hook_repo)
+
+
+def _assert_clean_head(hook_repo):
+    assert hook_repo.git("rev-parse", "HEAD").stdout.strip() == hook_repo.head
+    assert hook_repo.git("status", "--porcelain", "--untracked-files=all").stdout == ""
+
+
+def _assert_check_operations(calls, mode):
+    observed = _sequence(calls)
+    expected = FULL_SEQUENCE if mode == "full" else ["black", "flake8", "pydocstyle"]
+    # Reuse the operation inventory, not its incidental total ordering.
+    assert Counter(observed) == Counter(expected), observed
+    if mode == "full":
+        dependencies = [
+            ("build", "pip"),
+            ("pip", "coverage:run"),
+            ("coverage:erase", "coverage:run"),
+            ("coverage:run", "coverage:combine"),
+            ("coverage:combine", "coverage:json"),
+            ("coverage:combine", "coverage:xml"),
+            ("coverage:combine", "coverage:report"),
+        ]
+        for before, after in dependencies:
+            assert observed.index(before) < observed.index(after), (before, after, observed)
+
+
+def _assert_fast_invocation(hook_repo, selection="default"):
+    _assert_check_operations(hook_repo.calls(), "fast")
+    calls = hook_repo.python_calls()
+    assert len(calls) == 1 and len(calls[0]["argv"]) == 2, calls
+    assert calls[0]["argv"][1] == "fast", calls
+    assert (hook_repo.repo / calls[0]["argv"][0]).resolve() == hook_repo.entry.resolve()
+    expected = hook_repo.selected_python if selection == "explicit" else hook_repo.default_python
+    assert Path(calls[0]["launcher"]) == expected
 
 
 @pytest.mark.parametrize("state", ["unstaged", "staged", "untracked"])
 def test_pre_push_rejects_dirty_tree_without_updating_remote(hook_repo, state):
+    """S5-S7: each dirty state is observed before a real push is rejected."""
+    _assert_clean_head(hook_repo)
     path = hook_repo.repo / "untracked.txt" if state == "untracked" else hook_repo.tracked
     path.write_text("dirty\n", encoding="utf-8")
     if state == "staged":
         hook_repo.git("add", "tracked.txt")
+    expected = {
+        "unstaged": " M tracked.txt",
+        "staged": "M  tracked.txt",
+        "untracked": "?? untracked.txt",
+    }
+    assert hook_repo.git("status", "--porcelain", "--untracked-files=all").stdout.rstrip() == (
+        expected[state]
+    )
     before = hook_repo.remote_refs()
     result = hook_repo.push("HEAD:refs/heads/main")
     assert result.returncode != 0, _detail(result)
     assert hook_repo.remote_refs() == before
     assert hook_repo.calls() == []
+    assert hook_repo.python_calls() == [], "Reject dirty content before starting the verifier"
+    diagnostic = (result.stdout + result.stderr).lower()
+    assert any(
+        word in diagnostic for word in ("clean", "dirty", "changes", "untracked", "staged")
+    ), _detail(result)
 
 
-def test_pre_push_rejects_any_non_head_source_revision(hook_repo):
-    result = hook_repo.push("HEAD:refs/heads/current", f"{hook_repo.base}:refs/heads/old")
+@pytest.mark.parametrize("multiple", [False, True], ids=["single-ref", "multiple-refs"])
+def test_pre_push_rejects_any_non_head_source_revision(hook_repo, multiple):
+    """S8: one non-HEAD source prevents every requested ref update."""
+    _assert_clean_head(hook_repo)
+    assert hook_repo.base != hook_repo.head
+    assert hook_repo.git("cat-file", "-t", hook_repo.base).stdout.strip() == "commit"
+    refspecs = [f"{hook_repo.base}:refs/heads/old"]
+    if multiple:
+        refspecs.insert(0, "HEAD:refs/heads/current")
+    before = hook_repo.remote_refs()
+    result = hook_repo.push(*refspecs)
     assert result.returncode != 0, _detail(result)
     assert hook_repo.remote_refs() == ""
+    assert hook_repo.remote_refs() == before
     assert hook_repo.calls() == []
+    assert hook_repo.python_calls() == [], "Reject non-HEAD revisions before verification"
+    assert "head" in (result.stdout + result.stderr).lower(), _detail(result)
 
 
 def test_pre_push_allows_deletion_alongside_head_revision(hook_repo):
+    """S9: deletion refs are exempt from the source-equals-HEAD requirement."""
     seed = hook_repo.push("HEAD:refs/heads/delete-me")
     assert seed.returncode == 0, _detail(seed)
+    assert hook_repo.remote_refs().strip() == f"refs/heads/delete-me {hook_repo.head}"
     hook_repo.record.unlink()
     hook_repo.python_record.unlink()
+    _assert_clean_head(hook_repo)
     result = hook_repo.push(":refs/heads/delete-me", "HEAD:refs/heads/keep-me")
     assert result.returncode == 0, _detail(result)
-    assert _sequence(hook_repo.calls()) == FULL_SEQUENCE
+    _assert_fast_invocation(hook_repo)
+    _check_manifest(hook_repo, result, "fast")
     assert len(hook_repo.python_calls()) == 1
     assert hook_repo.remote_refs().strip() == f"refs/heads/keep-me {hook_repo.head}"
+    _assert_clean_head(hook_repo)
 
 
-def test_pre_push_full_failure_rejects_real_local_push(hook_repo):
+def test_pre_push_full_only_failure_allows_real_local_backup(hook_repo):
+    """S3: the same full-only fault fails full but permits a fast-checked backup."""
     hook_repo.env["VERIFICATION_TEST_FAIL"] = "pip_audit"
+    _assert_clean_head(hook_repo)
+    full = hook_repo.run("full")
+    assert full.returncode == 1, _detail(full)
+    _assert_check_operations(hook_repo.calls(), "full")
+    full_report = _check_manifest(hook_repo, full, "full", "pip_audit")
+    assert hook_repo.remote_refs() == ""
+    assert hook_repo.python_calls() == [], "The full demonstration is separate from the hook"
+    _assert_clean_head(hook_repo)
+    hook_repo.record.unlink()
+
+    # Keep the same repository, interpreter, tool stand-ins, and failure setting.
+    # This disposable file-only remote has no PR service or open PR.
+    result = hook_repo.push("HEAD:refs/heads/backup")
+    assert result.returncode == 0, _detail(result)
+    _assert_fast_invocation(hook_repo)
+    fast_report = _check_manifest(hook_repo, result, "fast")
+    assert fast_report != full_report
+    assert hook_repo.remote_refs().strip() == f"refs/heads/backup {hook_repo.head}"
+    _assert_clean_head(hook_repo)
+
+
+def test_pre_push_fast_failure_rejects_real_local_push(hook_repo):
+    """S4: a real fast-verifier failure blocks the push without updating refs."""
+    hook_repo.env["VERIFICATION_TEST_FAIL"] = "black"
+    _assert_clean_head(hook_repo)
+    before = hook_repo.remote_refs()
     result = hook_repo.push("HEAD:refs/heads/main")
     assert result.returncode != 0, _detail(result)
-    assert _sequence(hook_repo.calls()) == FULL_SEQUENCE
+    _assert_fast_invocation(hook_repo)
+    _check_manifest(hook_repo, result, "fast", "black")
     assert hook_repo.remote_refs() == ""
+    assert hook_repo.remote_refs() == before
+    _assert_clean_head(hook_repo)
 
 
 @pytest.mark.parametrize("hook", ["pre-commit", "pre-push"])
 def test_hooks_fail_visibly_when_selected_interpreter_is_missing(hook_repo, hook):
+    """S10 and retained pre-commit behavior: a missing interpreter fails visibly."""
+    _assert_clean_head(hook_repo)
     hook_repo.env["DPHTOOLS_PYTHON"] = str(hook_repo.bin / "missing interpreter")
+    assert not Path(hook_repo.env["DPHTOOLS_PYTHON"]).exists()
+    before = hook_repo.remote_refs()
     result = hook_repo.hook() if hook == "pre-commit" else hook_repo.push("HEAD:refs/heads/main")
     assert result.returncode != 0, _detail(result)
     assert "missing interpreter" in result.stdout + result.stderr, _detail(result)
     assert hook_repo.calls() == []
     assert hook_repo.remote_refs() == ""
+    assert hook_repo.remote_refs() == before
+    assert hook_repo.python_calls() == []
 
 
 # This code runs only in an external-tool stand-in, inside a disposable repository.
@@ -308,8 +412,7 @@ def _assert_successful_check(hook_repo, mode, status):
     assert status.read_text(encoding="utf-8") == "0", "Verifier failed before stale-state check"
     calls = hook_repo.python_calls()
     assert len(calls) == 1 and calls[0]["argv"][-1] == mode, calls
-    expected = FULL_SEQUENCE if mode == "full" else ["black", "flake8", "pydocstyle"]
-    assert _sequence(hook_repo.calls()) == expected
+    _assert_check_operations(hook_repo.calls(), mode)
     reports = hook_repo.reports()
     assert len(reports) == 1
     data = json.loads(reports[0].read_text(encoding="utf-8"))
@@ -342,12 +445,14 @@ def test_pre_commit_rejects_content_changed_during_successful_checks(hook_repo, 
 
 @pytest.mark.parametrize("mutation", ["tracked", "head", "untracked"])
 def test_pre_push_rejects_state_changed_during_successful_checks(hook_repo, mutation):
+    """S11-S13: a successful fast check cannot authorize changed content or HEAD."""
     assert hook_repo.git("status", "--porcelain", "--untracked-files=all").stdout == ""
     index_before = hook_repo.git("write-tree").stdout.strip()
     receipt, status = _arrange_state_change(hook_repo, mutation)
     result = hook_repo.push("HEAD:refs/heads/main")
 
-    _assert_successful_check(hook_repo, "full", status)
+    _assert_successful_check(hook_repo, "fast", status)
+    _assert_fast_invocation(hook_repo)
     change = json.loads(receipt.read_text(encoding="utf-8"))
     assert change["before"] == {"head": hook_repo.head, "index": index_before}
     assert change["after"]["index"] == index_before
@@ -369,14 +474,15 @@ def test_pre_push_rejects_state_changed_during_successful_checks(hook_repo, muta
 
 
 def test_pre_push_rejects_index_changed_during_successful_checks(hook_repo):
-    """A restaged edit can leave no unstaged diff while invalidating the checked index."""
+    """S14: a restaged edit leaves no unstaged diff but invalidates the checked index."""
     assert hook_repo.git("status", "--porcelain", "--untracked-files=all").stdout == ""
     index_before = hook_repo.git("write-tree").stdout.strip()
     refs_before = hook_repo.remote_refs()
     receipt, status = _arrange_state_change(hook_repo, "staged")
     result = hook_repo.push("HEAD:refs/heads/main")
 
-    _assert_successful_check(hook_repo, "full", status)
+    _assert_successful_check(hook_repo, "fast", status)
+    _assert_fast_invocation(hook_repo)
     change = json.loads(receipt.read_text(encoding="utf-8"))
     assert change["before"] == {"head": hook_repo.head, "index": index_before}
     assert change["after"]["head"] == hook_repo.head

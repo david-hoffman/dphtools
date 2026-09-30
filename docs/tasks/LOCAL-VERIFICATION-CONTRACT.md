@@ -1,6 +1,6 @@
 # Local verification
 
-**Version 1.0** Setup infrastructure authorized by the owner's 2026-09-28 instruction to verify locally before pushing and have CI verify the submitted result. No new numerical behavior is approved here.
+**Version 1.0** Setup infrastructure authorized by the owner, with the submission/backup distinction approved in [DELIVERY-MAINTENANCE-001](DELIVERY-MAINTENANCE-001.md). No new numerical behavior is approved here.
 
 ## Public behavior
 
@@ -16,10 +16,10 @@
 ## Ordinary local Git hooks
 
 - `.githooks/pre-commit` runs fast checks before a commit. It rejects unstaged tracked changes so the files checked correspond to the staged tracked content.
-- `.githooks/pre-push` requires a clean working tree, including ordinary untracked files, and requires every non-deletion source revision being pushed to equal the checked-out commit. It then runs full verification once and rejects the push on failure. It must not contact the remote itself.
+- `.githooks/pre-push` requires a clean working tree, including ordinary untracked files, and requires every non-deletion source revision being pushed to equal the checked-out commit. It then runs fast verification once and rejects the push on fast-check failure. A failure confined to full verification does not block a permitted pre-PR backup when fast and Git-state checks pass. It must not contact the remote itself or determine PR state.
 - Both hooks select `${DPHTOOLS_PYTHON:-python}` as the interpreter. Missing/broken tools fail visibly. Existing hooks/configuration must be inspected before installation and preserved if present.
 - After successful verification, recheck the relevant Git state before allowing the operation: commit must still check the same staged content with no unstaged tracked edits; push must still have the same HEAD and a clean tracked/untracked checkout. A save or tool write during checks invalidates that result. This detects ordinary stale results; it is not an atomic snapshot or a guarantee against concurrent changes.
-- Hooks are ordinary bypassable feedback, not permission enforcement or certification. Required CI remains. The coordinator does not push a known failing local candidate or bypass the hook.
+- Hooks are ordinary bypassable feedback, not permission enforcement or certification. Required CI remains. Before opening/reopening any PR (including drafts) or pushing an update to an open PR, the coordinator requires `python tools/verification.py full` to pass locally on the exact committed candidate, including complete coverage. Record commit, command, environment, and results outside its tracked tree; keep that tree unchanged through submission. Closing a PR or moving its branch does not waive this rule. A changed candidate requires a new full run. Changes to tests, dependencies, environment, or integration base can also invalidate prior evidence. A branch without an open PR may back up a failing checkpoint, explicitly labeled incomplete; that backup is not submission evidence. No failing PR is published to demonstrate the gate.
 
 ## Independent test scope
 

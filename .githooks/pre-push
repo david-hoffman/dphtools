@@ -4,7 +4,7 @@ set -eu
 cd "$(git rev-parse --show-toplevel)"
 pending_changes=$(git status --porcelain --untracked-files=normal)
 if test -n "$pending_changes"; then
-    echo "pre-push: commit or stash tracked and untracked changes before the full gate." >&2
+    echo "pre-push: commit or stash tracked and untracked changes before fast checks." >&2
     exit 1
 fi
 checked_head=$(git rev-parse HEAD)
@@ -17,10 +17,10 @@ while read -r local_ref local_oid remote_ref remote_oid; do
         fi
     fi
 done
-"${DPHTOOLS_PYTHON:-python}" tools/verification.py full
+"${DPHTOOLS_PYTHON:-python}" tools/verification.py fast
 current_head=$(git rev-parse HEAD)
 pending_changes=$(git status --porcelain --untracked-files=normal)
 if test "$current_head" != "$checked_head" || test -n "$pending_changes"; then
-    echo "pre-push: HEAD or checkout changed during full verification; verify again." >&2
+    echo "pre-push: HEAD or checkout changed during fast verification; verify again." >&2
     exit 1
 fi
