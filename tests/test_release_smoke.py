@@ -65,6 +65,7 @@ import runpy
 import subprocess
 import sys
 import warnings
+import uuid
 
 entry, config_file, log_file, *args = sys.argv[1:]
 config = json.loads(Path(config_file).read_text(encoding="utf-8"))
@@ -112,12 +113,19 @@ class ObservedPopen(real_popen):
         if self.environment in measurement_envs:
             kwargs["env"] = dict(os.environ if kwargs.get("env") is None else kwargs["env"],
                                  **measurement_envs[self.environment])
+        self.identity_file = None
+        if self.actual_probe and self.environment in measurement_envs:
+            self.identity_nonce = uuid.uuid4().hex
+            self.identity_file = Path(log_file).parent / ("helper-identity-" + self.identity_nonce + ".json")
+            kwargs["env"].update(RELEASE_FIXTURE_IDENTITY=str(self.identity_file),
+                                 RELEASE_FIXTURE_NONCE=self.identity_nonce)
         self.env_values = dict(os.environ if kwargs.get("env") is None else kwargs["env"])
         if self.actual_probe:
             assert Path(argv[1]).is_absolute(), "Actual helper invocation requires an absolute path"
             record({"event": "actual-probe", "python": argv[0], "helper": argv[1],
                     "version": argv[2], "environment": self.environment,
-                    "cwd": str(kwargs.get("cwd") or Path.cwd())})
+                    "cwd": str(kwargs.get("cwd") or Path.cwd()),
+                    "identity_nonce": getattr(self, "identity_nonce", None)})
         self.cwd_value = str(kwargs.get("cwd") or Path.cwd())
         self.package = next((arg for arg in argv if arg in config["artifacts"]), None)
         counts[stage] = counts.get(stage, 0) + 1
@@ -161,6 +169,14 @@ class ObservedPopen(real_popen):
         record({"event": "finish", "stage": self.stage, "returncode": self.returncode,
                 "injected": self.injected, "actual_probe": self.actual_probe,
                 "environment": self.environment})
+        if self.identity_file is not None and self.returncode == 0:
+            identity = json.loads(self.identity_file.read_text(encoding="utf-8"))
+            assert identity["nonce"] == self.identity_nonce, "Wrong actual helper identity nonce"
+            assert identity["argv"] == self.actual_argv[1:], "Wrong actual helper invocation"
+            assert Path(identity["prefix"]).resolve() == Path(self.environment).resolve(), "Wrong actual interpreter prefix"
+            assert Path(identity["python"]).absolute() == Path(self.actual_argv[0]).absolute(), "Wrong actual interpreter executable"
+            record({"event": "actual-probe-identity", "launcher_pid": self.pid,
+                    "environment": self.environment, **identity})
         if self.actual_probe and self.returncode == 0 and config.get("probe_controls"):
             measurement_support["controls"](real_popen, self.actual_argv, self.cwd_value,
                                             self.env_values, installed_results[self.environment], record)

@@ -89,12 +89,17 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.lock
       - name: Install locked verification dependencies
-        run: python -m pip install --require-hashes -r requirements-dev.lock
+        run: |
+          python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
+          python -m pip install --no-index --find-links "$RUNNER_TEMP/verification-wheels" --require-hashes -r requirements-dev.lock
       - name: Prepare local Versioneer tag at the frozen source
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git tag -- "$VERSION" "$SOURCE_SHA"
       - name: Canonical full verification
+        env:
+          PIP_NO_INDEX: '1'
+          PIP_FIND_LINKS: ${{ runner.temp }}/verification-wheels
         run: python tools/verification.py full
       - name: Build the only retained release pair on Linux
         if: matrix.os == 'ubuntu-24.04'

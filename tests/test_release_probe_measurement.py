@@ -125,13 +125,38 @@ def assert_actual_measurement(smoke, before):
             for r in records
             if r["event"] == "coverage-startup" and r["python"] == invocation["python"]
         )
+        identities = [
+            r
+            for r in records
+            if r["event"] == "actual-probe-identity"
+            and r["environment"] == invocation["environment"]
+        ]
+        require(len(identities) == 1, "One interpreter identity for successful helper")
+        identity = identities[0]
+        require(identity["launcher_pid"] == started[0]["pid"], "Associate real launcher status")
+        require(identity["pid"] > 0, "Record actual interpreter PID")
+        require(
+            identity["nonce"] == invocation["identity_nonce"], "Associate unique helper invocation"
+        )
+        require(
+            identity["argv"] == [invocation["helper"], invocation["version"]],
+            "Associate helper arguments",
+        )
+        require(
+            Path(identity["prefix"]).resolve() == Path(invocation["environment"]).resolve(),
+            "Associate interpreter prefix",
+        )
+        require(
+            Path(identity["python"]).absolute() == Path(invocation["python"]).absolute(),
+            "Associate interpreter executable",
+        )
+        filename = Path(identity["data_file"])
         base = Path(setup["data_base"])
-        files = list(base.parent.glob(base.name + ".*"))
-        # The pinned tool uses a pid-prefixed token; older ordinary coverage
-        # used a bare numeric token. Neither needs an exact full filename.
-        # Require this successful owned invocation's trace, not a testing control.
-        pid_token = re.compile(rf"\.(?:pid)?{started[0]['pid']}\.")
-        files = [f for f in files if pid_token.search(f.name)]
+        require(
+            filename.parent == base.parent and Path(identity["data_base"]) == base,
+            "Keep helper data in ordinary family",
+        )
+        files = [filename] if filename.is_file() else []
         require(bool(files), "Actual helper process coverage must survive cleanup")
         measured = False
         for filename in files:
@@ -170,6 +195,25 @@ def test_actual_probe_measurement_and_real_failure_controls(worker, tmp_path, re
     code = result.returncode
     require(code == 0, diagnostic(result))
     assert_actual_measurement(smoke, before)
+    # Reject mismatched observed association after genuine success. These are
+    # fixture validation controls, never replacement process/coverage results.
+    import copy
+
+    records = smoke.calls()
+    for field, wrong in (
+        ("nonce", "wrong-invocation"),
+        ("argv", ["wrong-helper", "999.0.0"]),
+        ("prefix", str(tmp_path / "wrong-prefix")),
+        ("python", str(tmp_path / "wrong-python")),
+        ("launcher_pid", -1),
+        ("data_file", str(tmp_path / "unassociated-data")),
+    ):
+        altered = copy.deepcopy(records)
+        next(r for r in altered if r["event"] == "actual-probe-identity")[field] = wrong
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(smoke, "calls", lambda: altered)
+            with pytest.raises(AssertionError):
+                assert_actual_measurement(smoke, before)
     starts = [r for r in smoke.calls() if r["event"] == "start"]
     for stage in ("install", "check", "probe"):
         observed = [r for r in starts if r["stage"] == stage]
@@ -215,6 +259,7 @@ def test_measurement_settings_select_existing_config_and_locked_tool(tmp_path):
 
 def test_measurement_setup_keeps_real_provisioning_and_startup_failures_visible(tmp_path):
     """Fixture control only: ordinary tool/venv failures, no owned helper substitute."""
+    import json
     import os
     import shutil
     import subprocess
@@ -259,6 +304,42 @@ def test_measurement_setup_keeps_real_provisioning_and_startup_failures_visible(
                 code == 0,
                 "Ordinary inherited parent measurement failed: " + " | ".join(message),
             )
+        # A real forwarding launcher exercises a different actual interpreter
+        # PID on every host, without inventing data or substituting results.
+        receipt = tmp_path / "forwarded-identity.json"
+        child = tmp_path / "external-identity-control.py"
+        child.write_text("import os; print(os.getpid())\n", encoding="utf-8")
+        forwarded_env = dict(
+            env,
+            **values,
+            RELEASE_FIXTURE_IDENTITY=str(receipt),
+            RELEASE_FIXTURE_NONCE="forwarding-control"
+        )
+        launcher = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import subprocess, sys; sys.exit(subprocess.call(sys.argv[1:]))",
+                str(python),
+                str(child),
+            ],
+            cwd=tmp_path,
+            env=forwarded_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = launcher.communicate(timeout=120)
+        require(launcher.returncode == 0, "Real forwarding identity control failed")
+        identity = json.loads(receipt.read_text(encoding="utf-8"))
+        require(
+            identity["pid"] == int(stdout) and identity["pid"] != launcher.pid,
+            "Observe actual interpreter rather than forwarding launcher",
+        )
+        require(
+            identity["argv"] == [str(child)] and identity["nonce"] == "forwarding-control",
+            "Bind forwarded interpreter to exact control invocation",
+        )
+        require(Path(identity["data_file"]).is_file(), "Retain real forwarded ordinary data")
         missing = tmp_path / "absent-coverage-config"
         code, _, message = run(
             subprocess.Popen,

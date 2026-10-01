@@ -25,6 +25,27 @@ try:
         os.environ.pop("COVERAGE_PROCESS_CONFIG", None)
     import coverage
     coverage.process_startup()
+    # Observe this exact real invocation from inside the interpreter. Windows
+    # venv launchers can have a different PID; data filenames are tooling-owned.
+    if os.environ.get("RELEASE_FIXTURE_IDENTITY"):
+        import atexit
+        import json
+        from pathlib import Path
+        current = coverage.Coverage.current()
+        assert current is not None, "Identity observation requires ordinary coverage"
+        identity = {
+            "nonce": os.environ["RELEASE_FIXTURE_NONCE"],
+            "pid": os.getpid(), "argv": sys.argv,
+            "python": sys.executable, "prefix": sys.prefix,
+        }
+        destination = Path(os.environ["RELEASE_FIXTURE_IDENTITY"])
+        def retain_identity():
+            current.save()
+            data = current.get_data()
+            identity["data_file"] = data.data_filename()
+            identity["data_base"] = data.base_filename()
+            destination.write_text(json.dumps(identity), encoding="utf-8")
+        atexit.register(retain_identity)
 except Exception as error:
     # site normally prints and ignores .pth exceptions. Fail this real setup
     # visibly without rendering startup/library source or continuing unmeasured.
@@ -165,6 +186,7 @@ def provision(real_popen, python, env, outside, measurement, record):
 
 def controls(real_popen, argv, cwd, env, installed, record):
     """Actual helper failures after its real successful control; no fake returns."""
+    env = {key: value for key, value in env.items() if not key.startswith("RELEASE_FIXTURE_")}
     code, _, message = run(real_popen, [*argv[:-1], "999.0.0"], cwd, env)
     record(
         {

@@ -33,8 +33,13 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.lock
       - name: Install locked verification dependencies
-        run: python -m pip install --require-hashes -r requirements-dev.lock
+        run: |
+          python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
+          python -m pip install --no-index --find-links "$RUNNER_TEMP/verification-wheels" --require-hashes -r requirements-dev.lock
       - name: Run the complete verification gate for this platform
+        env:
+          PIP_NO_INDEX: '1'
+          PIP_FIND_LINKS: ${{ runner.temp }}/verification-wheels
         run: python tools/verification.py full
       - name: Retain verification reports
         if: always()
