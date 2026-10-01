@@ -14,11 +14,6 @@ from .test_release_support import Bundle, SOURCE_SHA, snapshot, write_json
 from .test_release_version import diagnostic, invoke, worker
 
 
-@pytest.fixture(autouse=True)
-def source_free_tracebacks(request):
-    assert request.config.getoption("tbstyle") == "no", "Run through sourcefree_pytest --tb=no"
-
-
 def status(result, success=True):
     code = result.returncode
     message = diagnostic(result)

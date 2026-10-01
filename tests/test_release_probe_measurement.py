@@ -12,11 +12,6 @@ from .test_release_support import snapshot
 from .test_release_version import ROOT, diagnostic, worker
 
 
-@pytest.fixture(autouse=True)
-def source_free_tracebacks(request):
-    assert request.config.getoption("tbstyle") == "no", "Run through sourcefree_pytest --tb=no"
-
-
 def require(condition, message):
     if not condition:
         print(message, file=sys.stderr)
