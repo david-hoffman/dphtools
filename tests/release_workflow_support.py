@@ -123,7 +123,7 @@ elif len(args) == 4 and args[:2] == ["merge-base", "--is-ancestor"] and args[3] 
     raise SystemExit(0 if args[2] in config["ancestors"] else 1)
 elif len(args) == 2 and args[0] == "rev-parse" and ":" in args[1]:
     sha, path = args[1].split(":", 1)
-    assert path in (".github/workflows/make_release.yml", "tools/release.py", "tools/release_workflow.py")
+    assert path in (".github/workflows/make_release.yml", "tools/release.py", "tools/release_workflow.py", "tools/release_probe.py")
     print(config.get("objects", {}).get(args[1], "7" * 40))
 else:
     raise AssertionError("Undeclared Git operation: " + repr(args))

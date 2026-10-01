@@ -70,6 +70,10 @@ entry, config_file, log_file, *args = sys.argv[1:]
 config = json.loads(Path(config_file).read_text(encoding="utf-8"))
 real_popen = subprocess.Popen
 counts = {}
+measurement_envs = {}
+installed_results = {}
+measurement_support = (runpy.run_path(config["measurement_support"])
+                       if config.get("measurement_support") else None)
 warnings.formatwarning = lambda message, category, filename, lineno, line=None: (
     f"{category.__name__}: {message}\n")
 sys.excepthook = lambda kind, value, traceback: print(f"{kind.__name__}: {value}", file=sys.stderr)
@@ -103,13 +107,25 @@ class ObservedPopen(real_popen):
         parent = Path(argv[0]).absolute().parent
         self.environment = str(parent.parent) if parent.name.lower() in ("bin", "scripts") else None
         self.stage = stage
+        self.actual_probe = (len(argv) == 3 and Path(argv[1]).name == "release_probe.py")
+        self.actual_argv = argv if self.actual_probe else None
+        if self.environment in measurement_envs:
+            kwargs["env"] = dict(os.environ if kwargs.get("env") is None else kwargs["env"],
+                                 **measurement_envs[self.environment])
         self.env_values = dict(os.environ if kwargs.get("env") is None else kwargs["env"])
+        if self.actual_probe:
+            assert Path(argv[1]).is_absolute(), "Actual helper invocation requires an absolute path"
+            record({"event": "actual-probe", "python": argv[0], "helper": argv[1],
+                    "version": argv[2], "environment": self.environment,
+                    "cwd": str(kwargs.get("cwd") or Path.cwd())})
         self.cwd_value = str(kwargs.get("cwd") or Path.cwd())
         self.package = next((arg for arg in argv if arg in config["artifacts"]), None)
         counts[stage] = counts.get(stage, 0) + 1
         self.injected = stage == config.get("fail_stage") and counts[stage] == config.get("fail_index", 1)
         record({"event": "start", "stage": stage, "environment": self.environment,
-                "cwd": self.cwd_value, "artifact": self.package, "injected": self.injected})
+                "cwd": self.cwd_value, "artifact": self.package, "injected": self.injected,
+                "credential_names": [key for key in config.get("credential_keys", [])
+                                     if key in self.env_values]})
         self.observed = False
         if stage == "install" and self.package and self.package.endswith(".tar.gz"):
             # Observe lookup in the installer's actual environment/cwd. Do not
@@ -124,6 +140,9 @@ class ObservedPopen(real_popen):
         if self.injected:
             argv = [sys.executable, "-c", "import sys; print('RELEASE-FIXTURE-PROCESS-FAILURE', file=sys.stderr); sys.exit(23)"]
         super().__init__(argv, *args, **kwargs)
+        if self.actual_probe:
+            record({"event": "actual-probe-started", "pid": self.pid,
+                    "environment": self.environment})
 
     def communicate(self, *args, **kwargs):
         result = super().communicate(*args, **kwargs)
@@ -140,7 +159,11 @@ class ObservedPopen(real_popen):
             return
         self.observed = True
         record({"event": "finish", "stage": self.stage, "returncode": self.returncode,
-                "injected": self.injected})
+                "injected": self.injected, "actual_probe": self.actual_probe,
+                "environment": self.environment})
+        if self.actual_probe and self.returncode == 0 and config.get("probe_controls"):
+            measurement_support["controls"](real_popen, self.actual_argv, self.cwd_value,
+                                            self.env_values, installed_results[self.environment], record)
         if self.stage != "install" or self.returncode or self.package is None:
             return
         root = Path(self.environment)
@@ -162,6 +185,11 @@ class ObservedPopen(real_popen):
             # Retain the exception message; never emit installed-package source.
             item["diagnostic"] = stderr.decode("utf-8", errors="replace").splitlines()[-1:]
         record(item)
+        if item["returncode"] == 0:
+            installed_results[str(root)] = item["result"]
+        if config.get("measurement"):
+            measurement_envs[str(root)] = measurement_support["provision"](
+                real_popen, python, self.env_values, config["outside"], config["measurement"], record)
         if item["returncode"] == 0 and config.get("installed_fault"):
             # Inject ONLY an external installed-package defect after a real,
             # independently verified successful installation. Owned release code
@@ -336,6 +364,21 @@ class Smoke:
             "probe": INSTALLED_PROBE,
             "git_probe": GIT_PROBE,
         }
+        # Canonical instrumented runs must measure actual disposable children too.
+        # Uninstrumented fixture self-checks still delegate their original processes.
+        import coverage
+
+        if coverage.Coverage.current() is not None or os.environ.get("COVERAGE_PROCESS_START"):
+            self.measure()
+
+    def measure(self):
+        from .release_probe_measurement_support import settings
+
+        support = self.bundle.root / "probe-measurement-support.py"
+        shutil.copy2(Path(__file__).with_name("release_probe_measurement_support.py"), support)
+        self.config.update(
+            measurement=settings(self.bundle.root, ROOT), measurement_support=str(support)
+        )
 
     def run(self):
         write_json(self.config_file, self.config)

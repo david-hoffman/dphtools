@@ -672,3 +672,57 @@ def test_https_fixture_preserves_real_redirect_processing_and_raw_bytes(workflow
     )
     require_success(result)
     assert [call["endpoint"] for call in workflow.calls()] == [first, second]
+
+
+@pytest.mark.parametrize("preparation", ["new", "matching", "conflicting"])
+def test_probe_blob_identity_freezes_preparation_and_recovery(workflow, preparation):
+    """S4/S5: opaque fourth helper identity through external Git metadata."""
+    helper = "tools/release_probe.py"
+    original_blob = "9" * 40
+    workflow.config["git"]["objects"] = {
+        SOURCE_SHA + ":" + helper: original_blob,
+        WORKFLOW_SHA + ":" + helper: original_blob,
+    }
+    before = snapshot(workflow.bundle.dist)
+    if preparation == "new":
+        require_success(workflow.run("resolve", "--version", "1.0.0"))
+        assert workflow.outputs()["source_sha"] == SOURCE_SHA
+        assert workflow.outputs()["resume"] == "false"
+    else:
+        recovery_context(workflow)
+        args = ["--version", "1.0.0", "--resume", str(RUN_ID)]
+        require_success(workflow.run("resolve", *args))
+        output = workflow.outputs()
+        assert output["source_sha"] == output["workflow_sha"] == SOURCE_SHA
+        assert output["origin_run"] == str(RUN_ID)
+        assert output["artifact_id"] == str(ARTIFACT_ID)
+        assert output["artifact_digest"] == workflow.artifact["digest"]
+        assert output["resume"] == "true"
+        operations = [json.loads(line) for line in workflow.git_log.read_text().splitlines()]
+        if preparation == "matching":
+            for sha in (SOURCE_SHA, WORKFLOW_SHA):
+                operation = ["rev-parse", sha + ":" + helper]
+                if operation not in operations:
+                    print("Missing declared external helper identity lookup:", operation)
+                assert operation in operations
+        assert_read_only(workflow)
+        if preparation == "conflicting":
+            workflow.clear()
+            workflow.config["git"]["objects"][WORKFLOW_SHA + ":" + helper] = "a" * 40
+            result = workflow.run("resolve", *args)
+            code = result.returncode
+            if code == 0:
+                print(
+                    "Conflicting external probe blob was accepted after matching recovery control"
+                )
+            assert code != 0, diagnostic(result)
+            assert (result.stdout + result.stderr).strip(), "Conflict needs a diagnostic"
+            assert not workflow.output.exists()
+            operations = [json.loads(line) for line in workflow.git_log.read_text().splitlines()]
+            for sha in (SOURCE_SHA, WORKFLOW_SHA):
+                operation = ["rev-parse", sha + ":" + helper]
+                if operation not in operations:
+                    print("Missing declared external helper identity lookup:", operation)
+                assert operation in operations
+    assert_read_only(workflow)
+    assert snapshot(workflow.bundle.dist) == before
