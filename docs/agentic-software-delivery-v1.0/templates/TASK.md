@@ -12,6 +12,7 @@
 - Inputs, outputs, errors, and permissions:
 - Expected-result sources: approved behavior, applicable primary references, or mathematical invariants; units, conventions, estimators, and any unresolved limits.
 - Allowed scope and applicable checks:
+- Release impact and draft release notes, including compatibility/migration needs; record none when applicable:
 - Preparation/execution budget within the plan, risk, and inherited review/repair allowances:
 
 | Scenario ID | Approved input/context and observable success, error, or boundary outcome | Expectation source | Test mapping supplied by A and checked by B |

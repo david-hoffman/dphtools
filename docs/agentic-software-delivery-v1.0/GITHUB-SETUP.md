@@ -24,6 +24,15 @@ Use the repository's branch protection or branch ruleset settings for the approv
 
 GitHub accepts successful, skipped, or neutral required-check conclusions. The workflow should run required validation rather than skip the job. If several jobs are genuinely necessary, require all applicable checks rather than accepting an incomplete aggregate. See the same [GitHub documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
 
+## Owner: activate an approved release process
+
+Installing workflow files does not activate their external protections or approve a release. Record the actual configuration and any unavailable controls in the project/setup evidence. Keep the owner-selected release source separate from the PR target.
+
+1. Configure the publication environment to require owner approval and restrict its eligible source to the project's trusted release branch/workflow. Check default-branch and workflow-dispatch behavior. Required full verification and retained-artifact installation checks must precede the approval stage; ordinary merges and tag pushes must not publish.
+2. Bind each registry's publishing identity to the exact repository, top-level workflow, and protected environment. Prefer short-lived trusted-publisher credentials where supported. Restrict token and identity-token permissions to the jobs that need them; candidate execution and post-upload installation checks receive no publication credentials.
+3. Confirm artifact retention and exact originating run/artifact selection support the documented recovery interval. The approval summary identifies source/version, destinations, notes, required results, and file hashes. Publication consumes those files without rebuilding and stops on identity or registry conflicts. Missing artifacts require new preparation and approval.
+4. Record setup inspection separately from observed hosted behavior. A rehearsal or production publication requires its own explicit owner approval of a prepared bundle. Do not publish, create a remote release tag, change registry settings, or delete old credentials merely to demonstrate installation. Report remaining owner steps; do not claim enforcement from workflow text or local mocks.
+
 ## What this does not enforce
 
 Tests and workflows live beside product code. Agents are instructed not to weaken them, but no custom file restriction or check-source authority prevents that. Reviewer D inspects the diff; native CI checks the submitted configuration. A workflow deletion/change or an agent ignoring instructions can defeat the intended process. Do not claim otherwise.

@@ -89,7 +89,7 @@ Run cheap checks before expensive tests. **C runs the canonical full verificatio
 
 One bounded implementation repair after the initial C attempt may use fresh C and D; section 9 defines its accounting. A change of requirements or tests repeats affected earlier work, whether or not a PR exists yet. Keep one concise **Current state** section in the task document or its linked PR/discussion: approvals, candidate commit, reviewed checkpoint, role/review references, check results, blockers, next action, and one metrics line with scenario count, A/B rounds, C repairs used/remaining, and budget use where measurable. Record a final candidate's own commit identity and results outside its tracked tree, in the conversation or PR; prepare the task pointer before verification. Keep no competing status copies or edits merely to record a verified commit's own hash. Replace superseded status; Git preserves document history. Link evidence rather than repeating handoffs. Only lesson entries in `LESSONS/` require append-only treatment. No separate evidence database or mandatory commit-trailer scheme.
 
-After green CI and D's review, present the PR for a normal merge. A further code change needs renewed checks/review. Do not bypass failures. Merge is not deployment; production release remains an explicit owner action with the project's smoke check and recovery instructions.
+After green CI and D's review, present the PR for a normal merge. A further code change needs renewed checks/review. Do not bypass failures. Record release impact and draft notes, including compatibility/migration needs, in the task contract. Merge is not deployment; publication requires separate explicit owner approval under the project's release policy and section 6.
 
 ## 5. End-to-end first, not end-to-end only
 
@@ -124,6 +124,14 @@ Configure native protection for the approved PR target branch (normally `main`):
 **Workflow/test editing restrictions are prompts, not engineering.** Setup or an explicitly approved maintenance task may change infrastructure; C on a product task may not. A/B own authorized test changes. CI executes repository-controlled files and cannot independently prove those restrictions were respected. There is no anti-tampering certification.
 
 Use ordinary CI secret hygiene: no production secrets in test runs, no secrets committed, and only necessary token permissions. A local hook is feedback, not a substitute for required CI.
+
+### Release preparation and publication
+
+Installing release automation follows the same approved infrastructure scope, independent review, and verification rules as other delivery tooling. Operating the installed process does not require repeating feature-development roles. The project record defines the owner-selected release source, version/channel policy, destinations, commands, required platforms, completion checks, and recovery instructions; these are not universal defaults. A PR target does not determine the release source. An owner release request authorizes preparation, not publication.
+
+Resolve the eligible source once and freeze the commit, version, trusted workflow/helper revision, originating run/artifact identity, destinations, notes, and file hashes. Run canonical full verification, including the unchanged measured-coverage gate, on all required platforms with the release version, then check the retained artifacts' metadata and clean installation outside the source checkout. Present this evidence and any compatibility limits before explicit owner approval of publication. An ordinary merge or tag push is not that approval. Publish those exact files without rebuilding; identity changes require renewed preparation and approval. Recheck source eligibility and bundle identity before publishing without silently moving the candidate when its source branch advances.
+
+Use ordinary Actions and a protected publication environment, with write permissions and registry credentials limited to jobs that need them. Keep candidate execution out of the privileged publisher. Download and verify published file hashes before installation checks in jobs without publication credentials, then finalize the release only after the project's completion checks pass. Resume partial publication from the retained bundle, recognize matching published files, upload only absent files, and stop on conflicts or ambiguous state. Missing retained artifacts require fresh preparation and approval. Native reruns may require renewed environment review; never bypass it. Document actual registry trust and environment configuration, retention limits, and unapplied setup; local checks cannot prove hosted protections exist.
 
 ## 7. A small append-only learning log
 

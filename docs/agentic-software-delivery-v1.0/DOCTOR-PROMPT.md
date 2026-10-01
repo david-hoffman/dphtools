@@ -8,6 +8,10 @@ Check the working tree and stop
 rather than overwrite unrelated/uncommitted work or interrupt an active delivery task.
 Read relevant project instructions, recent entries in LESSONS/, and concrete CI/test
 or repository evidence. Search narrowly; do not replay all sessions or recrawl sources.
+When release automation is installed, compare its source/version/destination policy,
+verification and approval boundary, artifact identity, recovery, and completion checks
+with project instructions and available hosted evidence. Report unapplied setup and
+drift; workflow text alone does not prove protected approval or registry trust.
 
 Classify failures under spec section 4: environment/tooling failure, test defect,
 product defect, or unresolved requirement. Then distinguish an instruction gap from
@@ -26,6 +30,7 @@ generation templates. No new framework, skill swarm, or parallel spec. No gap me
 no change. With --check, report only and do not write files.
 
 Do not change runtime code, tests, workflows, acceptance thresholds, or repository settings.
+Do not dispatch a release, approve publication, create a remote tag, or publish artifacts.
 Do not rewrite desired behavior to match a bug or silently approve architecture drift.
 Those need separate scoped work. Test a new procedural instruction on one relevant
 example when practical. Explain what was and was not verified.

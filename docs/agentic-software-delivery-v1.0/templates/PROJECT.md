@@ -20,5 +20,7 @@ Summarize or link the read-only inventory: existing failures, exact measured sta
 ## Verify and operate
 Canonical full verification command and its build/lint/type/test/E2E/coverage steps, supported targets, dependency installation, test data setup, report locations, and recovery/release instructions. This command must pass on the exact candidate before opening/reopening a PR (draft included) or pushing an update to an open PR. Pre-PR pushes may back up failing checkpoints; CI repeats verification on configured platforms. Record the actual fresh-session and doctor invocation when installed. Do not invent tools.
 
+For an installed release process, record the owner-selected source branch, version/channel policy, destinations, preparation/status commands, required platforms, and clean artifact-installation checks. Identify the protected publication environment, trusted workflow/registry identities, retention and partial-publication recovery steps, completion checks, and unapplied external setup. An owner request permits preparation; explicit publication approval follows full verification of the frozen bundle and is separate from merge approval. Publish retained files with verified hashes, never a rebuild. Do not infer a next version or release authorization from a merge.
+
 ## Approval and next slice
 Reference the owner's actual approval of the identified record. Link the approved end-to-end slice plan and contracts, remaining decisions, and prerequisite tasks. Architecture approval is not task approval.
