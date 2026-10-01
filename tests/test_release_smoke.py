@@ -174,7 +174,14 @@ class ObservedPopen(real_popen):
             assert identity["nonce"] == self.identity_nonce, "Wrong actual helper identity nonce"
             assert identity["argv"] == self.actual_argv[1:], "Wrong actual helper invocation"
             assert Path(identity["prefix"]).resolve() == Path(self.environment).resolve(), "Wrong actual interpreter prefix"
-            assert Path(identity["python"]).absolute() == Path(self.actual_argv[0]).absolute(), "Wrong actual interpreter executable"
+            canonical = measurement_support["executable_identity"]
+            executable_evidence = {"selected": self.actual_argv[0], "observed": identity["python"],
+                                   "selected_canonical": str(canonical(self.actual_argv[0])),
+                                   "observed_canonical": str(canonical(identity["python"]))}
+            record({"event": "actual-probe-executable", "environment": self.environment,
+                    **executable_evidence})
+            assert canonical(identity["python"]) == canonical(self.actual_argv[0]), (
+                "Wrong actual interpreter executable: " + json.dumps(executable_evidence))
             record({"event": "actual-probe-identity", "launcher_pid": self.pid,
                     "environment": self.environment, **identity})
         if self.actual_probe and self.returncode == 0 and config.get("probe_controls"):

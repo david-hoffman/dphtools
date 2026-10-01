@@ -7,6 +7,7 @@ import re
 import coverage
 import pytest
 
+from .release_probe_measurement_support import executable_identity
 from .test_release_smoke import PROCESS_DRIVER, Smoke, real_bundle, real_package
 from .test_release_support import snapshot
 from .test_release_version import ROOT, diagnostic, worker
@@ -147,7 +148,7 @@ def assert_actual_measurement(smoke, before):
             "Associate interpreter prefix",
         )
         require(
-            Path(identity["python"]).absolute() == Path(invocation["python"]).absolute(),
+            executable_identity(identity["python"]) == executable_identity(invocation["python"]),
             "Associate interpreter executable",
         )
         filename = Path(identity["data_file"])
@@ -363,3 +364,85 @@ def test_measurement_setup_keeps_real_provisioning_and_startup_failures_visible(
     finally:
         shutil.rmtree(root, ignore_errors=True)
     require(not root.exists(), "Tool-control environment must be removed")
+
+
+def test_executable_identity_keeps_directory_and_basename_with_real_controls(tmp_path):
+    """Real interpreters sharing a binary must retain distinct selected identities."""
+    import json
+    import os
+    import subprocess
+
+    from .release_probe_measurement_support import run
+    from .test_release_smoke import clean_env
+
+    env = clean_env()
+    # Tool-only identity proof must not inherit macOS program-name overrides.
+    env.pop("PYTHONEXECUTABLE", None)
+    env.pop("__PYVENV_LAUNCHER__", None)
+    roots = [tmp_path / "selected", tmp_path / "other"]
+    relative = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    for root in roots:
+        code, _, message = run(
+            subprocess.Popen,
+            [sys.executable, "-m", "venv", "--without-pip", str(root)],
+            tmp_path,
+            env,
+        )
+        require(code == 0, "Real identity environment failed: " + " | ".join(message))
+    selected = roots[0] / relative
+    if os.name == "nt":
+        alias = selected.parent / ".." / selected.parent.name / selected.name
+    else:
+        directory = tmp_path / "directory-alias"
+        directory.symlink_to(roots[0], target_is_directory=True)
+        alias = directory / relative
+    probe = (
+        "import json, sys, warnings; "
+        "warnings.formatwarning=lambda message, category, filename, lineno, line=None: "
+        "str(category.__name__)+': '+str(message)+'\\n'; "
+        "sys.excepthook=lambda kind,value,tb: print(kind.__name__+': '+str(value),file=sys.stderr); "
+        "print(json.dumps({'python':sys.executable,'prefix':sys.prefix}))"
+    )
+    observations = []
+    for python in (selected, alias, roots[1] / relative, Path(sys.executable)):
+        code, stdout, message = run(subprocess.Popen, [str(python), "-c", probe], tmp_path, env)
+        require(code == 0, "Real identity control failed: " + " | ".join(message))
+        observations.append(json.loads(stdout))
+    for actual in observations[:2]:
+        require(
+            Path(actual["prefix"]).resolve() == roots[0].resolve(), "Alias lost selected prefix"
+        )
+        require(
+            executable_identity(actual["python"]) == executable_identity(alias),
+            "Directory alias must preserve selected interpreter identity",
+        )
+    for actual in observations[2:]:
+        require(
+            executable_identity(actual["python"]) != executable_identity(selected),
+            "Other environment or parent interpreter must not match selected executable",
+        )
+    # A real alternative basename shares the binary but is not the executable
+    # selected by this invocation. Windows hard links need no symlink privilege.
+    renamed = selected.with_name(
+        "python-different-name.exe" if os.name == "nt" else "python-different-name"
+    )
+    if os.name == "nt":
+        os.link(selected, renamed)
+    else:
+        renamed.symlink_to(selected)
+    require(renamed.samefile(selected), "Control must share the binary target")
+    code, stdout, message = run(subprocess.Popen, [str(renamed), "-c", probe], tmp_path, env)
+    require(code == 0, "Real basename control failed: " + " | ".join(message))
+    actual = json.loads(stdout)
+    require(
+        Path(actual["prefix"]).resolve() == roots[0].resolve(),
+        "Alternate basename lost selected prefix",
+    )
+    require(
+        executable_identity(actual["python"]) == executable_identity(renamed),
+        "Observe the actually launched alternate basename",
+    )
+    require(
+        executable_identity(actual["python"]) != executable_identity(selected),
+        "Same binary with different selected basename must not match",
+    )

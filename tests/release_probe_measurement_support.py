@@ -54,6 +54,12 @@ except Exception as error:
 """
 
 
+def executable_identity(executable):
+    """Canonicalize directories without collapsing a venv executable symlink."""
+    path = Path(executable).absolute()
+    return path.parent.resolve() / path.name
+
+
 def settings(root, project):
     """Select coverage's ordinary config and its hashed locked tool requirement."""
     import coverage
