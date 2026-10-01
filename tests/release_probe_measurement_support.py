@@ -18,6 +18,11 @@ import warnings
 warnings.formatwarning = lambda message, category, filename, lineno, line=None: f"{category.__name__}: {message}\n"
 sys.excepthook = lambda kind, value, traceback: print(f"{kind.__name__}: {value}", file=sys.stderr)
 try:
+    # This disposable child's explicit file config/data must win over the
+    # serialized configuration inherited from a parent subprocess patch.
+    # Ordinary startup reapplies subprocess measurement from the same config.
+    if os.environ.get("COVERAGE_PROCESS_START"):
+        os.environ.pop("COVERAGE_PROCESS_CONFIG", None)
     import coverage
     coverage.process_startup()
 except Exception as error:
@@ -121,7 +126,9 @@ def provision(real_popen, python, env, outside, measurement, record):
         prefix.resolve()
     ), "Coverage setup escaped disposable prefix"
     (site / "release_fixture_startup.py").write_text(SAFE_STARTUP, encoding="utf-8")
-    (site / "release_fixture_coverage.pth").write_text(
+    # Run before coverage 7.16.1's a1_coverage.pth: otherwise it starts with
+    # inherited serialized settings and hides this fixture's config errors.
+    (site / "00_release_fixture_coverage.pth").write_text(
         "import release_fixture_startup\n", encoding="utf-8"
     )
     data_base = measurement["data"] + ".clean-" + uuid.uuid4().hex

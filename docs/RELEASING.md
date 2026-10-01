@@ -120,6 +120,14 @@ helper files must match the original Git blobs, and the original source must sti
 belong to `main`. Changed workflow/helper files require an explicit maintenance
 and recovery decision; they cannot silently replace approved code.
 
+The frozen helpers include `tools/release.py`, `tools/release_workflow.py`, and
+`tools/release_probe.py`. Retained and published installation jobs invoke the
+probe file with each disposable environment's interpreter and the selected version.
+The probe checks installed versions, import origins and the approved array sum.
+Verification supplies ordinary child coverage through test-only instrumentation;
+release installations do not require coverage. The protected publisher does not
+invoke the probe or import the candidate library.
+
 The optional dispatch `notes` input supplies release notes and compatibility
 impact. The CLI's default request leaves a visible owner-review placeholder.
 Replace that placeholder through manual preparation before approving publication,

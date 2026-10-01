@@ -132,9 +132,11 @@ def assert_actual_measurement(smoke, before):
         )
         base = Path(setup["data_base"])
         files = list(base.parent.glob(base.name + ".*"))
-        # Ordinary coverage parallel filenames carry their real process ID.
+        # The pinned tool uses a pid-prefixed token; older ordinary coverage
+        # used a bare numeric token. Neither needs an exact full filename.
         # Require this successful owned invocation's trace, not a testing control.
-        files = [f for f in files if f".{started[0]['pid']}." in f.name]
+        pid_token = re.compile(rf"\.(?:pid)?{started[0]['pid']}\.")
+        files = [f for f in files if pid_token.search(f.name)]
         require(bool(files), "Actual helper process coverage must survive cleanup")
         measured = False
         for filename in files:
@@ -243,6 +245,25 @@ def test_measurement_setup_keeps_real_provisioning_and_startup_failures_visible(
             all(r["returncode"] == 0 for r in records),
             "Locked coverage must provision/start before negative fixture controls",
         )
+        if os.environ.get("COVERAGE_PROCESS_CONFIG"):
+            # A child with no explicit fixture config must still inherit ordinary
+            # parent/subprocess measurement; the fixture must not turn it off.
+            inherited = dict(env)
+            inherited.pop("COVERAGE_PROCESS_START", None)
+            code, _, message = run(
+                subprocess.Popen,
+                [
+                    str(python),
+                    "-c",
+                    "import coverage; assert coverage.Coverage.current() is not None",
+                ],
+                tmp_path,
+                inherited,
+            )
+            require(
+                code == 0,
+                "Ordinary inherited parent measurement failed: " + " | ".join(message),
+            )
         missing = tmp_path / "absent-coverage-config"
         code, _, message = run(
             subprocess.Popen,

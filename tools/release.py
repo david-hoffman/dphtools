@@ -491,22 +491,6 @@ def reconcile(payload, directory, output, complete=False, downloaded=None):
     }
 
 
-PROBE = """
-from importlib import metadata
-from pathlib import Path
-import sys
-import matplotlib
-matplotlib.use('Agg')
-import numpy, pandas, scipy, skimage, dphtools
-from dphtools import utils
-assert metadata.version('dphtools') == sys.argv[1] == dphtools.__version__, 'installed version mismatch'
-for module in (dphtools, utils, numpy, pandas, scipy, matplotlib, skimage):
-    assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve()), 'import escaped clean environment'
-assert utils.bin_ndarray(numpy.arange(4).reshape(2, 2), new_shape=(1, 1), operation='sum').item() == 6, 'array sum mismatch'
-print('Installed release smoke passed')
-"""
-
-
 def process(command, cwd, env):
     result = subprocess.run(
         command, cwd=cwd, env=env, capture_output=True, text=True, encoding="utf-8", check=False
@@ -551,7 +535,15 @@ def smoke(payload, directory):
             install_env = dict(env, PATH=str(root / "no-executables"))
             process([str(python), "-m", "pip", "install", str(artifact)], root, install_env)
             process([str(python), "-m", "pip", "check"], root, env)
-            process([str(python), "-c", PROBE, payload["version"]], root, env)
+            process(
+                [
+                    str(python),
+                    str(Path(__file__).with_name("release_probe.py").resolve()),
+                    payload["version"],
+                ],
+                root,
+                env,
+            )
 
 
 def main():

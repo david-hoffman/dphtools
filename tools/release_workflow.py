@@ -76,7 +76,12 @@ def resolve(args):
         identity = run_id(args.resume)
         record = validate_run(gh_api(f"repos/{REPOSITORY}/actions/runs/{identity}"), identity)
         main_member(record["head_sha"])
-        for path in (WORKFLOW, "tools/release.py", "tools/release_workflow.py"):
+        for path in (
+            WORKFLOW,
+            "tools/release.py",
+            "tools/release_workflow.py",
+            "tools/release_probe.py",
+        ):
             require(
                 git("rev-parse", f"{record['head_sha']}:{path}")
                 == git("rev-parse", f"{workflow_sha}:{path}"),
