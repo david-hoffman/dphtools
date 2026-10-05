@@ -53,15 +53,22 @@ and Linux/macOS/Windows verification.
   platform CI took 2,680 seconds wall and 5,067 seconds summed runner time;
   compare revised CI only after it completes, labeling uncontrolled differences.
   Four implementation/support agents and one fresh independent reviewer launched.
-  The reviewer reproduced an external .pth-provider false cache hit; the repair
-  rejects unbound import paths, unknown hooks/customizations, and untracked root
-  import providers. Re-review and a fresh full reference on the repaired candidate
-  remain required. An initial full run stopped at a read-only audit cache; a
+  The reviewer reproduced false cache hits through external .pth providers,
+  startup packages, and native import providers; repaired runtime identities
+  reject these unbound inputs. Independent source review accepted the repairs.
+  PR [17](https://github.com/david-hoffman/dphtools/pull/17) retains candidate
+  hashes and current verification evidence. CI exposed a stale hook expectation
+  and inherited pytest roots; focused regressions now cover both repairs.
+  Reuse fixtures also keep cold bytecode caches stable and identify each new
+  receipt separately from the original receipt linked by provenance. CI retains
+  required proof files without uploading disposable installations and temp trees.
+  Re-review and a fresh full reference on the final repaired candidate remain
+  required. An initial full run stopped at a read-only audit cache; a
   writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for
   the evidenced source repair and remains incomplete, never passing evidence. Token/billing data is unavailable. Ten comparable completed tasks do
   not yet exist; the pilot remains incomplete rather than inventing observations.
 - Next: finish focused integration checks, full reference gate, fresh independent
-  final review, commit/push/PR, complete Linux/macOS/Windows aggregation, and merge
+  final review, update the PR, complete Linux/macOS/Windows aggregation, and merge
   only after actual ci-required protection is verified. No publication.
 
 ## Requirements and review focus

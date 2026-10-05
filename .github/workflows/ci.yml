@@ -55,7 +55,10 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: collection-${{ matrix.os }}
-          path: reports/verification/collect/
+          path: |
+            reports/verification/collect/*.json
+            reports/verification/collect/*.log
+            reports/verification/collect/dist/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -107,7 +110,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: shard-${{ matrix.os }}-${{ matrix.index }}
-          path: reports/verification/shard/
+          path: |
+            reports/verification/shard/*.json
+            reports/verification/shard/*.xml
+            reports/verification/shard/*.log
+            reports/verification/shard/.coverage*
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -158,7 +165,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verification-${{ matrix.os }}
-          path: reports/verification/aggregate/
+          path: |
+            reports/verification/aggregate/*.json
+            reports/verification/aggregate/*.xml
+            reports/verification/aggregate/*.log
+            reports/verification/aggregate/.coverage*
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14

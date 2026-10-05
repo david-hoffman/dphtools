@@ -224,6 +224,7 @@ def test_step(run, name, settings, dependencies=()):
         "pytest",
         "-p",
         "verification_shards",
+        f"--rootdir={run.root}",
         "--doctest-modules",
         "dphtools",
         "tests",

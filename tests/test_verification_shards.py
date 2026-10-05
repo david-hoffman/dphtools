@@ -144,6 +144,20 @@ def test_real_collection_is_partitioned_once_and_parent_child_coverage_aggregate
     assert coverage["totals"]["missing_lines"] == 0
 
 
+def test_collection_node_ids_remain_repository_relative_under_ancestor_configuration(tmp_path):
+    """A surrounding pytest project must not prefix this repository's frozen IDs."""
+    (tmp_path / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    command = ShardedCommand(tmp_path)
+    result = command.run("collect", command.collect)
+    assert result.returncode == 0, result.stdout + result.stderr
+    manifest = json.loads(command.manifest.read_text())
+    assert manifest["nodes"] == [
+        "dphtools/__init__.py::dphtools",
+        "tests/test_real.py::test_child",
+        "tests/test_real.py::test_parent",
+    ]
+
+
 @pytest.mark.parametrize(
     "fault", ["missing", "duplicate", "report", "coverage", "run", "platform"]
 )

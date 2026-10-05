@@ -39,8 +39,11 @@ def reuse_command(tmp_path):
     env = dict(os.environ)
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
+    # Keep a cold check from changing the exact runtime bytes it fingerprints.
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def run(receipt=None):
+        previous = set((root / "reports/verification").glob("*/checks.json"))
         args = [sys.executable, str(root / "tools/verification.py"), "fast"]
         if receipt is not None:
             args.extend(["--reuse", str(receipt)])
@@ -48,8 +51,9 @@ def reuse_command(tmp_path):
             args, cwd=root, env=env, text=True, capture_output=True, timeout=60
         )
         assert result.returncode == 0, result.stdout + result.stderr
-        paths = list((root / "reports/verification").glob("*/checks.json"))
-        path = next(path for path in paths if str(path.parent) in result.stdout)
+        paths = set((root / "reports/verification").glob("*/checks.json")) - previous
+        assert len(paths) == 1, result.stdout + result.stderr
+        path = paths.pop()
         return path, json.loads(path.read_text())
 
     return root, env, run
@@ -60,7 +64,8 @@ def test_unchanged_check_reuses_original_command_and_retained_log(reuse_command)
     original, source = run()
     reused_path, reused = run(original)
     step = next(step for step in reused["steps"] if step["name"] == "docstrings")
-    assert step["state"] == "reused"
+    assert reused_path != original
+    assert step["state"] == "reused", step.get("reuse_rejection")
     assert step["provenance"]["receipt"] == str(original)
     assert step["provenance"]["command"] == source["steps"][-1]["command"]
     assert step["provenance"]["receipt_sha256"]
