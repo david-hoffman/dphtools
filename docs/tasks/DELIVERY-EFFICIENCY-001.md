@@ -52,7 +52,8 @@ and Linux/macOS/Windows verification.
   launches, runner seconds, available model tokens, and defects. Historical full
   platform CI took 2,680 seconds wall and 5,067 seconds summed runner time;
   compare revised CI only after it completes, labeling uncontrolled differences.
-  Four implementation/support agents and one fresh independent reviewer launched.
+  Three implementation authors, two read-only support agents, and one fresh
+  independent reviewer launched.
   The reviewer reproduced false cache hits through external .pth providers,
   startup packages, and native import providers; repaired runtime identities
   reject these unbound inputs. Independent source review accepted the repairs.
@@ -67,6 +68,11 @@ and Linux/macOS/Windows verification.
   their fully hashed canonical targets, while rejecting external targets. Real
   venv and alias-change regressions cover this repair; final review and all gates
   still apply to the final candidate linked from the PR.
+  Independent review also reproduced stale reuse after supported root and
+  inherited pydocstyle configuration changed. Bind the complete configuration
+  chain and reject unknown import providers with case-insensitive suffix checks.
+  The earlier full reference passed at exact 100% owned coverage, but approval
+  was withdrawn for these observed defects; repaired source requires new gates.
   Re-review and a fresh full reference on the final repaired candidate remain
   required. An initial full run stopped at a read-only audit cache; a
   writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for

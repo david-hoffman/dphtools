@@ -398,3 +398,224 @@ def test_real_venv_directory_aliases_allow_unchanged_command_reuse(reuse_command
     assert step["provenance"]["receipt"] == str(original)
     if original_lib64 is not None:
         assert lib64.readlink() == original_lib64
+
+
+def changed_config_runs_failing_check(root, env, original, code):
+    """Assert the public command executes the changed check instead of reusing it."""
+    previous = set((root / "reports/verification").glob("*/checks.json"))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(root / "tools/verification.py"),
+            "fast",
+            "--reuse",
+            str(original),
+        ],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    paths = set((root / "reports/verification").glob("*/checks.json")) - previous
+    assert len(paths) == 1, result.stdout + result.stderr
+    current = paths.pop()
+    record = json.loads(current.read_text())
+    step = record["steps"][-1]
+    assert step["state"] == "failed" and step["returncode"] == 1
+    assert step["command"] == json.loads(original.read_text())["steps"][-1]["command"]
+    assert "inputs changed" in step["reuse_rejection"]
+    assert code in (current.parent / step["log"]["path"]).read_text()
+    return record
+
+
+@pytest.mark.parametrize(
+    ("filename", "change"),
+    [
+        (".pydocstylerc", "modify"),
+        (".pydocstylerc.ini", "modify"),
+        (".pep257", "modify"),
+        (".pydocstylerc", "create"),
+        (".pydocstylerc", "delete"),
+    ],
+)
+def test_root_docstring_config_changes_execute_new_failures(reuse_command, filename, change):
+    """Implicit pydocstyle discovery must retain its actual configuration inputs."""
+    import configparser
+
+    root, env, run = reuse_command
+    parser = configparser.ConfigParser()
+    parser.read(root / "setup.cfg")
+    parser.remove_section("pydocstyle")
+    with (root / "setup.cfg").open("w") as stream:
+        parser.write(stream)
+    if change == "create":
+        source = '"""An isolated package."""\n\n\nclass Example:\n    """A documented class."""\n'
+        expected_code = "D203"
+    else:
+        source = '"""An isolated package."""\n\n\ndef example():\n    return 1\n'
+        expected_code = "D103"
+    (root / "dphtools/__init__.py").write_text(source)
+    configuration = root / filename
+    if change != "create":
+        configuration.write_text("[pydocstyle]\ninherit = false\nselect = D104\n")
+    original, before = run()
+    assert before["steps"][-1]["state"] == "passed"
+    if change == "delete":
+        configuration.unlink()
+    else:
+        configuration.write_text("[pydocstyle]\ninherit = false\nselect = " + expected_code + "\n")
+    after = changed_config_runs_failing_check(root, env, original, expected_code)
+    assert after["identity"]["inputs"] != before["identity"]["inputs"]
+    if change == "delete":
+        assert filename in before["identity"]["inputs"]
+        assert filename not in after["identity"]["inputs"]
+    else:
+        assert filename in after["identity"]["inputs"]
+
+
+def test_ancestor_config_change_executes_failure_with_unchanged_root_config(reuse_command):
+    """Root convention selection still inherits ancestor decorator exclusions."""
+    root, env, run = reuse_command
+    root_configuration = (root / "setup.cfg").read_bytes()
+    (root / "dphtools/__init__.py").write_text(
+        '"""An isolated package."""\n\n\n'
+        "def _decorator(function):\n    return function\n\n\n"
+        "@_decorator\ndef example():\n    return 1\n"
+    )
+    configuration = root.parent / ".pydocstyle"
+    configuration.write_text("[pydocstyle]\ninherit = false\nignore-decorators = _decorator\n")
+    original, before = run()
+    configuration.write_text("[pydocstyle]\ninherit = false\nignore-decorators = never_match\n")
+    after = changed_config_runs_failing_check(root, env, original, "D103")
+    assert (root / "setup.cfg").read_bytes() == root_configuration
+    assert (
+        before["identity"]["inputs"]["../.pydocstyle"]
+        != after["identity"]["inputs"]["../.pydocstyle"]
+    )
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "setup.cfg",
+        "tox.ini",
+        ".pydocstyle",
+        ".pydocstyle.ini",
+        ".pydocstylerc",
+        ".pydocstylerc.ini",
+        "pyproject.toml",
+        ".pep257",
+    ],
+)
+def test_input_identity_binds_config_lifecycle_through_ancestors(
+    reuse_command, tmp_path, filename
+):
+    """Every pinned discovery name binds creation, modification, and deletion."""
+    _, env, _ = reuse_command
+    root = tmp_path / "outer/middle/repository"
+    root.mkdir(parents=True)
+    script = r"""
+import os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from verification_inputs import input_identity, file_hash
+root = Path(sys.argv[2])
+for directory in (root, root.parent, root.parent.parent):
+    path = directory / sys.argv[3]
+    key = Path(os.path.relpath(path, root)).as_posix()
+    before = input_identity(root, [])['inputs']
+    assert key not in before
+    path.write_text('first configuration bytes')
+    created = input_identity(root, [])['inputs']
+    assert created.get(key) == file_hash(path), 'Created config must bind relative ancestor key'
+    path.write_text('changed configuration bytes')
+    changed = input_identity(root, [])['inputs']
+    assert changed[key] == file_hash(path) and changed != created
+    path.unlink()
+    assert input_identity(root, [])['inputs'] == before, 'Deletion must remove the bound input'
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(ROOT / "tools"), str(root), filename],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("extension", [".PY", ".PYC", ".PYD"])
+@pytest.mark.parametrize("provider", ["module", "package"])
+def test_uppercase_import_suffixes_are_uncontrolled_on_every_host(
+    reuse_command, tmp_path, extension, provider
+):
+    """Windows-recognized providers remain unknown even on case-sensitive hosts."""
+    import py_compile
+
+    root, env, _ = reuse_command
+    if provider == "module":
+        path = root / ("pydocstyle" + extension)
+    else:
+        package = root / "pydocstyle"
+        package.mkdir()
+        path = package / ("__init__" + extension)
+    if extension == ".PY":
+        path.write_text("raise SystemExit(7)\n")
+    elif extension == ".PYC":
+        source = tmp_path / "private-source.py"
+        source.write_text("raise SystemExit(7)\n")
+        py_compile.compile(str(source), cfile=str(path), doraise=True)
+    else:
+        shutil.copy2(native_module.__file__, path)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; from pathlib import Path; "
+            "sys.path.insert(0, sys.argv[1]); "
+            "from verification_reuse import runtime_identity; "
+            "assert runtime_identity(Path(sys.argv[2])) is None",
+            str(root / "tools"),
+            str(root),
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_uppercase_windows_check_provider_runs_again_after_change(reuse_command):
+    """The real Windows entrypoint must observe an uppercase provider's new exit."""
+    root, env, run = reuse_command
+    provider = root / "pydocstyle.PY"
+    provider.write_text("raise SystemExit(0)\n")
+    original, before = run()
+    assert before["steps"][-1]["input_identity"]["runtime"] is None
+    provider.write_text("raise SystemExit(7)\n")
+    previous = set((root / "reports/verification").glob("*/checks.json"))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(root / "tools/verification.py"),
+            "fast",
+            "--reuse",
+            str(original),
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == (1 if os.name == "nt" else 0), result.stdout + result.stderr
+    paths = set((root / "reports/verification").glob("*/checks.json")) - previous
+    assert len(paths) == 1, result.stdout + result.stderr
+    step = json.loads(paths.pop().read_text())["steps"][-1]
+    assert step["state"] == ("failed" if os.name == "nt" else "passed")
+    assert step["returncode"] == (7 if os.name == "nt" else 0)
+    assert "cannot be completely identified" in step["reuse_rejection"]

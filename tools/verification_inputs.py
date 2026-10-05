@@ -61,8 +61,26 @@ def input_identity(root, sources):
         )
         if (root / name).is_file()
     )
+    # Pydocstyle 6.3 inherits these configurations through every ancestor.
+    paths.update(
+        directory / name
+        for directory in (root, *root.parents)
+        for name in (
+            "setup.cfg",
+            "tox.ini",
+            ".pydocstyle",
+            ".pydocstyle.ini",
+            ".pydocstylerc",
+            ".pydocstylerc.ini",
+            "pyproject.toml",
+            ".pep257",
+        )
+        if (directory / name).is_file()
+    )
     paths.update((root / "notebooks").rglob(".gitignore"))
-    inputs = {path.relative_to(root).as_posix(): file_hash(path) for path in sorted(paths)}
+    inputs = {
+        Path(os.path.relpath(path, root)).as_posix(): file_hash(path) for path in sorted(paths)
+    }
     dependencies = {
         distribution.metadata["Name"].lower().replace("_", "-"): distribution.version
         for distribution in metadata.distributions()

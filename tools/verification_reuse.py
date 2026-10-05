@@ -24,16 +24,16 @@ def runtime_identity(root):
         return None
     if "sitecustomize" in sys.modules or "usercustomize" in sys.modules:
         return None
-    suffixes = tuple(all_suffixes())
+    suffixes = (*[suffix.casefold() for suffix in all_suffixes()], ".pyd")
     if any(
-        path.name.endswith(suffixes) and path.name not in ("setup.py", "versioneer.py")
+        path.name.casefold().endswith(suffixes) and path.name not in ("setup.py", "versioneer.py")
         for path in root.iterdir()
     ):
         return None
     if any(
         path.is_dir()
         and path.name not in ("dphtools", "tools", "tests")
-        and any(child.name.endswith(suffixes) for child in path.iterdir())
+        and any(child.name.casefold().endswith(suffixes) for child in path.iterdir())
         for path in root.iterdir()
     ):
         return None
