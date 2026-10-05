@@ -17,10 +17,14 @@ Classify failures under spec section 4: environment/tooling failure, test defect
 product defect, or unresolved requirement. Then distinguish an instruction gap from
 an execution error under an existing rule. Verify lessons before generalizing them.
 A green rerun does not prove a previous failure harmless. Hypotheses remain hypotheses.
-Use the compact Current state metrics (scenario count, A/B rounds, C repair use,
-spend when known) to assess repeated overhead. An evidenced patch may propose tuning
+Use the compact Current state metrics (scenario count, author/reviewer launches,
+specialist A/B rounds/C repairs when applicable, spend when known) to assess overhead.
+Check routine author/fresh-reviewer routing against genuine scientific/safety risk,
+focused/cheap PR checks, risk-based full local runs, and complete required platform CI.
+Workflow text cannot establish actual ci-required protection. An evidenced patch may propose tuning
 the default slice size; do not tune it autonomously, reset consumed budgets, or lower
-the verification/coverage gate.
+the verification/coverage merge gate. An authorized move of duplicated local work
+to verified required CI preserves acceptance; missing protection must stay visible.
 
 For a confirmed spec gap, create a small docs branch and actually edit the existing
 docs/agentic-software-delivery-v1.0/DELIVERY-SYSTEM-SPEC.md plus directly affected

@@ -7,6 +7,7 @@ controlled subprocesses; their reports are fixtures, not numerical coverage proo
 from io import BytesIO
 from importlib.metadata import distribution
 import codecs
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -100,6 +101,10 @@ if junit and scenario != "missing-tests":
         "valid": '<testsuite tests="1" failures="0" errors="0" skipped="0">'
                  '<testcase classname="fixture" name="passes"/></testsuite>',
         "empty-tests": '<testsuite tests="0" failures="0" errors="0" skipped="0"/>',
+        "count-mismatch": '<testsuite tests="2" failures="0" errors="0" skipped="0">'
+                          '<testcase name="only-one"/></testsuite>',
+        "hidden-failure": '<testsuite tests="1" failures="0" errors="0" skipped="0">'
+                          '<testcase name="bad"><failure/></testcase></testsuite>',
         "empty-positive-count": '<testsuite tests="1" failures="0" errors="0" skipped="0"/>',
         "skipped-tests": '<testsuite tests="1" failures="0" errors="0" skipped="1">'
                          '<testcase name="skipped"><skipped/></testcase></testsuite>',
@@ -127,10 +132,17 @@ if name == "build" and not set(args) & {"--version", "-V", "--help", "-h"}:
     output = option("--outdir", "-o") or "dist"
     artifacts = [Path(output) / "fixture-1.0-py3-none-any.whl",
                  Path(output) / "fixture-1.0.tar.gz"]
+    if scenario == "absent-wheel":
+        artifacts = artifacts[1:]
+    elif scenario == "extra-wheel":
+        artifacts.append(Path(output) / "extra-1.0-py3-none-any.whl")
     for artifact in artifacts:
         write(artifact, "controlled distribution from this build invocation")
     write(os.environ["VERIFICATION_TEST_BUILD_ARTIFACTS"],
           json.dumps([str(artifact.resolve()) for artifact in artifacts]))
+
+if name == "coverage" and "run" in args and scenario != "missing-data":
+    write(os.environ["COVERAGE_FILE"] + ".fixture", "fresh fixture measurement")
 
 if name == "coverage" and "json" in args and scenario != "missing-coverage":
     summary = {"covered_lines": 1, "num_statements": 1, "percent_covered": 100.0,
@@ -138,8 +150,7 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
                "excluded_lines": 0, "num_branches": 0, "num_partial_branches": 0,
                "covered_branches": 0, "missing_branches": 0}
     files = {}
-    owned = list(Path("dphtools").rglob("*.py")) + [Path("tools/verification.py"),
-                                                    Path("tools/delivery")]
+    owned = list(Path("dphtools").rglob("*.py")) + list(Path("tools").rglob("*.py")) + [Path("tools/delivery")]
     for path in owned:
         if path.as_posix() == "dphtools/_version.py":
             continue
@@ -166,18 +177,33 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
     totals = {key: sum(value["summary"][key] for value in files.values())
               for key in summary if not key.startswith("percent")}
     totals.update(percent_covered=100.0, percent_covered_display="100")
+    if scenario == "negative-count":
+        target["summary"]["num_statements"] = -1
+    elif scenario == "noninteger-count":
+        target["summary"]["num_statements"] = "1"
+    elif scenario == "hidden-missing-line":
+        target["missing_lines"] = [2]
+    elif scenario == "hidden-missing-branch":
+        target["missing_branches"] = [[1, 2]]
+    elif scenario == "empty-statements":
+        for entry in files.values():
+            entry["summary"].update(num_statements=0, covered_lines=0)
+        totals.update(num_statements=0, covered_lines=0)
+    elif scenario == "totals-mismatch":
+        totals["num_statements"] += 1
     data = {"meta": {"format": 3, "version": "7.16.1", "branch_coverage":
                      scenario != "no-branches", "show_contexts": False},
             "files": files, "totals": totals}
     write(option("-o", "--output") or "coverage.json",
           "{" if scenario == "malformed-coverage" else json.dumps(data))
 if name == "coverage" and "xml" in args and scenario != "missing-coverage-xml":
-    count = len(list(Path("dphtools").rglob("*.py"))) + 1
+    count = len(list(Path("dphtools").rglob("*.py"))) + len(list(Path("tools").rglob("*.py")))
     branches = 'branches-valid="10000" branches-covered="9999"' if (
         scenario == "xml-missing-branch"
     ) else 'branches-valid="0" branches-covered="0"'
     write(option("-o", "--output") or "coverage.xml",
           '<coverage broken' if scenario == "malformed-coverage-xml" else
+          '<foreign/>' if scenario == "foreign-xml-root" else
           f'<coverage branch-rate="1" line-rate="1" version="fixture" '
           f'lines-valid="{count}" lines-covered="{count}" {branches}>'
           '<packages/></coverage>')
@@ -185,6 +211,47 @@ if name == "coverage" and "xml" in args and scenario != "missing-coverage-xml":
 failure = os.environ.get("VERIFICATION_TEST_FAIL", "")
 label = name + (":" + args[0] if name == "coverage" and args else "")
 sys.exit(23 if failure in (name, label) else 0)
+"""
+
+
+# Repetitive report/prerequisite scenarios control only the external interpreter
+# and venv boundary. Genuine preflight and measurement tests remove this fixture.
+NESTED_INTERPRETER = r"""
+from pathlib import Path
+import sys
+import zipfile
+prefix = Path(__file__).resolve().parent.parent
+site = prefix / "site-packages"
+site.mkdir(exist_ok=True)
+sys.path.insert(0, str(site))
+sys.prefix = str(prefix)
+if sys.argv[1:3] == ["-m", "pip"]:
+    assert "install" in sys.argv and "--no-index" in sys.argv
+    with zipfile.ZipFile(sys.argv[-1]) as archive:
+        archive.extractall(site)
+    print("controlled child pip installed local wheel")
+elif sys.argv[1] == "-c":
+    script = sys.argv[2]
+    sys.argv = ["-c", *sys.argv[3:]]
+    exec(compile(script, "<controlled child command>", "exec"))
+else:
+    raise SystemExit("unsupported controlled child operation")
+"""
+
+CONTROLLED_VENV = r"""
+import os
+from pathlib import Path
+import shutil
+
+class EnvBuilder:
+    def __init__(self, with_pip=False):
+        assert with_pip is True
+
+    def create(self, directory):
+        relative = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+        target = Path(directory) / relative
+        target.parent.mkdir(parents=True)
+        shutil.copy2(os.environ["VERIFICATION_TEST_NESTED_PYTHON"], target)
 """
 
 
@@ -252,6 +319,9 @@ class VerificationCommand:
         self.entry = self.repo / "tools" / "verification.py"
         self.entry.parent.mkdir(parents=True)
         shutil.copy2(ROOT / "tools" / "verification.py", self.entry)
+        shutil.copy2(ROOT / "tools" / "verification_inputs.py", self.entry.parent)
+        shutil.copy2(ROOT / "tools" / "verification_shards.py", self.entry.parent)
+        shutil.copy2(ROOT / "tools" / "verification_reuse.py", self.entry.parent)
         self.outside = tmp_path / "unrelated working directory"
         self.outside.mkdir()
         self.modules = tmp_path / "controlled tools"
@@ -277,6 +347,8 @@ class VerificationCommand:
         self.record = tmp_path / "tool-calls.jsonl"
         self.bin = tmp_path / "fixture bin"
         self.bin.mkdir()
+        nested_python = _executable(self.modules / "controlled nested python", NESTED_INTERPRETER)
+        (self.repo / "venv.py").write_text(CONTROLLED_VENV, encoding="utf-8")
         self.env = dict(
             os.environ,
             PYTHONPATH=str(self.modules),
@@ -284,6 +356,7 @@ class VerificationCommand:
             PYTHONDONTWRITEBYTECODE="1",
             COVERAGE_FILE=str(self.repo / ".coverage"),
             VERIFICATION_TEST_CALLS=str(self.record),
+            VERIFICATION_TEST_NESTED_PYTHON=str(nested_python),
             VERIFICATION_TEST_BUILD_ARTIFACTS=str(tmp_path / "built-distributions.json"),
             PATH=str(self.bin) + os.pathsep + os.environ.get("PATH", ""),
         )
@@ -306,12 +379,16 @@ class VerificationCommand:
             'omit = ["dphtools/_version.py"]\n',
             encoding="utf-8",
         )
-        (self.repo / "requirements-dev.lock").write_text("fixture==1.0\n", encoding="utf-8")
+        (self.repo / "requirements-dev.lock").write_text(
+            f"coverage=={distribution('coverage').version}\n", encoding="utf-8"
+        )
         (self.repo / "tools" / "delivery").write_text(
             '#!/usr/bin/env python\n"""Owned delivery fixture."""\n', encoding="utf-8"
         )
 
     def run(self, *args):
+        if args and args[0] == "preflight":
+            (self.repo / "venv.py").unlink(missing_ok=True)
         return subprocess.run(
             [sys.executable, str(self.entry), *args],
             cwd=self.outside,
@@ -443,6 +520,15 @@ def test_fast_attempts_later_tools_after_failure(verifier, failed):
     [
         "empty-tests",
         "empty-positive-count",
+        "count-mismatch",
+        "hidden-failure",
+        "negative-count",
+        "noninteger-count",
+        "hidden-missing-line",
+        "hidden-missing-branch",
+        "empty-statements",
+        "totals-mismatch",
+        "foreign-xml-root",
         "skipped-tests",
         "failed-tests",
         "errored-tests",
@@ -493,6 +579,14 @@ def _sequence(calls):
     ]
 
 
+def _check_receipt_seal(data):
+    """The public receipt seal binds the complete current record, including timing."""
+    unsigned = {key: value for key, value in data.items() if key != "receipt_digest"}
+    expected = hashlib.sha256(json.dumps(unsigned, sort_keys=True).encode("utf-8")).hexdigest()
+    assert data["receipt_digest"] == expected
+    assert isinstance(data["duration_seconds"], (int, float)) and data["duration_seconds"] >= 0
+
+
 def _check_manifest(verifier, result, mode, failed=None):
     paths = verifier.reports()
     assert paths, _detail(result)
@@ -501,11 +595,24 @@ def _check_manifest(verifier, result, mode, failed=None):
     assert len(paths) == 1, _detail(result)
     report = paths[0].parent
     data = json.loads(paths[0].read_text(encoding="utf-8"))
-    assert data["document_version"] == "1.0"
+    _check_receipt_seal(data)
+    assert data["document_version"] == "2.0"
     assert data["mode"] == mode
+    assert data["complete"] is True
+    assert data["outcome"] == ("passed" if result.returncode == 0 else "failed")
     assert Path(data["python"]) == Path(sys.executable)
     assert isinstance(data["platform"], str) and data["platform"]
-    steps = [step for step in data["steps"] if step["command"] is not None]
+    calls = verifier.calls()
+    steps = [
+        step
+        for step in data["steps"]
+        if step["command"] is not None
+        and step["command"][0] == sys.executable
+        and step["state"] != "blocked"
+        and len(step["command"]) > 2
+        and step["command"][1] == "-m"
+        and step["command"][2] in {call["tool"] for call in calls}
+    ]
     calls = verifier.calls()
     assert len(steps) == len(calls)
     assert len({step["name"] for step in steps}) == len(steps)
@@ -524,12 +631,32 @@ def _check_manifest(verifier, result, mode, failed=None):
 
 
 @pytest.mark.parametrize("failed", FULL_SEQUENCE)
-def test_full_failure_stays_failed_and_attempts_all_later_steps(verifier, failed):
+def test_full_failure_blocks_dependents_and_retains_fresh_diagnostics(verifier, failed):
+    """The former all-later-steps contract is replaced by explicit prerequisites."""
     verifier.env["VERIFICATION_TEST_FAIL"] = failed
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == FULL_SEQUENCE
-    _check_manifest(verifier, result, "full", failed)
+    if failed in FULL_SEQUENCE[:5]:
+        expected = FULL_SEQUENCE[:5]
+    elif failed == "build":
+        expected = FULL_SEQUENCE[:6]
+    elif failed == "pip":
+        expected = FULL_SEQUENCE[:7]
+    elif failed == "coverage:erase":
+        expected = FULL_SEQUENCE[:8]
+    elif failed == "coverage:combine":
+        expected = FULL_SEQUENCE[:10]
+    else:
+        expected = FULL_SEQUENCE
+    assert _sequence(verifier.calls()) == expected
+    report = _check_manifest(verifier, result, "full", failed)
+    data = json.loads((report / "checks.json").read_text(encoding="utf-8"))
+    assert all(step["state"] in {"passed", "failed", "blocked"} for step in data["steps"])
+    assert all(step["duration_seconds"] >= 0 for step in data["steps"])
+    if len(expected) < len(FULL_SEQUENCE):
+        assert any(
+            step["state"] == "blocked" and step["blocking_reasons"] for step in data["steps"]
+        )
 
 
 def test_full_cannot_reuse_previous_success_reports(verifier):
@@ -558,7 +685,8 @@ def test_fast_invocations_have_distinct_report_directories(verifier):
 
 
 def _real_configuration(verifier):
-    """Use configuration through tools without inspecting its bytes."""
+    """Use real configuration and copied-child venvs for external-tool measurements."""
+    (verifier.repo / "venv.py").unlink(missing_ok=True)
     (verifier.repo / "pyproject.toml").unlink()
     copied = []
     for name in ("setup.cfg", "pyproject.toml", "tox.ini", ".pydocstyle", ".pydocstyle.ini"):
@@ -853,8 +981,19 @@ sys.addaudithook(deny_black_launch)
     reports = verifier.reports()
     assert len(reports) == 1, _detail(result)
     data = json.loads(reports[0].read_text(encoding="utf-8"))
-    assert data["document_version"] == "1.0" and data["mode"] == "fast"
-    steps = [step for step in data["steps"] if step["command"] is not None]
+    assert data["document_version"] == "2.0" and data["mode"] == "fast"
+    calls = verifier.calls()
+    calls = verifier.calls()
+    steps = [
+        step
+        for step in data["steps"]
+        if step["command"] is not None
+        and step["command"][0] == sys.executable
+        and step["state"] != "blocked"
+        and len(step["command"]) > 2
+        and step["command"][1] == "-m"
+        and step["command"][2] in {"black", "flake8", "pydocstyle"}
+    ]
     assert len(steps) == 3
     reported_command = steps[0]["command"]
     if isinstance(denied, str):
@@ -869,3 +1008,304 @@ sys.addaudithook(deny_black_launch)
     assert any(
         diagnostic in path.read_text(encoding="utf-8") for path in reports[0].parent.glob("*.log")
     ), "Launch-failure diagnostics were not retained in tool logs"
+
+
+def test_preflight_performs_real_nested_venv_and_pip_operation(verifier):
+    """The public command must create, install into, and use a nested environment."""
+    result = verifier.run("preflight")
+    assert result.returncode == 0, _detail(result)
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    names = {step["name"]: step for step in data["steps"]}
+    assert {
+        "interpreter",
+        "locked-dependencies",
+        "imports",
+        "venv",
+        "nested-venv",
+        "nested-pip",
+        "nested-import",
+    } <= names.keys()
+    assert all(step["state"] == "passed" for step in names.values())
+    assert "install" in names["nested-pip"]["command"]
+    assert "--no-index" in names["nested-pip"]["command"]
+    assert names["nested-venv"]["command"][0] != sys.executable
+    assert not Path(names["venv"]["command"][-1]).exists()
+    assert data["identity"]["environment"]["dependencies"]
+    assert data["identity"]["inputs"]["requirements-dev.lock"]
+
+
+@pytest.mark.parametrize(
+    "lock", ["nonexistent-preflight-fixture==1.0\n", "coverage==0.0\n", "", "not pinned\n"]
+)
+def test_preflight_rejects_missing_or_wrong_locked_dependencies(verifier, lock):
+    (verifier.repo / "requirements-dev.lock").write_text(lock, encoding="utf-8")
+    result = verifier.run("preflight")
+    assert result.returncode == 1, _detail(result)
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    assert (
+        next(step for step in data["steps"] if step["name"] == "locked-dependencies")["state"]
+        == "failed"
+    )
+    assert "locked" in result.stdout.lower()
+
+
+def test_full_rejects_broken_preflight_before_build(verifier):
+    (verifier.repo / "requirements-dev.lock").write_text("coverage==0.0\n", encoding="utf-8")
+    result = verifier.run("full")
+    assert result.returncode == 1, _detail(result)
+    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:5]
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    assert next(step for step in data["steps"] if step["name"] == "build")["state"] == "blocked"
+
+
+@pytest.mark.parametrize("scenario", ["absent-wheel", "extra-wheel"])
+def test_full_requires_exactly_one_built_wheel(verifier, scenario):
+    verifier.env["VERIFICATION_TEST_REPORT"] = scenario
+    result = verifier.run("full")
+    assert result.returncode == 1, _detail(result)
+    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:6]
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    assert (
+        next(step for step in data["steps"] if step["name"] == "wheel-artifacts")["state"]
+        == "failed"
+    )
+    assert next(step for step in data["steps"] if step["name"] == "install")["state"] == "blocked"
+
+
+def test_failed_tests_without_fresh_data_block_coverage_diagnostics(verifier):
+    verifier.env.update(
+        VERIFICATION_TEST_REPORT="missing-data", VERIFICATION_TEST_FAIL="coverage:run"
+    )
+    result = verifier.run("full")
+    assert result.returncode == 1, _detail(result)
+    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:9]
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    assert (
+        next(step for step in data["steps"] if step["name"] == "coverage-json")["state"]
+        == "blocked"
+    )
+
+
+@pytest.mark.parametrize("step", ["venv", "nested-venv", "nested-pip", "nested-import"])
+def test_preflight_diagnoses_real_nested_process_launch_failures(verifier, step):
+    """A real OS audit rejection blocks later disposable-environment operations."""
+    verifier.env["VERIFICATION_TEST_DENY_PREFLIGHT"] = step
+    fault = r"""
+import os
+import subprocess
+import sys
+
+def deny_preflight(event, args):
+    if event != "subprocess.Popen":
+        return
+    argv = args[1]
+    text = argv if isinstance(argv, str) else subprocess.list2cmdline(argv)
+    target = os.environ["VERIFICATION_TEST_DENY_PREFLIGHT"]
+    nested_python = "nested" in text and "python" in text
+    matches = {
+        "venv": "EnvBuilder" in text and text.startswith(subprocess.list2cmdline([sys.executable])),
+        "nested-venv": "sys.prefix" in text and not text.startswith(subprocess.list2cmdline([sys.executable])),
+        "nested-pip": nested_python and "-m pip install" in text,
+        "nested-import": nested_python and "import verification_probe" in text,
+    }
+    if matches[target]:
+        raise PermissionError("fixture " + target + " launch unavailable")
+
+sys.addaudithook(deny_preflight)
+"""
+    (verifier.modules / "sitecustomize.py").write_text(SOURCEFREE + fault, encoding="utf-8")
+    result = verifier.run("preflight")
+    assert result.returncode == 1, _detail(result)
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    states = {entry["name"]: entry["state"] for entry in data["steps"]}
+    assert states[step] == "failed"
+    assert states["preflight"] == "blocked"
+    assert f"fixture {step} launch unavailable" in result.stdout
+
+
+def test_receipts_and_streaming_logs_are_available_before_a_later_child_finishes(verifier):
+    """Readers observe valid completed receipts and current flushed child output."""
+    import time
+
+    ready = verifier.record.with_name("lint-ready")
+    release = verifier.record.with_name("lint-release")
+    prefix = r"""
+import os
+from pathlib import Path
+import time
+print("live child diagnostic", flush=True)
+Path(os.environ["VERIFICATION_TEST_READY"]).write_text("ready", encoding="utf-8")
+while not Path(os.environ["VERIFICATION_TEST_RELEASE"]).exists():
+    time.sleep(0.01)
+"""
+    (verifier.modules / "flake8.py").write_text(prefix + TOOL, encoding="utf-8")
+    verifier.env.update(VERIFICATION_TEST_READY=str(ready), VERIFICATION_TEST_RELEASE=str(release))
+    with subprocess.Popen(
+        [sys.executable, str(verifier.entry), "fast"],
+        cwd=verifier.outside,
+        env=verifier.env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+    ) as child:
+        try:
+            deadline = time.monotonic() + 20
+            while not ready.exists() and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert ready.is_file(), "Fixture child never reached its live-output boundary"
+            reports = verifier.reports()
+            assert len(reports) == 1
+            data = json.loads(reports[0].read_text(encoding="utf-8"))
+            assert [step["name"] for step in data["steps"]] == ["format"]
+            assert data["steps"][0]["state"] == "passed"
+            assert data["complete"] is False and data["outcome"] == "incomplete"
+            _check_receipt_seal(data)
+            log = reports[0].parent / "lint.log"
+            deadline = time.monotonic() + 20
+            while (
+                "live child diagnostic" not in log.read_text(encoding="utf-8")
+                and time.monotonic() < deadline
+            ):
+                time.sleep(0.01)
+            assert "live child diagnostic" in log.read_text(encoding="utf-8")
+            assert not reports[0].with_suffix(".json.tmp").exists()
+        finally:
+            release.write_text("continue", encoding="utf-8")
+        output, _ = child.communicate(timeout=20)
+    assert child.returncode == 0, output
+
+
+def test_import_failure_is_visible_in_preflight(verifier):
+    (verifier.modules / "coverage" / "__init__.py").write_text(
+        'raise ImportError("fixture locked module import unavailable")\n', encoding="utf-8"
+    )
+    result = verifier.run("preflight")
+    assert result.returncode == 1, _detail(result)
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    assert next(step for step in data["steps"] if step["name"] == "imports")["state"] == "failed"
+    assert "fixture locked module import unavailable" in result.stdout
+
+
+def test_build_identity_tracks_actual_git_tags_history_dirty_state_and_version(verifier):
+    """Tree identity alone cannot authorize a wheel after a Versioneer tag change."""
+    _real_configuration(verifier)
+    shutil.copy2(ROOT / "dphtools/_version.py", verifier.repo / "dphtools/_version.py")
+    (verifier.repo / ".gitignore").write_text("reports/\n", encoding="utf-8")
+    for arguments in (
+        ["init"],
+        ["config", "user.name", "Verifier fixture"],
+        ["config", "user.email", "fixture@example.invalid"],
+        ["add", "."],
+        ["commit", "-m", "fixture source"],
+        ["tag", "1.0.0"],
+    ):
+        result = subprocess.run(
+            ["git", *arguments],
+            cwd=verifier.repo,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        assert result.returncode == 0, _detail(result)
+    first = verifier.run("full")
+    assert first.returncode == 0, _detail(first)
+    record = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    build = next(step for step in record["steps"] if step["name"] == "build")
+    original = build["input_identity"]["git"]
+    original_inputs = record["identity"]["inputs"]
+    assert original["revision"]["returncode"] == 0
+    assert "1.0.0" in original["tags"]["output"]
+    assert original["history"]["output"] == original["revision"]["output"]
+    assert original["shallow"]["output"] == "false"
+    assert json.loads(original["version"]["output"])["version"] == "1.0.0"
+    result = subprocess.run(
+        ["git", "tag", "2.0.0"],
+        cwd=verifier.repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 0, _detail(result)
+    changed = verifier.repo / "dphtools/never_imported.py"
+    changed.write_text(changed.read_text(encoding="utf-8") + "MORE = 2\n", encoding="utf-8")
+    verifier.record.unlink()
+    second = verifier.run("full")
+    assert second.returncode == 0, _detail(second)
+    newer = next(path for path in verifier.reports() if str(path.parent) in second.stdout)
+    record = json.loads(newer.read_text(encoding="utf-8"))
+    build = next(step for step in record["steps"] if step["name"] == "build")
+    updated = build["input_identity"]["git"]
+    assert updated["revision"] == original["revision"]
+    assert updated["tags"] != original["tags"]
+    assert "never_imported.py" in updated["dirty"]["output"]
+    assert build["input_identity"]["inputs"] != record["identity"]["inputs"] or updated != original
+    install = next(step for step in record["steps"] if step["name"] == "install")
+    assert install["input_identity"]["artifacts"]
+
+
+def test_existing_report_directory_is_rejected_without_overwriting_receipt(verifier):
+    """Explicit directories cannot import artifacts left by an interrupted earlier run."""
+    directory = verifier.repo / "reports/verification/explicit"
+    directory.mkdir(parents=True)
+    receipt = directory / "checks.json"
+    receipt.write_text('{"old": true}\n', encoding="utf-8")
+    driver = r"""
+import importlib.util
+from pathlib import Path
+import sys
+spec = importlib.util.spec_from_file_location("verification_fixture", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+try:
+    module.VerificationRun(Path(sys.argv[2]), "fast", Path(sys.argv[3]))
+except ValueError as error:
+    print(error)
+    raise SystemExit(23)
+raise SystemExit(0)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", driver, str(verifier.entry), str(verifier.repo), str(directory)],
+        cwd=verifier.outside,
+        env=verifier.env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 23, _detail(result)
+    assert "Report directory must be empty" in result.stdout
+    assert receipt.read_text(encoding="utf-8") == '{"old": true}\n'
+    assert verifier.calls() == []
+
+
+def test_unavailable_git_commands_are_explicit_identity_failures(verifier):
+    """Metadata probes retain denied OS launches instead of inventing Git identity."""
+    fault = r"""
+import subprocess
+import sys
+
+def deny_git(event, args):
+    if event == "subprocess.Popen":
+        argv = args[1]
+        text = argv if isinstance(argv, str) else subprocess.list2cmdline(argv)
+        if text.startswith("git "):
+            raise PermissionError("fixture Git launch unavailable")
+
+sys.addaudithook(deny_git)
+"""
+    (verifier.modules / "sitecustomize.py").write_text(SOURCEFREE + fault, encoding="utf-8")
+    (verifier.repo / "requirements-dev.lock").write_text("coverage==0.0\n", encoding="utf-8")
+    result = verifier.run("full")
+    assert result.returncode == 1, _detail(result)
+    data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
+    build = next(step for step in data["steps"] if step["name"] == "build")
+    git = build["input_identity"]["git"]
+    assert all(
+        git[name] == {"returncode": 1, "output": "fixture Git launch unavailable"}
+        for name in git
+        if name != "version"
+    )
+    assert build["state"] == "blocked"

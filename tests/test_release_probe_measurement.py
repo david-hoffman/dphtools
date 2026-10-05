@@ -8,7 +8,7 @@ import coverage
 import pytest
 
 from .release_probe_measurement_support import executable_identity
-from .test_release_smoke import PROCESS_DRIVER, Smoke, real_bundle, real_package
+from .test_release_smoke import PROCESS_DRIVER, Smoke, real_bundle
 from .test_release_support import snapshot
 from .test_release_version import ROOT, diagnostic, worker
 

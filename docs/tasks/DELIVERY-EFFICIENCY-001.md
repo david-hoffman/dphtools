@@ -19,32 +19,45 @@ and Linux/macOS/Windows verification.
 
 ## Current state
 
-- Owner request: plan, then implement in a fresh worktree of `codex-main`, after
-  pulling origin, using a fresh Codex task.
-- The owner subsequently authorized committing and pushing this planning branch
-  so implementation can continue on another host. This is a planning checkpoint;
-  delivery-system implementation has not started.
-- Base: `4e00fe4e466d58beabf97e4d360947437e9fd895` from origin. A fresh worktree
-  was created; `git pull --ff-only origin codex-main` completed before creating
-  `codex/delivery-efficiency`.
-- Worktree: `/workspace/dphtools-delivery-efficiency` in the cloud workspace.
-- Baseline: `tools/verification.py fast` passed using the known-good locked
-  Python 3.10 prefix. Receipt: `reports/verification/fast-25_o9snu/checks.json`.
-  No new full-suite baseline was run during preparation.
-- Blocker: this chat exposes no `create_thread` or `handoff_thread` capability.
-  Fresh Codex CLI preflights also failed immediately with `failed to initialize
-  in-process app-server client: Read-only file system (os error 30)`. Normal,
-  ephemeral, and narrowly granted temporary-state access were attempted; no
-  implementation session started. Diagnostics are in
-  `/tmp/dphtools-fresh-codex-preflight{,-ephemeral,-state}.json` and matching logs.
-  This plan is prepared, but a fresh user-visible Codex task has not started.
-- Next action: fetch and check out `codex/delivery-efficiency` on the destination
-  host, start a fresh Codex task, read this plan, and execute the phases below.
-  Cloud workspace, disposable interpreter, and report/log paths above are local
-  preparation evidence; create and preflight a locked environment on that host.
-- Metrics: one bounded read-only planning agent; no implementation or runtime
-  changes; no new executable scenarios or review/repair rounds yet; token/dollar
-  metering unavailable.
+- Owner authorized all four implementation phases, delivery instructions, tests,
+  tooling, CI, codex-main protection, commit/push/PR, and merge after fresh
+  independent review and complete platform CI. No release is authorized.
+- Fresh worktree `/workspace/dphtools-delivery-implementation`, branch
+  `codex/delivery-efficiency-implementation`, preserves planning commit
+  `5b82cddc24bed7aa4aa7c853c333d0fcd369ce3e`. Fetched codex-main remains
+  `4e00fe4e466d58beabf97e4d360947437e9fd895`; integration was already current.
+  Existing worktrees and their changes are untouched.
+- Host is Linux with an isolated copied Python 3.10.21 distribution at
+  `.python/verification310`, installed from unchanged hashed requirements-dev.lock.
+  The first standalone-interpreter venv failed a real copied-venv installation
+  observer. The isolated full prefix repairs that environment defect without
+  changing tests, dependencies, or the system interpreter. Locked offline wheels
+  are retained outside Git; pip check and the real observer passed.
+- All four implementation phases are integrated: proportional instructions,
+  preflight/dependency receipts, immutable artifacts/two isolated CI shards per
+  platform, and narrow explicit evidence reuse plus deterministic metrics.
+  Focused verifier/shard/reuse/metrics checks precede the final full reference.
+  Final candidate, independent review, full/CI receipts, and PR belong in the
+  conversation/PR outside the tracked candidate. This record is the task pointer.
+- Release pilot: 97 real cases passed in 651.34 seconds with one immutable
+  wheel/sdist build shared across four modules. The prior 850.77-second run had
+  an environment failure and different provisioning, so its elapsed difference
+  is not a controlled speedup. Every installation and injected failure still runs.
+- Genuine merge blocker: codex-main branch readback reports protected=false and
+  no required check; repository rulesets returned none. The GitHub integration
+  cannot read or change administration settings (403); host API access is
+  forbidden. Administration-capable access/configuration was requested. Never
+  merge or infer protection from workflow text while this remains unresolved.
+- Metrics tooling records latency, repeated inputs/checks, author/reviewer
+  launches, runner seconds, available model tokens, and defects. Historical full
+  platform CI took 2,680 seconds wall and 5,067 seconds summed runner time;
+  compare revised CI only after it completes, labeling uncontrolled differences.
+  Four implementation/support agents launched; final fresh independent review is
+  pending. Token/billing data is unavailable. Ten comparable completed tasks do
+  not yet exist; the pilot remains incomplete rather than inventing observations.
+- Next: finish focused integration checks, full reference gate, fresh independent
+  final review, commit/push/PR, complete Linux/macOS/Windows aggregation, and merge
+  only after actual ci-required protection is verified. No publication.
 
 ## Requirements and review focus
 
@@ -77,19 +90,19 @@ approval requirements throughout.
 specification, prompts, examples, `GITHUB-SETUP.md`, and `templates/AGENTS.md` under
 `docs/agentic-software-delivery-v1.0/`.
 
-- [ ] Introduce explicit routine/high-risk routing. Reuse established contracts
+- [x] Introduce explicit routine/high-risk routing. Reuse established contracts
   for routine maintenance; retain independent numerical oracle work when needed.
   Do not require a fresh specialist or a new document for every assertion.
-- [ ] Align every live operational copy with the revised routing and submission
+- [x] Align every live operational copy with the revised routing and submission
   gate. Keep fast Git hooks. Document when a full local run is useful or required
   for diagnosis/high-risk work, without requiring it before every routine PR.
 - [ ] Require the stable `ci-required` context on `codex-main` using supported
   GitHub settings, preserving unrelated branch/release settings. Verify the
   returned configuration; report an observed enforcement demonstration separately.
-- [ ] Use narrow packets and one Current state record. Reuse relevant context;
+- [x] Use narrow packets and one Current state record. Reuse relevant context;
   store full logs outside Git and emit concise structured summaries. Use native
   CI completion/auto-merge facilities only after protection is established.
-- [ ] Document host limits honestly: repository instructions cannot override
+- [x] Document host limits honestly: repository instructions cannot override
   mandatory host progress updates or create unavailable event-wait tools.
 
 **Acceptance:** Trace one routine path and one high-risk path; verify no
@@ -102,23 +115,23 @@ ordinary green PR. No workflow claim substitutes for unavailable enforcement.
 verification contract, and project commands. Add a focused helper under `tools/`
 only if it has a distinct responsibility; owned-source discovery must include it.
 
-- [ ] Add `python tools/verification.py preflight`. Check the selected interpreter,
+- [x] Add `python tools/verification.py preflight`. Check the selected interpreter,
   locked dependencies, imports, and actual nested-venv/pip operation in disposable
   paths. Detect installation blockers without modifying the system interpreter.
   Reviewer connectivity is checked only when a task uses that external reviewer;
   a definitive connection rejection ends that attempt promptly.
-- [ ] Add an explicit step dependency table and a small `run_step` helper.
+- [x] Add an explicit step dependency table and a small `run_step` helper.
   Independent cheap checks may still run after another cheap check fails.
   Expensive build/install/tests wait for successful prerequisites. Installation
   requires a successful build and exactly one expected wheel.
-- [ ] Keep ordinary `fast` and unsharded `full` available. Preserve coverage
+- [x] Keep ordinary `fast` and unsharded `full` available. Preserve coverage
   processing after failed tests when fresh data exists, for diagnostics; the
   failure remains a failure. Never use old reports to fill an interrupted run.
-- [ ] Write each step receipt immediately with command, state
+- [x] Write each step receipt immediately with command, state
   (`passed`, `failed`, `blocked`, later `reused`), return code where applicable,
   monotonic duration, dependencies/blocking reasons, and relevant input identity.
   Stream subprocess output to its log so failures are observable before the end.
-- [ ] Bind source/configuration/lock inputs, interpreter/dependency identity,
+- [x] Bind source/configuration/lock inputs, interpreter/dependency identity,
   platform, coverage settings, check version, and artifact hashes. Build/install
   identities additionally include Versioneer's actual Git inputs: revision,
   applicable tags/history/shallow state, and dirty state/version result.
@@ -139,21 +152,21 @@ avoids dependent expensive commands and still returns failure with useful logs.
 release test support, `tools/verification.py`, a small `tools/verification_shards.py`
 if warranted, `tests/test_verification.py`, and `.github/workflows/ci.yml`.
 
-- [ ] Make reusable wheel/sdist artifacts session scoped and immutable, with
+- [x] Make reusable wheel/sdist artifacts session scoped and immutable, with
   verified hashes. Continue copying them into each test's private bundle.
   Keep real fresh installers, child-process observers, and measurement hooks.
-- [ ] Consolidate repeated clean controls only where the exact artifact, driver,
+- [x] Consolidate repeated clean controls only where the exact artifact, driver,
   interpreter/platform/dependencies/environment, and measurement inputs match.
   Continue executing every injected negative case; preserve recovery ordering.
-- [ ] Add narrow `collect`, `shard`, and `aggregate` verifier modes. Collection
+- [x] Add narrow `collect`, `shard`, and `aggregate` verifier modes. Collection
   freezes real pytest/doctest node IDs and a manifest digest. A shard receives
   that manifest plus a zero-based index/count and a private report directory.
   Ordinary `full` remains the local/reference path.
-- [ ] Use a separate checkout, interpreter/environment, install destination,
+- [x] Use a separate checkout, interpreter/environment, install destination,
   temporary directory, and report/coverage directory for each CI worker.
   Assign every node exactly once. Start with a measured small shard count and
   balance using recorded durations; do not add unrestricted worker fan-out.
-- [ ] Aggregate matching successful shards for each operating system separately.
+- [x] Aggregate matching successful shards for each operating system separately.
   Reject absent/duplicate shards or nodes, mismatched inputs, foreign platforms,
   stale/corrupt artifacts, and incomplete executions. Combine actual parent and
   child coverage data, then apply the exact existing owned-source/report checks.
@@ -172,11 +185,11 @@ against the unsharded reference, not only test-count reductions.
 
 **Files:** existing verification helpers/tests and operational documentation.
 
-- [ ] Add opt-in reuse from an explicit receipt. Begin with an audited whitelist
+- [x] Add opt-in reuse from an explicit receipt. Begin with an audited whitelist
   of deterministic checks whose complete relevant inputs can be identified.
   Unknown inputs, failed/blocked/incomplete receipts, tampering, and changed
   commands invalidate reuse. Log the original command and receipt as provenance.
-- [ ] Revalidate artifact/report bytes and every declared input before reuse.
+- [x] Revalidate artifact/report bytes and every declared input before reuse.
   Do not cache advisory auditing without a freshness policy. Do not reuse a whole
   build/install/full-test proof across Git-derived version changes by tree hash.
 - [ ] Use duration and receipt data to compare ten comparable maintenance tasks:
@@ -184,7 +197,7 @@ against the unsharded reference, not only test-count reductions.
   runner usage, and defects. Label missing billing data and estimated savings.
   Summarize with a deterministic command or existing report tooling; no dashboard
   or summarizer model is required.
-- [ ] Consider deduplicating PR/post-merge checks only after trustworthy proof of
+- [x] Consider deduplicating PR/post-merge checks only after trustworthy proof of
   the actual merged tree and version inputs exists. Until then preserve them.
 
 **Acceptance:** Unchanged eligible checks reuse evidence; changed or unverifiable

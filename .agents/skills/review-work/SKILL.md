@@ -1,6 +1,6 @@
 ---
 name: review-work
-description: Review tests (B), review a passing candidate (D), or improve the spec from evidence (doctor). Use one mode per fresh session.
+description: Independently review a routine candidate, specialist tests (B), specialist candidate (D), or delivery docs (doctor).
 metadata:
   version: "1.0"
   status: released
@@ -8,7 +8,7 @@ metadata:
 
 # Review work
 
-Follow installed repository `AGENTS.md` for shared session, access, verification, budget, and reporting rules. Use one mode per packet.
+Follow installed repository `AGENTS.md` for routing, shared session, access, verification, budget, and reporting rules. Use one mode per narrow packet. Routine candidate review needs one fresh independent session; A/B/C/D are reserved for genuine scientific or safety risk.
 
 ## Tests — B
 
@@ -22,13 +22,13 @@ Complete B with acceptance of an identified test revision/mapping or concrete de
 
 Accepted tests need valid baseline evidence and a recorded checkpoint before C. Existing-code tests may pass initially without mutation testing or manufactured failure. Classify observed failures under specification section 4; a setup failure is not product-red evidence.
 
-## Candidate — D
+## Candidate — routine reviewer or specialist D
 
-Read the approved task, exact candidate, test checkpoint, and actual check evidence, not C's conversation. Form findings before consulting current-task implementation lessons.
+Read approved scope/established contracts, the exact candidate, and actual applicable check evidence, not the author's conversation. Specialist D also receives the reviewed test checkpoint. Form findings before consulting current-task implementation lessons.
 
 Inspect behavior, security, public boundaries, and test/workflow changes. Compare the tested commit with the proposed merge. Missing/skipped/incomplete results are not success. Check the real product result, not only a summary or compilation. Flag production seams created solely for tests; investigate test-only local callers without treating externally used public APIs as dead code.
 
-Include simplification in this review: unnecessary wrappers, duplication, dependencies, and speculative features. Stay within the task. No extra simplification agent. Complete D with acceptance of the exact passing candidate or concrete findings and evidence; do not fix the candidate and then approve it. Route findings under specification section 4. Product corrections use fresh C within the recorded repair allowance, renewed checks, and fresh D. Reuse applicable check evidence; rerun when changed inputs or unresolved findings justify it.
+Include simplification in this review: unnecessary wrappers, duplication, dependencies, and speculative features. Stay within the task. No extra simplification agent. Complete review with acceptance of the exact candidate under the applicable checks or concrete findings and evidence; identify pending platform CI rather than calling it passed. Do not fix the candidate and then approve it. Route findings under specification section 4. Routine corrections return to the authorized author and need renewed independent review; specialist corrections use fresh C within the recorded allowance and fresh D. Reuse applicable evidence; rerun when changed inputs or unresolved findings justify it. Confirm full Linux/macOS/Windows results and verified `ci-required` protection before merge; workflow text or local success cannot establish that gate.
 
 ## Doctor
 

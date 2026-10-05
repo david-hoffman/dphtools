@@ -1,0 +1,34 @@
+{
+  "provenance": {
+    "description": "Linux advisory call durations from the retained release-test pilot; unrecorded nodes use the default weight.",
+    "result": "97 passed in 651.34 seconds",
+    "platform": "Linux",
+    "recorded_phases": [
+      "call"
+    ],
+    "evidence_log_sha256": "c7a00701cc8cbb48da1e7095d70d7778c5824cab2d5e4e82be295b164eb625c6",
+    "timing_option": "--durations=20"
+  },
+  "durations": {
+    "tests/test_release_workflow.py::test_smoke_ignores_inherited_import_and_install_retargeting[PYTHONHOME]": 69.33,
+    "tests/test_release_workflow.py::test_smoke_ignores_inherited_import_and_install_retargeting[PIP_PREFIX]": 68.8,
+    "tests/test_release_workflow.py::test_smoke_ignores_inherited_import_and_install_retargeting[PIP_TARGET]": 68.23,
+    "tests/test_release_workflow.py::test_smoke_ignores_inherited_import_and_install_retargeting[PYTHONPATH]": 67.98,
+    "tests/test_release_workflow.py::test_smoke_ignores_inherited_import_and_install_retargeting[PIP_USER]": 64.21,
+    "tests/test_release_probe_measurement.py::test_actual_probe_measurement_and_real_failure_controls": 37.8,
+    "tests/test_release_smoke.py::test_smoke_validates_retained_identity_before_starting_installers": 36.03,
+    "tests/test_release_smoke.py::test_smoke_installs_both_real_artifacts_in_separate_clean_environments": 33.31,
+    "tests/test_release_completion.py::test_real_installs_and_probes_strip_dummy_inherited_credentials": 32.33,
+    "tests/test_release_smoke.py::test_partial_publication_uses_original_bytes_then_checks_downloaded_installs": 32.29,
+    "tests/test_release_workflow.py::test_recovery_downloaded_installs_precede_retained_file_finalization": 32.22,
+    "tests/test_release_smoke.py::test_smoke_detects_actual_installed_version_behavior_and_dependency_defects[sum]": 16.56,
+    "tests/test_release_smoke.py::test_smoke_detects_actual_installed_version_behavior_and_dependency_defects[version]": 15.67,
+    "tests/test_release_smoke.py::test_smoke_external_process_or_assertion_failure_blocks_readiness[probe]": 15.63,
+    "tests/test_release_smoke.py::test_smoke_external_process_or_assertion_failure_blocks_readiness[check]": 15.46,
+    "tests/test_release_smoke.py::test_smoke_detects_actual_installed_version_behavior_and_dependency_defects[dependency]": 15.27,
+    "tests/test_release_probe_measurement.py::test_measurement_setup_keeps_real_provisioning_and_startup_failures_visible": 3.45,
+    "tests/test_release_smoke.py::test_installer_observer_uses_a_real_clean_environment_and_package_metadata": 3.44,
+    "tests/test_release_smoke.py::test_smoke_external_process_or_assertion_failure_blocks_readiness[install]": 2.91
+  },
+  "digest": "923fb0a4a9ab0fb78f87a329d0912e7949488e51df3de3636528aea705a262ec"
+}

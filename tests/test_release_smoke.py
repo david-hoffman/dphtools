@@ -5,11 +5,13 @@ substitutes successful install/check/probe results. It performs an additional re
 installed-package check before temporary environments can be removed.
 """
 
+from dataclasses import dataclass
 from email.parser import BytesParser
 import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -17,7 +19,7 @@ import zipfile
 
 import pytest
 
-from .test_release_support import Bundle, DEPENDENCIES, rejected, snapshot, write_json
+from .test_release_support import Bundle, DEPENDENCIES, digest, rejected, snapshot, write_json
 from . import test_release_version as version_cli
 from .test_release_version import ROOT, diagnostic, invoke
 
@@ -265,8 +267,23 @@ def clean_env():
     return env
 
 
-@pytest.fixture(scope="module")
-def real_package(tmp_path_factory):
+@dataclass(frozen=True)
+class ReleaseArtifacts:
+    """Retain immutable build bytes; every consumer rechecks their frozen hashes."""
+
+    files: tuple
+    hashes: tuple
+
+    def verify(self):
+        if tuple(digest(path.read_bytes()) for path in self.files) != self.hashes:
+            raise ValueError("Retained release artifact hash mismatch")
+
+    def __iter__(self):
+        self.verify()
+        return iter(self.files)
+
+
+def build_real_package(tmp_path_factory):
     """Build opaque actual sources with isolated fixture Git data, never owner history."""
     root = tmp_path_factory.mktemp("real release package")
     source = root / "source copy"
@@ -356,7 +373,11 @@ def real_package(tmp_path_factory):
     wheels = list(dist.glob("*.whl"))
     sdists = list(dist.glob("*.tar.gz"))
     assert len(wheels) == len(sdists) == 1, "Build fixture must contain one wheel and one sdist"
-    return wheels[0], sdists[0]
+    files = (wheels[0], sdists[0])
+    hashes = tuple(digest(path.read_bytes()) for path in files)
+    for path in files:
+        path.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    return ReleaseArtifacts(files, hashes)
 
 
 def real_bundle(root, real_package):
@@ -368,6 +389,8 @@ def real_bundle(root, real_package):
     bundle.sdist = bundle.dist / sdist.name
     shutil.copy2(wheel, bundle.wheel)
     shutil.copy2(sdist, bundle.sdist)
+    for path in (bundle.wheel, bundle.sdist):
+        path.chmod(path.stat().st_mode | stat.S_IWUSR)
     bundle.refresh_manifest()
     return bundle
 
@@ -461,6 +484,33 @@ def test_real_package_fixture_has_declared_metadata_and_no_git_dependency(real_p
         assert package_metadata["Version"] == "1.0.0"
         assert package_metadata["Requires-Python"] == ">=3.8"
         assert sorted(package_metadata.get_all("Requires-Dist")) == sorted(DEPENDENCIES)
+
+
+def test_shared_release_artifacts_are_readonly_but_bundle_copies_are_private(
+    real_package, tmp_path
+):
+    originals = list(real_package)
+    before = {path.name: path.read_bytes() for path in originals}
+    assert all(not path.stat().st_mode & stat.S_IWUSR for path in originals)
+    first = real_bundle(tmp_path / "first", real_package)
+    second = real_bundle(tmp_path / "second", real_package)
+    first.wheel.write_bytes(b"private negative-case mutation")
+    assert second.wheel.read_bytes() == before[second.wheel.name]
+    assert {path.name: path.read_bytes() for path in originals} == before
+
+
+def test_artifact_hash_is_rechecked_before_bundle_copy(real_package, tmp_path):
+    wheel, _ = real_package
+    original = wheel.read_bytes()
+    mode = wheel.stat().st_mode
+    wheel.chmod(mode | stat.S_IWUSR)
+    try:
+        wheel.write_bytes(b"corrupt retained fixture")
+        with pytest.raises(ValueError, match="artifact"):
+            real_bundle(tmp_path / "rejected", real_package)
+    finally:
+        wheel.write_bytes(original)
+        wheel.chmod(mode)
 
 
 def test_smoke_installs_both_real_artifacts_in_separate_clean_environments(smoke):

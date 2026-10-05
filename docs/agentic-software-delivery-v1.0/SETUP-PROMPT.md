@@ -47,20 +47,29 @@ spec/instruction patch on a docs branch, then waits for owner approval; --check 
 reports. Keep every delivery document at version 1.0. Git versions edits.
 
 Use spec sections 3–4 and the task template for the jointly approved slice plan,
-five-scenario default, fresh root roles, numerical oracle review, initially passing
+five-scenario default for new contracts, proportionate roles, numerical oracle review, initially passing
 existing-code tests, and B's diagnosis after two unaccepted reviews. Independent tasks
 use separate worktrees; dependent slices wait for completed, integrated prerequisites.
 Keep the scenario/round/repair/spend line in Current state under section 9; preserve
 history and consumed budget/repairs when work is renamed or split.
 
-Demonstrate valid baseline evidence and a reviewed test checkpoint, fresh C,
-full local verification passing on the exact candidate, fresh D, and a normal PR.
-Apply section 4's gate before opening/reopening a PR (drafts included) or pushing an
-update to an open PR. Pre-PR pushes may back up failing checkpoints. Use fast generic
-hooks and the full command at submission, not a custom controller or backup branch.
-Known failures, including incomplete coverage, block submission.
-CI repeats verification on its configured platforms. Inspect native protections and
-reuse existing failure-blocking evidence; do not submit a known failure to create it.
+Demonstrate a routine author/fresh-independent-reviewer path using established
+contracts, meaningful focused checks, and cheap verification before PR opening,
+reopening (drafts included), or updates. Demonstrate separate A/B/C/D only for genuine
+scientific/safety risk, including a reviewed checkpoint and its approved risk checks.
+Full local verification is the reference/diagnostic path, required when the risk/check
+plan calls for it, rather than before every routine PR. Pre-PR pushes may back up
+incomplete checkpoints. Preserve fast generic hooks; no PR-state controller.
+Known failures, including known incomplete coverage, block readiness.
+Merge requires independent review of the unchanged candidate and complete platform
+CI with exact 100% owned statement/branch coverage. Verify actual native required
+ci-required protection on codex-main before relying on CI as the authoritative gate.
+Preserve production main protections and publication approval. Missing access or
+protection is a reported blocker, not verified enforcement. Inspect configuration
+separately from an observed blocking demonstration; reuse existing evidence and do
+not submit a known failure merely to create it. Native completion/auto-merge requires
+verified protection and owner merge authorization. Host-required progress updates
+remain mandatory; unavailable event-wait tools cannot be supplied by instructions.
 Add one honest lesson and demonstrate doctor editing the spec.
 Label setup evidence honestly; do not fabricate independent sessions
 or active protections. Preserve required source references once; do not make routine
