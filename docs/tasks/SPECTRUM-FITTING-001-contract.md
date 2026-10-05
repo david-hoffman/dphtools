@@ -1,6 +1,6 @@
 # SPECTRUM-FITTING-001 public contract
 
-**Version 1.0. Contract revision R2 — draft pending owner approval.**
+**Version 1.0. Contract revision R3 — draft pending owner approval.**
 This is the public behavior packet. It contains no implementation or task status.
 
 ## Purpose and scope
@@ -11,10 +11,13 @@ maxima, supplied centers, or supplied full parameters. All components in one cal
 use the selected profile family. Support no background, a constant, or a line.
 
 Reuse the existing NumPy/SciPy dependencies and Python >=3.8 package metadata.
-Preserve existing fitting functions and other public interfaces. Weighted/Poisson
-objectives, absorption dips, mixed profile families, plotting, batch spectra,
-automatic information-criterion model selection, and release publication are
-outside this slice. A new additive function is the release-note impact.
+Reuse existing fitting functions where they satisfy this contract. If they are
+deficient for this task, add new fitting functions or helpers. Do not change
+existing public signatures or behavior. New additive interfaces are allowed.
+Weighted/Poisson objectives, absorption dips, mixed profile families, plotting,
+batch spectra, automatic information-criterion model selection, and release
+publication are outside this slice. A new additive function is the release-note
+impact.
 
 ## Public interface
 
@@ -24,6 +27,7 @@ from dphtools.utils.fitfuncs import spectrum_fit
 result = spectrum_fit(
     data, xdata=None, *, peak_type="gauss", guesses=None,
     background="constant", prominence=None, distance=None, max_nfev=10000,
+    optimizer="lm",
 )
 ```
 
@@ -41,14 +45,19 @@ result = spectrum_fit(
   Gaussian `(amplitude, center, sigma)`, Lorentzian `(amplitude, center, gamma)`,
   or Voigt `(amplitude, center, sigma, gamma)`. Fit exactly this many components.
 - Initial amplitudes and widths must be strictly positive and finite; centers
-  must be finite and within the observed x interval. Guesses are not mutated.
+  must be finite but may lie outside the observed x interval. Guesses are not
+  mutated.
 - `background`: `"none"`, `"constant"`, or `"linear"`. Default is constant.
   A line is `b0 + b1*(x-xdata[0])`; `b0` is the value at the first coordinate.
 - `prominence`: optional finite nonnegative minimum prominence in data units.
   `distance`: optional finite value >=1, interpreted as minimum separation in
   samples. These controls apply only when guesses are absent; explicit guesses
   combined with either control raise `ValueError`, rather than ignoring it.
-- `max_nfev`: a positive integer evaluation limit. Exhaustion is a fit failure.
+- `max_nfev`: a positive integer optimizer evaluation limit. Exhaustion is a fit
+  failure. Counting follows the selected optimizer; this is not a uniform limit
+  on every model evaluation, including covariance calculations.
+- `optimizer`: `"lm"` by default, or a custom callable with the protocol below.
+  Other optimizer choices can be supplied as callables or configured adapters.
 
 `result` exposes these public attributes:
 
@@ -84,8 +93,8 @@ first fitting interface; select Gauss or Lorentz for the pure limiting family.
 
 Fit unweighted nonlinear least squares: minimize the sum of squared residuals
 at the supplied samples. Nonuniform x spacing does not introduce integration
-weights. Amplitudes are constrained nonnegative, widths positive, and centers
-inside the observed interval. Background coefficients are unconstrained.
+weights. Amplitudes and widths remain strictly positive. Centers and background
+coefficients are unconstrained, including centers outside the observed x interval.
 
 Covariance follows the local linear approximation with residual-variance scaling
 by residual sum of squares divided by `number_of_samples-number_of_parameters`.
@@ -93,6 +102,46 @@ Require more samples than fitted parameters. Covariance is an approximate
 uncertainty estimate, not a guarantee of identifiability or a global optimum.
 Preserve applicable numerical warnings; do not fabricate finite uncertainties.
 Numerical test tolerances are chosen independently by A and reviewed by B.
+
+## Optimizer interface
+
+The default is SciPy's Levenberg-Marquardt solver through
+`scipy.optimize.least_squares(..., method="lm")`. It minimizes the stated
+unweighted residual objective. The public fitting result and peak-height units
+remain the same when a different optimizer is supplied.
+
+A custom callable has this signature:
+
+```python
+optimizer(residual, initial, *, bounds, max_nfev) -> optimizer_result
+```
+
+- `residual(parameters)` returns `data - model(parameters)` as a 1-D array.
+- `initial` and the returned `optimizer_result.x` use physical parameters, not
+  private transformed coordinates: flattened peak rows followed by background
+  coefficients. Parameter ordering stays fixed throughout the optimizer call;
+  the fitting result is subsequently sorted by center.
+- `bounds` is a pair of lower/upper bound arrays in the same order and units:
+  amplitude/width lower bounds are zero and their upper bounds are infinity;
+  centers/background coefficients have infinite bounds in both directions.
+  The physical domain requires strictly positive amplitudes/widths, so a final
+  zero value is invalid even though zero marks their bound. The custom optimizer
+  must respect this domain and minimize the supplied residual sum of squares.
+  Configure additional solver options with a wrapper or `functools.partial`.
+- `max_nfev` is forwarded to the callable, which must honor its evaluation limit.
+- The returned object must expose a finite real 1-D `x` of the correct length
+  and a Boolean `success`. A `message` is optional. A failed convergence status,
+  malformed result, or final parameters outside the physical domain produces
+  `RuntimeError`; caller input arrays remain unchanged.
+- The fitter calculates covariance from the residual Jacobian in physical
+  coordinates at the final solution. A custom optimizer need not return its own
+  Jacobian or covariance. Sorting still reorders the full covariance.
+
+SciPy's LM method does not accept explicit bounds. The default path therefore
+uses internal parameter transforms for strictly positive amplitudes and widths.
+Centers remain free, including outside the observed interval. Returned parameters
+and covariance remain in physical units. Transformation details are internal
+implementation choices; they are not part of the custom-optimizer protocol.
 
 ## Discovery and failure behavior
 
@@ -116,8 +165,14 @@ silently drop nonfinite samples or return a baseline-only fit for no peaks.
   parameters/covariance/fitted values/residuals.
 - Owner correction on 2026-10-05: amplitude means component peak height, not
   integrated area. This convention is settled.
-- Proposed widths, schema, constraints, and failure choices above need owner
-  approval of this R2 before test authoring or implementation.
+- Owner clarification on 2026-10-05: preserve existing public interfaces; add new
+  fitting functions/helpers when existing functions are deficient. Use a default
+  Levenberg-Marquardt optimizer and allow a custom optimizer.
+- Owner constraint choice on 2026-10-05: positive amplitudes/widths, with freely
+  moving centers; retain positivity through internal transforms for default LM.
+- Proposed width conventions, schema, custom-optimizer protocol, and failure
+  choices above need owner approval of this R3 before test authoring or
+  implementation.
 - [SciPy 1.15.3 Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html)
   gives the normalized Gaussian/Cauchy convolution and sigma/gamma convention.
 - [SciPy peak discovery](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.signal.find_peaks.html)
@@ -126,12 +181,15 @@ silently drop nonfinite samples or return a baseline-only fit for no peaks.
   distinguishes half prominence from model full width at half maximum.
 - [SciPy least-squares/covariance convention](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html)
   describes the objective, scaling, covariance approximation, and failures.
-- Invariants: unit-height profile normalization, nonnegative components, covariance
+- [SciPy optimizer methods and result interface](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html)
+  defines LM's bounds limitation, residual objective, result status, and
+  method-dependent evaluation counts.
+- Invariants: unit-height profile normalization, positive components, covariance
   ordering, input preservation, and `residuals == data-fitted`.
 
 ## Contract scenarios
 
-This is one coherent fitting slice with 29 explicit scenarios, exceeding the
+This is one coherent fitting slice with 33 explicit scenarios, exceeding the
 five-scenario default. Owner approval of the size exception is pending. Profile
 and data variants within a row may exercise that same approved behavior. A must
 supply public-entry-point mappings and justified tolerances; B reviews both.
@@ -157,7 +215,7 @@ supply public-entry-point mappings and justified tolerances; B reviews both.
 | S17 | Nonfinite or complex guess values are rejected with ValueError | Real finite parameter domain |
 | S18 | Nonpositive initial amplitudes are rejected with ValueError | Positive initial amplitude |
 | S19 | Nonpositive initial widths are rejected with ValueError | Positive width convention |
-| S20 | Initial centers outside the observed interval are rejected with ValueError | Center bounds |
+| S20 | Finite initial and fitted centers may lie outside the observed interval; an identifiable edge-tail model can be fitted without center bounds | Owner free-center choice |
 | S21 | Unsupported profile selection is rejected with ValueError | Profile choices |
 | S22 | Unsupported background selection is rejected with ValueError | Background choices |
 | S23 | Invalid prominence is rejected with ValueError | Discovery control domain |
@@ -167,6 +225,10 @@ supply public-entry-point mappings and justified tolerances; B reviews both.
 | S27 | Empty data or too few samples for positive residual degrees of freedom produces ValueError | Sample count and covariance scaling |
 | S28 | Invalid evaluation limit produces ValueError | Positive integer limit |
 | S29 | Exhausted/nonconvergent optimization produces RuntimeError and preserves caller inputs | Fit failure outcome |
+| S30 | Omitted optimizer selects Levenberg-Marquardt, retains positive amplitudes/widths, and leaves centers free | Owner optimizer default and constraints |
+| S31 | A supplied custom callable receives physical residuals, initial values, bounds, and the evaluation limit; a successful fit returns the same result/covariance convention | Owner optimizer override; callable protocol |
+| S32 | A noncallable optimizer other than the supported default is rejected with ValueError | Optimizer selection domain |
+| S33 | Malformed or physically invalid custom optimizer output produces RuntimeError without mutating caller inputs | Optimizer result contract |
 
 ## Delivery constraints supplied to roles
 
