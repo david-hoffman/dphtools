@@ -24,7 +24,7 @@ repair allowances. The existing project architecture and dependencies apply.
 - Baseline: runtime a835a490373835fa01e4460ce2159365150d1946; isolated worktree
   spectrum-fitting, branch codex/spectrum-fitting. Existing project architecture
   and locked NumPy/SciPy dependencies apply.
-- Reviewed checkpoint: tests SHA-256
+- Reviewed checkpoint: 1f9050ccd1d7e6b0ae86fd9eabc3600fcf29a268; tests SHA-256
   4f762faf63839e4301038a91d02abee9b2f6c8748dc671d19a48aec1ffb674d2;
   mapping/tolerance report SHA-256
   0f9e2b90b7f6d96a016073bc2dd0807c3888a9d257f781c568d097f221d23674.
@@ -45,10 +45,11 @@ repair allowances. The existing project architecture and dependencies apply.
   Complete required platform CI and fresh D remain prerequisites to acceptance.
   Exact candidate/report/check evidence belongs in the conversation.
 - Metrics: scenarios=33; A/B rounds=prior 2/2 accepted, format 1/2 accepted; A/B launches=3/3;
-  coordinator/reference/environment-investigation launches=1/1/1; initial C and D
-  pending; C repairs=0/1 after initial C; execution budget=no fixed cap supplied;
+  coordinator/reference/environment-investigation launches=1/1/1; initial C=1 starting, D=0; C repairs=0/1 after initial C; execution budget=no fixed cap supplied;
   task-start observation=2026-10-05 16:56:58 UTC; CLI token usage retained outside
   Git, parent/billing usage unavailable. Prior attempts/allowances are preserved.
-- Blockers/next: no owner or test-review blocker remains. Freeze the revised
-  reviewed checkpoint, start fresh C with one later repair allowance, then fresh
-  D and required platform checks. The conversation records final disposition.
+- Blockers/next: no owner or test-review blocker remains. Fresh C uses the
+  [C packet](SPECTRUM-FITTING-001-C.md), then fresh D and required platform checks.
+  Exact candidate, check/role outcomes, remaining allowances, and final disposition
+  are recorded in this task's conversation; this pointer is prepared before final
+  candidate verification rather than editing the verified commit afterward.
