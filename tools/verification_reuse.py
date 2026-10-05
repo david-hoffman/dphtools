@@ -21,6 +21,8 @@ def runtime_identity(root):
         return None
     if Path(site.getusersitepackages()).exists():
         return None
+    if "sitecustomize" in sys.modules or "usercustomize" in sys.modules:
+        return None
     if any(path.name not in ("setup.py", "versioneer.py") for path in root.glob("*.py*")):
         return None
     if any(
@@ -42,6 +44,8 @@ def runtime_identity(root):
     entries = []
     for prefix in prefixes:
         for path in sorted(prefix.rglob("*")):
+            if path.name in ("sitecustomize", "usercustomize"):
+                return None
             if path.is_symlink() and path.is_dir():
                 return None
             if path.is_file():

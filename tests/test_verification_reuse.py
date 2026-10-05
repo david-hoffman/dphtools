@@ -148,11 +148,19 @@ def test_unknown_import_inputs_decline_even_identical_receipts(reuse_command, un
     assert "cannot be completely identified" in fresh["steps"][-1]["reuse_rejection"]
 
 
-def test_runtime_identity_rejects_external_directory_symlinks(reuse_command, tmp_path):
+@pytest.mark.parametrize(
+    "unknown", ["external-symlink", "customization-package", "customization-file"]
+)
+def test_runtime_identity_rejects_unbound_prefix_imports(reuse_command, tmp_path, unknown):
     root, env, _ = reuse_command
     prefix = tmp_path / "private-prefix"
     prefix.mkdir()
-    (prefix / "external").symlink_to(root, target_is_directory=True)
+    if unknown == "external-symlink":
+        (prefix / "external").symlink_to(root, target_is_directory=True)
+    elif unknown == "customization-package":
+        (prefix / "sitecustomize").mkdir()
+    else:
+        (prefix / "sitecustomize.py").write_text("# A dormant customization.\n")
     result = subprocess.run(
         [
             sys.executable,
@@ -175,7 +183,9 @@ def test_runtime_identity_rejects_external_directory_symlinks(reuse_command, tmp
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("hook", ["external-module", "unknown-hook", "site-customization"])
+@pytest.mark.parametrize(
+    "hook", ["external-module", "unknown-hook", "site-customization", "customization-package"]
+)
 def test_external_site_hook_cannot_reuse_changed_check_provider(reuse_command, tmp_path, hook):
     """A real external module supplied through .pth remains an unknown input."""
     root, env, _ = reuse_command
@@ -203,8 +213,12 @@ def test_external_site_hook_cannot_reuse_changed_check_provider(reuse_command, t
         )
     elif hook == "unknown-hook":
         (site_directory / "unrecognized.pth").write_text("# An unaudited site hook.\n")
-    else:
+    elif hook == "site-customization":
         (site_directory / "sitecustomize.py").write_text("# An unaudited customization.\n")
+    else:
+        customization = site_directory / "sitecustomize"
+        customization.mkdir()
+        (customization / "__init__.py").write_text("# An unaudited startup package.\n")
     args = [str(executable), str(root / "tools/verification.py"), "fast"]
     first = subprocess.run(args, cwd=root, env=env, text=True, capture_output=True, timeout=60)
     assert first.returncode == 0, first.stdout + first.stderr
