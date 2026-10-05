@@ -41,6 +41,8 @@ def reuse_command(tmp_path):
     env.pop("PYTHONHOME", None)
     # Keep a cold check from changing the exact runtime bytes it fingerprints.
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    # A preinstalled user site is an uncontrolled import provider on some hosts.
+    env["PYTHONUSERBASE"] = str(root / "private-user-base")
 
     def run(receipt=None):
         previous = set((root / "reports/verification").glob("*/checks.json"))
@@ -60,12 +62,15 @@ def reuse_command(tmp_path):
 
 
 def test_unchanged_check_reuses_original_command_and_retained_log(reuse_command):
-    _, _, run = reuse_command
+    root, env, run = reuse_command
     original, source = run()
     reused_path, reused = run(original)
     step = next(step for step in reused["steps"] if step["name"] == "docstrings")
     assert reused_path != original
-    assert step["state"] == "reused", step.get("reuse_rejection")
+    assert step["state"] == "reused", (
+        step.get("reuse_rejection"),
+        runtime_diagnostics(root, env),
+    )
     assert step["provenance"]["receipt"] == str(original)
     assert step["provenance"]["command"] == source["steps"][-1]["command"]
     assert step["provenance"]["receipt_sha256"]
@@ -75,6 +80,37 @@ def test_unchanged_check_reuses_original_command_and_retained_log(reuse_command)
     # A reused receipt is not presented as a new execution or recursively trusted.
     _, next_run = run(reused_path)
     assert next_run["steps"][-1]["state"] == "passed"
+
+
+def runtime_diagnostics(root, env):
+    """Show import and alias facts if a host cannot satisfy the reuse contract."""
+    script = r"""
+import hashlib, json, site, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+prefixes = sorted({Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve()})
+paths = [path for prefix in prefixes for path in prefix.rglob('*')]
+user_site = Path(site.getusersitepackages())
+print(json.dumps({
+    'prefixes': [str(path) for path in prefixes],
+    'sys_path': sys.path,
+    'user_site': {'path': str(user_site), 'exists': user_site.exists()},
+    'customizations': [name for name in ('sitecustomize', 'usercustomize') if name in sys.modules],
+    'directory_aliases': [(str(path), str(path.resolve())) for path in paths
+                          if path.is_symlink() and path.is_dir()],
+    'startup_hooks': [(str(path), hashlib.sha256(path.read_bytes()).hexdigest())
+                      for path in paths if path.is_file() and path.suffix == '.pth'],
+}, sort_keys=True))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(root / "tools")],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(
@@ -261,3 +297,104 @@ def test_external_site_hook_cannot_reuse_changed_check_provider(reuse_command, t
     step = json.loads(path.read_text())["steps"][-1]
     assert step["state"] == ("failed" if hook == "external-module" else "passed")
     assert step["returncode"] == (7 if hook == "external-module" else 0)
+
+
+@pytest.mark.parametrize("target_prefix", ["environment", "base"])
+def test_runtime_identity_binds_internal_directory_aliases(reuse_command, tmp_path, target_prefix):
+    """The alias and its fully hashed target both determine runtime identity."""
+    root, env, _ = reuse_command
+    prefix = tmp_path / "environment"
+    base = tmp_path / "base"
+    prefix.mkdir()
+    base.mkdir()
+    target_root = prefix if target_prefix == "environment" else base
+    first = target_root / "first"
+    second = target_root / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "input").write_text("original bytes")
+    (second / "input").write_text("original bytes")
+    alias = prefix / "Headers"
+    alias.symlink_to(first, target_is_directory=True)
+    script = r"""
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from verification_reuse import runtime_identity
+root, prefix, base, target, replacement = map(Path, sys.argv[2:])
+sys.prefix, sys.base_prefix = str(prefix), str(base)
+sys.path = [str(root), str(root / 'tools')]
+original = runtime_identity(root)
+assert original is not None, 'A fully hashed internal alias must be eligible'
+alias = prefix / 'Headers'
+renamed = prefix / 'AlternateHeaders'
+alias.rename(renamed)
+assert runtime_identity(root) != original, 'The alias path must bind the identity'
+renamed.rename(alias)
+assert runtime_identity(root) == original
+(target / 'input').write_text('changed bytes')
+assert runtime_identity(root) != original, 'Target bytes must bind the identity'
+(target / 'input').write_text('original bytes')
+assert runtime_identity(root) == original
+alias.unlink()
+alias.symlink_to(replacement, target_is_directory=True)
+assert runtime_identity(root) != original, 'Same-content retargeting must bind the identity'
+alias.unlink()
+alias.symlink_to(root, target_is_directory=True)
+assert runtime_identity(root) is None, 'An external alias must remain ineligible'
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            script,
+            str(root / "tools"),
+            str(root),
+            str(prefix),
+            str(base),
+            str(first),
+            str(second),
+        ],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_real_venv_directory_aliases_allow_unchanged_command_reuse(reuse_command, tmp_path):
+    """A genuine venv keeps its stock lib64 alias and reuses the real check."""
+    root, env, _ = reuse_command
+    prefix = tmp_path / "alias-environment"
+    venv.EnvBuilder(system_site_packages=True).create(prefix)
+    lib64 = prefix / "lib64"
+    original_lib64 = lib64.readlink() if lib64.is_symlink() else None
+    target = prefix / "owned-headers"
+    target.mkdir()
+    (target / "input").write_text("Bound runtime bytes.\n")
+    (prefix / "Headers").symlink_to(target, target_is_directory=True)
+    executable = prefix / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    args = [str(executable), str(root / "tools/verification.py"), "fast"]
+    first = subprocess.run(args, cwd=root, env=env, text=True, capture_output=True, timeout=60)
+    assert first.returncode == 0, first.stdout + first.stderr
+    original = next((root / "reports/verification").glob("*/checks.json"))
+    source = json.loads(original.read_text())
+    assert source["steps"][-1]["input_identity"]["runtime"] is not None
+    result = subprocess.run(
+        [*args, "--reuse", str(original)],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    paths = set((root / "reports/verification").glob("*/checks.json")) - {original}
+    assert len(paths) == 1, result.stdout + result.stderr
+    step = json.loads(paths.pop().read_text())["steps"][-1]
+    assert step["state"] == "reused", step.get("reuse_rejection")
+    assert step["provenance"]["receipt"] == str(original)
+    if original_lib64 is not None:
+        assert lib64.readlink() == original_lib64

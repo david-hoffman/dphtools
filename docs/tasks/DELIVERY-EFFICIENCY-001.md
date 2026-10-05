@@ -62,6 +62,11 @@ and Linux/macOS/Windows verification.
   Reuse fixtures also keep cold bytecode caches stable and identify each new
   receipt separately from the original receipt linked by provenance. CI retains
   required proof files without uploading disposable installations and temp trees.
+  The macOS framework's stock Headers directory alias exposed an overly strict
+  eligibility rule. Runtime identities now bind internal directory aliases and
+  their fully hashed canonical targets, while rejecting external targets. Real
+  venv and alias-change regressions cover this repair; final review and all gates
+  still apply to the final candidate linked from the PR.
   Re-review and a fresh full reference on the final repaired candidate remain
   required. An initial full run stopped at a read-only audit cache; a
   writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for

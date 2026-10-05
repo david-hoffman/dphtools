@@ -47,12 +47,17 @@ def runtime_identity(root):
     ):
         return None
     entries = []
+    aliases = []
     for prefix in prefixes:
         for path in sorted(prefix.rglob("*")):
             if path.name in ("sitecustomize", "usercustomize"):
                 return None
             if path.is_symlink() and path.is_dir():
-                return None
+                target = path.resolve()
+                if not any(target.is_relative_to(canonical) for canonical in prefixes):
+                    return None
+                # The canonical prefix traversal hashes the target's actual bytes.
+                aliases.append((str(path), str(target)))
             if path.is_file():
                 hashed = file_hash(path)
                 if (
@@ -61,7 +66,7 @@ def runtime_identity(root):
                     return None
                 entries.append((str(path), hashed))
     return {
-        "runtime_digest": digest(entries),
+        "runtime_digest": digest({"files": entries, "directory_aliases": aliases}),
         "runtime_files": len(entries),
         "root": str(root),
         "root_entries": sorted(
