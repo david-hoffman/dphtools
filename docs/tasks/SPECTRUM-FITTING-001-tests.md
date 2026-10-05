@@ -478,3 +478,207 @@ no C allowance reset. The observed formatting/check interval was 88 s, from
 17:57:09 to 17:58:37 UTC on 2026-10-05, excluding final report preparation.
 Together with the retained 425 s and 189 s intervals, measured partial spending
 totals 702 s. Exact token usage/billing remain unavailable.
+
+## Post-implementation public coverage correction — new review window
+
+This fresh independent root A session was authorized for three evidenced public
+coverage gaps after initial C. These additions are **post-implementation
+correction evidence**, not original test-first red evidence. The owner approved
+R3 and S01-S33 as one slice; no scenario or behavior approval was added or reset.
+The packet supplied accepted test SHA-256
+`4f762faf63839e4301038a91d02abee9b2f6c8748dc671d19a48aec1ffb674d2`, historical report
+SHA-256 `0f9e2b90b7f6d96a016073bc2dd0807c3888a9d257f781c568d097f221d23674`, and
+checkpoint `1f9050ccd1d7e6b0ae86fd9eabc3600fcf29a268`. Both input hashes were
+confirmed before editing. The earlier original review window was 2/2
+accepted/closed; the Black-only correction window was 1/2 accepted/closed.
+Their attempts and spending remain recorded above. The coordinator's supplied
+narrow public gap descriptions were used; no raw implementation or coverage
+logs were read.
+
+### Added-case mapping and independent expectations
+
+Three new public test functions add ten cases, bringing the focused file from
+263 to 273 cases while retaining all 33 approved scenarios.
+
+| Existing scenario(s) | Added public test, prefix `test_` | Cases and expected behavior |
+|---|---|---|
+| S04/S08; S01-S03 numerical definitions | `s04_s08_center_guess_broad_component_truncated_half_height` | 6: each family, left/right truncation; center-only guesses fit one broad component with no background, recovering physical height, center, width(s), model and residuals despite an absent half-height crossing |
+| S31; S01-S03/S08 model and R3 covariance boundary | `s31_coincident_components_warn_without_finite_individual_height_uncertainties` | 3: each family; public physical custom optimizer returns an exact minimizer for two coincident equal-width components; covariance warning remains observable and both individual height variances are nonfinite |
+| S29; S03 normalized Voigt and finite-domain definitions | `s29_finite_subnormal_voigt_numerical_boundary_preserves_inputs` | 1: finite strictly increasing coordinates, finite data and strictly positive subnormal initial widths; numerical inability raises RuntimeError, or a robust solver returns an independently verified finite exact-model fit; either outcome preserves caller inputs |
+
+**Truncated broad component.** The physical row is `(3.4, 7.3, 2.5)`, or
+`(3.4, 7.3, 2.5, 1.25)` for Voigt. Height has data units; center and widths have
+x units. The 241 coordinates are `center + sigma_or_gamma * offsets`, with
+offsets `[-0.4, 3]` for left truncation and `[-3, 0.4]` for right truncation.
+The boundary on the truncated side lies above half height, while the opposite
+tail lies below half height. Continuity and monotonicity of these isolated
+profiles place one half-height crossing outside the observation interval.
+For example, the Gaussian half-height offset is
+`sqrt(2*log(2))*2.5 = 2.9435` x units; the truncated boundary is only `1.0`
+x unit from the center. Lorentzian half height is at offset `2.5` x units.
+The endpoint ordinate assertions check this property for every family.
+
+An independent source-free fixture check, using the existing five-point oracle,
+found column-normalized physical Jacobian condition numbers `4.60255` for
+Gaussian, `3.21364` for Lorentzian, and `19.60241` for Voigt, on either side.
+Thus the samples retain width and height information; no initialization
+algorithm or internal estimate is specified. Each result uses the unchanged
+parameter tolerances `rtol=3e-5, atol=2e-5` in the parameter's own units,
+model/residual absolute tolerance `2e-7` data units, and existing reconstruction
+and residual consistency checks. Wrong height units, a stuck fallback width,
+a shifted center, dropped components or an added background coefficient cannot
+satisfy the combined physical-parameter, shape and complete-model checks.
+
+**Coincident component uncertainty.** The two identical rows are
+`(2, 0.25, 0.9)`, or `(2, 0.25, 0.9, 0.4)` for Voigt, on 161 coordinates
+from `-4` to `4` x units. With a common unit-height profile P,
+
+`m(x) = a1*P(x-c) + a2*P(x-c) = (a1+a2)*P(x-c)`.
+
+For any `t` retaining positive heights, `(a1+t, a2-t)` yields the same model.
+The individual-height Jacobian columns are identical; the null direction is
+`(1, 0, ..., -1, 0, ...)`. No finite individual-height uncertainty follows from
+this rank-deficient local linear approximation, even when residual sum of
+squares is zero. The independent fixture check verified the unchanged model
+at height split `(2.5, 1.5)` and exactly equal numerical height columns.
+The public custom callable returns the known physical exact minimizer, checks
+its supplied residual against zero with absolute `2e-12` data units, and returns
+no Jacobian/covariance. This removes optimizer convergence as a confounder.
+
+The result must preserve the correct peak rows, empty background, finite model
+and residuals, real full covariance shape, and an observable warning. Captured
+warnings are explicitly rendered, including category, message, filename and
+line, even if the call fails. Both individual-height diagonal entries must be
+nonfinite; either infinity or NaN is allowed. No particular warning category,
+wording, covariance algorithm, or encoding is required, and no assertion
+requires nonfinite uncertainty for an identifiable combined quantity. The
+unchanged identifiable-fit covariance helper is deliberately not used here.
+The [contract-linked SciPy covariance reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html)
+was opened; R3's prohibition on fabricated finite uncertainties and the exact
+height-exchange invariant determine this expectation, rather than a particular
+SciPy covariance implementation. Finite fabricated height variances, suppressed
+warnings, a wrong model, or dropping a component fail independently.
+
+**Finite numerical boundary.** Let `s = finfo(float).tiny/1024`, observed as
+`2.1729236899484e-311` x units, and take `x = s*linspace(-4,4,81)`.
+The [NumPy floating-point limits definition](https://numpy.org/doc/stable/reference/generated/numpy.finfo.html)
+was opened to establish the positive subnormal domain. The approved
+[SciPy Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html)
+was also opened. Its normalized convolution has the scale property
+
+`V(s*d; s*sigma, s*gamma) = V(d; sigma, gamma)/s`.
+
+Consequently the unit-height ratio is unchanged by s. Finite exact data are
+formed in order-one coordinates as `3*V(x/s;1,1)/V(0;1,1)`; the physical full
+initial row is the exact generating minimizer `(3,0,s,s)`. The test checks
+finite inputs, positive widths and strictly increasing coordinates explicitly.
+The independent scaled fixture has normalized Jacobian condition number
+`11.07356`. Its center sample is exactly `3` data units. Direct public SciPy
+normalization at physical s returned infinite center density and 81 nonfinite
+ratios, with an unsuppressed RuntimeWarning. This is evidence of a real floating
+point limitation, not an invalid input or a patched production optimizer.
+
+The outcome is intentionally conditional. A numerical fit failure must be
+RuntimeError; ValueError, other leaked exceptions or mutated caller inputs fail.
+A robust finite solution is allowed, so the test does not force solver failure.
+Success must return one real finite positive Voigt row, empty background,
+correctly shaped real covariance, finite fitted samples/residuals, and the
+verified generating model. Rescale returned center/widths by s before comparing
+to `(3,0,1,1)` with the unchanged `rtol=3e-5, atol=2e-5`; this prevents the
+ordinary absolute width tolerance from accepting zero or arbitrary subnormal
+widths. Independent scale-normalized reconstruction uses `rtol=2e-10,
+atol=2e-10`; fitted data and zero residuals use `atol=2e-7` data units, and
+`data-fitted` uses the existing `rtol=2e-12, atol=2e-12`. Physical covariance
+may itself encounter numerical limits, so no finite-covariance assertion is
+added for this outcome. The starting row is already an exact minimizer; the
+success alternative imposes no recovery requirement from a distant local basin.
+All tolerance choices and both allowed outcomes preceded product execution.
+The [contract-linked optimizer reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html)
+was opened for the public objective/status definitions; R3 determines the
+public failure exception type.
+
+### Focused execution, preservation and classification
+
+All commands ran from the supplied worktree, using
+`/private/tmp/dphtools-spectrum-delivery/venv/bin/python`, with
+`PYTHONDONTWRITEBYTECODE=1`, `MPLBACKEND=Agg` and writable
+`MPLCONFIGDIR=/private/tmp/dphtools-spectrum-delivery/mplconfig`. No environment
+or repository configuration was changed. The known Anaconda-base tooling
+repair remained outside this session.
+
+Retained evidence directory, outside Git:
+`/private/tmp/SPECTRUM-FITTING-001-A-coverage-20261005/`.
+The authored `launch.py` sets `warnings.formatwarning` to category/message/file/
+line only and sets the uncaught-exception hook to exception-only rendering
+before importing pytest. Every fixture probe and product test uses
+`-p no:warnings --tb=no -q -ra --capture=tee-sys`. The launcher's explicit exit
+status and `set -o pipefail` retain failures. The existing LM child independently
+sets the same source-free hooks before its imports.
+
+Exact focused full-spectrum command:
+
+```sh
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-delivery/mplconfig /private/tmp/dphtools-spectrum-delivery/venv/bin/python /private/tmp/SPECTRUM-FITTING-001-A-coverage-20261005/launch.py tests/test_spectrum_fitting.py 2>&1 | tee /private/tmp/SPECTRUM-FITTING-001-A-coverage-20261005/spectrum-tests.log
+```
+
+The authored `format.py` installs the same source-free hooks before importing
+Black and invokes Black's public command entry point. Formatting was applied
+once to the new additions. Exact final format-check command:
+
+```sh
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-delivery/mplconfig /private/tmp/dphtools-spectrum-delivery/venv/bin/python /private/tmp/SPECTRUM-FITTING-001-A-coverage-20261005/format.py --check --line-length 99 tests/test_spectrum_fitting.py 2>&1 | tee /private/tmp/SPECTRUM-FITTING-001-A-coverage-20261005/black-check.log
+```
+
+| Check/evidence | Result | Retained file in evidence directory |
+|---|---|---|
+| Independent fixture/domain checks | 10 passed in 0.87 s; exit 0; no product import | `fixture-checks.log`; `test_fixture_checks.py` |
+| Focused full spectrum | 273 passed in 2.21 s; pytest/shell exit 0; no failures, errors or skips | `spectrum-tests.log`; `launch.py` |
+| Numerical boundary outcome | RuntimeError; RuntimeWarning remained visible; input preservation passed | `spectrum-tests.log` |
+| Coincident-component outcomes | All three returned warnings and nonfinite individual-height variances | `spectrum-tests.log` |
+| Black application/check | One file formatted; final check leaves one file unchanged; both exit 0 | `black-format.log`; `black-check.log`; `format.py` |
+| Original-test preservation | All original module AST nodes remain exactly unchanged excluding locations; only a warnings import and three functions were added; exit 0 | `preservation-environment.log`; `tests-before.py` |
+| Historical report preservation | Original report bytes retained as an exact prefix | `report-before.md`; `final-identity.log` |
+
+The spectrum run retained one RuntimeWarning from the finite numerical boundary
+and three OptimizeWarnings from covariance estimation. The standalone fixture
+check retained its own RuntimeWarning for direct public SciPy normalization.
+Diagnostics were not suppressed, and no exact message assertion was used.
+Execution environment: Darwin arm64; Python 3.13.12, NumPy 2.5.3, SciPy 1.18.1,
+pytest 9.1.1, Black 26.5.1. The final test SHA-256 is
+`1ca6c122fa10d628af4e4c00f6c19b3aef948bbff38bcabec147397061bac764`.
+The report's own final hash is returned outside this tracked tree.
+
+**Classification: authorized post-implementation test coverage correction;
+focused public checks pass**, high confidence. The observed numerical failure
+is contract-permitted RuntimeError, not an input-validation or product defect.
+The rank-deficient warnings and nonfinite individual-height variances satisfy
+the approved uncertainty boundary. No unresolved requirement was found. A does
+not accept its own tests. Fresh independent B round1 review is the next handoff
+in this new window. No canonical full coverage measurement or platform matrix
+was run, and this report makes no coverage-completion or merge-readiness claim.
+
+Read only root AGENTS.md, the narrow owner packet, R3, selected design-tests
+skill, setup.cfg conventions, the permitted current test/historical report,
+the cited primary-reference pages, and this session's own source-free evidence.
+No product implementation, private-helper source, history/diff, other tests/
+oracles, PROJECT.md, task state, lesson entries or role conversations were
+read. Only the two authorized tracked paths were edited; temporary launchers,
+preimages and logs reside outside Git. No Superpowers, optional memory,
+delegation, repository rule/config edit, commit, push, PR, broad full
+verification, merge or release occurred. **Source exposure: none observed.**
+Warnings disclosed product filenames/line numbers as required, but no source
+excerpt or source-bearing traceback was rendered.
+
+Metrics: 33 unchanged scenarios / 273 cases / 10 added cases; 1 fresh root A
+launch (4 known A launches including preserved historical sessions), 0 reviewer
+or C launches in this session; original B window 2/2 accepted/closed, Black-only
+window 1/2 accepted/closed, new correction B window 0/2 used with round1 next;
+initial C used, C-repair counter 0/1 unchanged. Measured fixture-authoring/check
+interval: 136 s, 18:31:42–18:33:58 UTC on 2026-10-05, excluding earlier permitted
+input/reference reading and final report preparation. Added to the retained
+702 s of earlier partial measurements, partial measured spending totals 838 s.
+No fixed owner time/token cap was supplied; exact token usage and billing are
+unavailable. Earlier attempts, spending and allowances were not reset. This
+appendix is historical evidence and creates no competing Current state.

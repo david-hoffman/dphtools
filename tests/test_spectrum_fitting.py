@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import warnings
 from types import SimpleNamespace
 
 import numpy as np
@@ -221,6 +222,28 @@ def test_s04_center_guesses_identifiable_overlap_with_one_maximum(fit):
     _check_result(result, x, y, "gauss", 2, 1)
     assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
     assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("truncated_side", ["left", "right"])
+def test_s04_s08_center_guess_broad_component_truncated_half_height(fit, family, truncated_side):
+    # Post-implementation correction: a missing half-height crossing does not
+    # remove the curvature that identifies this component's physical width.
+    row = [3.4, 7.3, 2.5] if family != "voigt" else [3.4, 7.3, 2.5, 1.25]
+    truth = np.array([row])
+    offsets = (-0.4, 3.0) if truncated_side == "left" else (-3.0, 0.4)
+    x = row[1] + row[2] * np.linspace(*offsets, 241)
+    y = _model(x, truth, family)
+    truncated = y[0] if truncated_side == "left" else y[-1]
+    observed_tail = y[-1] if truncated_side == "left" else y[0]
+    assert truncated > row[0] / 2 > observed_tail
+    result = _preserving_call(
+        fit, y, x, peak_type=family, guesses=np.array([row[1]]), background="none"
+    )
+    _check_result(result, x, y, family, 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    assert_allclose(result.residuals, 0, rtol=0, atol=MODEL_ATOL)
 
 
 @pytest.mark.parametrize(
@@ -576,6 +599,48 @@ def test_s29_failed_custom_status_preserves_inputs(fit, valid_data):
         )
 
 
+def test_s29_finite_subnormal_voigt_numerical_boundary_preserves_inputs(fit):
+    # V(s*d; s*sigma, s*gamma) = V(d; sigma, gamma)/s. Its unit-height
+    # ratio stays finite even when the separate normalized densities overflow.
+    width = np.finfo(float).tiny / 1024
+    x = width * np.linspace(-4, 4, 81)
+    scaled_x = x / width
+    scaled_truth = np.array([[3.0, 0.0, 1.0, 1.0]])
+    y = _model(scaled_x, scaled_truth, "voigt")
+    guesses = np.array([[3.0, 0.0, width, width]])
+    assert np.all(np.isfinite(x)) and np.all(np.diff(x) > 0)
+    assert np.all(np.isfinite(y)) and np.all(np.isfinite(guesses))
+    assert np.all(guesses[:, [0, 2, 3]] > 0)
+    try:
+        result = _preserving_call(fit, y, x, peak_type="voigt", guesses=guesses, background="none")
+    except RuntimeError as failure:
+        # Numerical inability is allowed; input validation and leaked solver
+        # exceptions are not. A robust finite solution is also allowed below.
+        print("Finite subnormal Voigt numerical failure:", failure)
+    else:
+        peaks = np.asarray(result.peak_parameters)
+        assert peaks.shape == (1, 4)
+        assert np.isrealobj(peaks) and np.all(np.isfinite(peaks))
+        assert np.all(peaks[:, [0, 2, 3]] > 0)
+        scaled_peaks = peaks.copy()
+        scaled_peaks[:, 1:] /= width
+        assert_allclose(scaled_peaks, scaled_truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+        assert np.asarray(result.background_parameters).shape == (0,)
+        covariance = np.asarray(result.covariance)
+        assert covariance.shape == (4, 4) and np.isrealobj(covariance)
+        for values in (result.fitted, result.residuals):
+            values = np.asarray(values)
+            assert values.shape == y.shape
+            assert np.isrealobj(values) and np.all(np.isfinite(values))
+        assert_allclose(
+            result.fitted, _model(scaled_x, scaled_peaks, "voigt"), rtol=2e-10, atol=2e-10
+        )
+        assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+        assert_allclose(result.residuals, y - result.fitted, rtol=2e-12, atol=2e-12)
+        assert_allclose(result.residuals, 0, rtol=0, atol=MODEL_ATOL)
+        print("Finite subnormal Voigt returned a verified finite exact-model fit")
+
+
 def test_s30_default_is_real_lm_with_positive_domain_and_free_centers():
     # A fresh process observes the public SciPy dependency before product import,
     # including implementations using a direct imported solver binding.
@@ -705,6 +770,71 @@ def test_s31_custom_optimizer_physical_protocol_and_covariance(
     if len(coefficients):
         assert_allclose(result.background_parameters, coefficients, rtol=0, atol=0.01)
     _check_covariance_and_objective(result, x, y, family)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s31_coincident_components_warn_without_finite_individual_height_uncertainties(
+    fit, family
+):
+    # Post-implementation correction: (a1+t, a2-t) leaves the spectrum
+    # unchanged for coincident equal-width components. Both height columns
+    # of the physical Jacobian are identical, even at an exact minimizer.
+    row = [2.0, 0.25, 0.9] if family != "voigt" else [2.0, 0.25, 0.9, 0.4]
+    truth = np.array([row, row])
+    x = np.linspace(-4, 4, 161)
+    y = _model(x, truth, family)
+    guesses = truth.copy()
+    calls = []
+
+    def exact_minimizer(residual, initial, *, bounds, max_nfev):
+        solution = truth.ravel().copy()
+        assert_allclose(residual(solution), 0, rtol=0, atol=2e-12)
+        calls.append(True)
+        return SimpleNamespace(x=solution, success=True)
+
+    with warnings.catch_warnings(record=True) as diagnostics:
+        warnings.simplefilter("always")
+        try:
+            result = _preserving_call(
+                fit,
+                y,
+                x,
+                peak_type=family,
+                guesses=guesses,
+                background="none",
+                optimizer=exact_minimizer,
+            )
+        finally:
+            # Retain warning diagnostics during blind runs without source lines.
+            for diagnostic in diagnostics:
+                print(
+                    warnings.formatwarning(
+                        diagnostic.message,
+                        diagnostic.category,
+                        diagnostic.filename,
+                        diagnostic.lineno,
+                        line="",
+                    ),
+                    file=sys.stderr,
+                    end="",
+                )
+    assert calls and diagnostics
+    peaks = np.asarray(result.peak_parameters)
+    assert peaks.shape == truth.shape
+    assert np.isrealobj(peaks) and np.all(np.isfinite(peaks))
+    assert_allclose(peaks, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert np.asarray(result.background_parameters).shape == (0,)
+    for values in (result.fitted, result.residuals):
+        values = np.asarray(values)
+        assert values.shape == y.shape
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    assert_allclose(result.fitted, _model(x, peaks, family), rtol=2e-10, atol=2e-10)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    assert_allclose(result.residuals, y - result.fitted, rtol=2e-12, atol=2e-12)
+    covariance = np.asarray(result.covariance)
+    assert covariance.shape == (truth.size, truth.size) and np.isrealobj(covariance)
+    # No specific nonfinite encoding, warning wording, or covariance algorithm.
+    assert np.all(~np.isfinite(np.diag(covariance)[[0, ROW_SIZE[family]]]))
 
 
 @pytest.mark.parametrize("optimizer", ["trf", "dogbox", "LM", None, 42, ["lm"]])
