@@ -6,6 +6,7 @@ Run with the source-free launcher in the A packet during blind A/B work.
 """
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -641,6 +642,115 @@ def test_s29_finite_subnormal_voigt_numerical_boundary_preserves_inputs(fit):
         print("Finite subnormal Voigt returned a verified finite exact-model fit")
 
 
+def _stable_narrow_component(x, row, family):
+    """R3 model; physical Jacobian columns scaled by (height, width, width)."""
+    amplitude, center, width = map(float, row)
+    model, sensitivity = [], []
+    for coordinate in x:
+        d = float(coordinate) - center
+        if family == "gauss":
+            # Even the largest finite height times exp(-64**2/2) rounds to
+            # zero. Bound d/width before division; never square the width.
+            z = d / width if abs(d) <= 64 * width else math.copysign(math.inf, d)
+            value = math.exp(math.log(amplitude) - 0.5 * z * z)
+            derivatives = (value, value * z, value * z * z) if value else (0.0,) * 3
+        else:
+            scale = max(abs(d), width)
+            t, u = d / scale, width / scale
+            denominator = t * t + u * u
+            # Log evaluation retains height*profile when profile alone would
+            # underflow. The scaled denominator is at least one.
+            value = math.exp(
+                math.log(amplitude)
+                + 2 * (math.log(width) - math.log(scale))
+                - math.log(denominator)
+            )
+            derivatives = (
+                value,
+                value * 2 * t * u / denominator,
+                value * 2 * t * t / denominator,
+            )
+        model.append(value)
+        sensitivity.append(derivatives)
+    return np.asarray(model), np.asarray(sensitivity)
+
+
+@pytest.mark.parametrize("family", ["gauss", "lorentz"])
+def test_s29_smallest_positive_width_point_samples_preserve_inputs(fit, family):
+    # Post-implementation regression: this is a valid point-sampled component,
+    # much narrower than the sampling distance, not an identifiable-width case.
+    x = np.linspace(-1, 1, 41)
+    y = np.zeros(41)
+    y[20] = 2
+    width = np.nextafter(0.0, 1.0)
+    guesses = [[2.0, 0.0, width]]
+    assert width == np.finfo(float).smallest_subnormal and width > 0
+    assert np.all(np.isfinite(x)) and np.all(np.diff(x) > 0)
+    assert np.all(np.isfinite(y)) and np.all(np.isfinite(guesses))
+    assert len(y) > 3
+    initial_model, _ = _stable_narrow_component(x, guesses[0], family)
+    assert_array_equal(initial_model, y)
+    with warnings.catch_warnings(record=True) as diagnostics:
+        warnings.simplefilter("always")
+        try:
+            result = _preserving_call(
+                fit, y, x, peak_type=family, guesses=guesses, background="none"
+            )
+        except RuntimeError as failure:
+            print(f"Smallest-positive-width {family} numerical failure: {failure}")
+            return
+        except Exception as failure:
+            print(f"Smallest-positive-width {family} leaked {type(failure).__name__}: {failure}")
+            raise
+        finally:
+            for diagnostic in diagnostics:
+                print(
+                    warnings.formatwarning(
+                        diagnostic.message,
+                        diagnostic.category,
+                        diagnostic.filename,
+                        diagnostic.lineno,
+                        line="",
+                    ),
+                    file=sys.stderr,
+                    end="",
+                )
+    peaks = np.asarray(result.peak_parameters)
+    assert peaks.shape == (1, 3)
+    assert np.isrealobj(peaks) and np.all(np.isfinite(peaks))
+    assert np.all(peaks[:, [0, 2]] > 0)
+    background = np.asarray(result.background_parameters)
+    assert background.shape == (0,) and np.isrealobj(background)
+    for values in (result.fitted, result.residuals):
+        values = np.asarray(values)
+        assert values.shape == y.shape
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    model, jacobian = _stable_narrow_component(x, peaks[0], family)
+    assert_allclose(result.fitted, model, rtol=2e-10, atol=2e-10)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    assert_allclose(result.residuals, y - result.fitted, rtol=2e-12, atol=2e-12)
+    assert_allclose(result.residuals, 0, rtol=0, atol=MODEL_ATOL)
+    covariance = np.asarray(result.covariance)
+    assert covariance.shape == (3, 3) and np.isrealobj(covariance)
+    assert_allclose(covariance, covariance.T, rtol=2e-10, atol=2e-12, equal_nan=True)
+    diagonal = np.diag(covariance)
+    assert np.all(diagonal[np.isfinite(diagonal)] >= 0)
+    # Positive column rescaling preserves physical rank and estimability.
+    # Check the returned solution, without demanding any particular width.
+    scales = np.max(np.abs(jacobian), axis=0)
+    normalized = jacobian / np.where(scales > 0, scales, 1)
+    rank = np.linalg.matrix_rank(normalized)
+    if rank < 3:
+        unidentifiable = [
+            j for j in range(3) if np.linalg.matrix_rank(np.delete(normalized, j, axis=1)) == rank
+        ]
+        assert np.all(~np.isfinite(diagonal[unidentifiable]))
+        assert diagnostics
+    if np.any(~np.isfinite(covariance)):
+        assert diagnostics
+    print(f"Smallest-positive-width {family} returned a verified sampled-model fit")
+
+
 def test_s30_default_is_real_lm_with_positive_domain_and_free_centers():
     # A fresh process observes the public SciPy dependency before product import,
     # including implementations using a direct imported solver binding.
@@ -934,3 +1044,99 @@ def test_s33_invalid_final_positive_domain_and_input_storage(
         _preserving_call(
             fit, valid_data[1], valid_data[0], peak_type=family, guesses=guesses, optimizer=invalid
         )
+
+
+def test_s09_s31_gaussian_physical_covariance_transforms_with_x_units(fit):
+    # Supplementary post-implementation regression. Derivatives come directly
+    # from m=A*exp(-z**2/2), z=(x-c)/sigma, in physical (A,c,sigma) units.
+    x = np.linspace(-4, 4, 201)
+    truth = np.array([[3.0, 0.0, 1.0]])
+    profile = np.exp(-0.5 * x * x)
+    model = 3 * profile
+    jacobian = np.column_stack((profile, model * x, model * x * x))
+    norms = np.linalg.norm(jacobian, axis=0)
+    assert np.linalg.cond(jacobian / norms) < 3
+    q, _ = np.linalg.qr(jacobian, mode="reduced")
+    i = np.arange(len(x))
+    raw_noise = 0.01 * (np.sin(1.63 * i) + 0.6 * np.cos(0.71 * i))
+    noise = raw_noise - q @ (q.T @ raw_noise)
+    y = model + noise
+    residuals = y - model  # Use the represented data, including addition roundoff.
+    rss = residuals @ residuals
+    assert 0.001 < rss < 0.1
+    assert np.max(np.abs(jacobian.T @ residuals) / (norms * np.linalg.norm(residuals))) < 1e-12
+
+    # For half the residual sum of squares, H=J.T@J-sum(r_i*m_i'').
+    # Bound the analytic curvature correction to prove a strict local minimum;
+    # no iterative optimizer output is used to establish the fixture's solution.
+    gram = jacobian.T @ jacobian
+    correction = np.zeros((3, 3))
+    correction[0, 1] = residuals @ (profile * x)
+    correction[0, 2] = residuals @ (profile * x * x)
+    correction[1, 1] = residuals @ (model * (x * x - 1))
+    correction[1, 2] = residuals @ (model * (x**3 - 2 * x))
+    correction[2, 2] = residuals @ (model * (x**4 - 3 * x * x))
+    correction += np.triu(correction, 1).T
+    assert np.linalg.norm(correction, 2) < 0.01 * np.min(np.linalg.eigvalsh(gram))
+    expected = np.linalg.inv(gram) * rss / (len(x) - truth.size)
+    uncertainties = np.sqrt(np.diag(expected))
+    uncertainty_units = np.outer(uncertainties, uncertainties)
+    converted_covariances = []
+
+    for unit_scale in (1.0, 1e-6):
+        units = np.array([1.0, unit_scale, unit_scale])
+        physical_truth = truth * units
+        physical_x = x * unit_scale
+        calls = []
+
+        def known_local_minimizer(residual, initial, *, bounds, max_nfev):
+            assert_allclose(initial, physical_truth.ravel(), rtol=0, atol=0)
+            assert_array_equal(bounds[0], [0, -np.inf, 0])
+            assert_array_equal(bounds[1], [np.inf, np.inf, np.inf])
+            assert max_nfev == 10
+            solution = physical_truth.ravel().copy()
+            assert_allclose(residual(solution), residuals, rtol=2e-12, atol=2e-12)
+            trial = (truth + [[0.1, 0.05, 0.03]]) * units
+            assert_allclose(
+                residual(trial.ravel()),
+                y - _model(physical_x, trial, "gauss"),
+                rtol=2e-12,
+                atol=2e-12,
+            )
+            calls.append(True)
+            # Return only a legitimate physical minimizer and success status.
+            # The fitter independently calculates its Jacobian and covariance.
+            return SimpleNamespace(x=solution, success=True)
+
+        result = _preserving_call(
+            fit,
+            y,
+            physical_x,
+            guesses=physical_truth.copy(),
+            background="none",
+            optimizer=known_local_minimizer,
+            max_nfev=10,
+        )
+        assert calls == [True]
+        _check_result(result, physical_x, y, "gauss", 1, 0)
+        assert_allclose(result.peak_parameters / units, truth, rtol=2e-12, atol=2e-12)
+        assert_allclose(result.fitted, model, rtol=2e-12, atol=2e-12)
+        assert_allclose(result.residuals, residuals, rtol=2e-12, atol=2e-12)
+        # C'=D C D: convert every physical covariance entry back to base units.
+        converted = np.asarray(result.covariance) / np.outer(units, units)
+        converted_covariances.append(converted)
+        assert_allclose(
+            converted / uncertainty_units,
+            expected / uncertainty_units,
+            rtol=0.01,
+            atol=2e-4,
+            err_msg=f"Analytic physical covariance at x-unit scale {unit_scale:g}",
+        )
+
+    assert_allclose(
+        converted_covariances[1] / uncertainty_units,
+        converted_covariances[0] / uncertainty_units,
+        rtol=0.01,
+        atol=2e-4,
+        err_msg="Physical covariance must transform as D C D when x units change",
+    )
