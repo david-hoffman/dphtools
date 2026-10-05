@@ -1140,3 +1140,367 @@ def test_s09_s31_gaussian_physical_covariance_transforms_with_x_units(fit):
         atol=2e-4,
         err_msg="Physical covariance must transform as D C D when x units change",
     )
+
+
+def _stationary_gaussian_failure_fixture():
+    """Analytic physical derivatives, projected noise, and positive curvature."""
+    x = np.linspace(-4, 4, 201)
+    truth = np.array([[3.0, 0.0, 1.0]])
+    profile = np.exp(-0.5 * x * x)
+    model = 3 * profile
+    jacobian = np.column_stack((profile, model * x, model * x * x))
+    norms = np.linalg.norm(jacobian, axis=0)
+    assert np.linalg.cond(jacobian / norms) < 3
+    q, _ = np.linalg.qr(jacobian, mode="reduced")
+    i = np.arange(len(x))
+    raw = 0.01 * (np.sin(1.63 * i) + 0.6 * np.cos(0.71 * i))
+    y = model + raw - q @ (q.T @ raw)
+    residuals = y - model
+    assert np.max(np.abs(jacobian.T @ residuals) / (norms * np.linalg.norm(residuals))) < 1e-12
+    gram = jacobian.T @ jacobian
+    correction = np.zeros((3, 3))
+    correction[0, 1] = residuals @ (profile * x)
+    correction[0, 2] = residuals @ (profile * x * x)
+    correction[1, 1] = residuals @ (model * (x * x - 1))
+    correction[1, 2] = residuals @ (model * (x**3 - 2 * x))
+    correction[2, 2] = residuals @ (model * (x**4 - 3 * x * x))
+    correction += np.triu(correction, 1).T
+    assert np.linalg.norm(correction, 2) < 0.01 * np.min(np.linalg.eigvalsh(gram))
+    covariance = np.linalg.inv(gram) * (residuals @ residuals) / (len(x) - 3)
+    return x, truth, y, model, residuals, jacobian, covariance
+
+
+def _numerical_failure_outcome(fit, data, x, **kwargs):
+    """Accept only RuntimeError failure; retain every warning and input check."""
+    result = None
+    with warnings.catch_warnings(record=True) as diagnostics:
+        warnings.simplefilter("always")
+        try:
+            result = _preserving_call(fit, data, x, **kwargs)
+        except RuntimeError as failure:
+            print("Public numerical failure:", failure)
+        else:
+            assert result is not None
+        finally:
+            for diagnostic in diagnostics:
+                print(
+                    warnings.formatwarning(
+                        diagnostic.message,
+                        diagnostic.category,
+                        diagnostic.filename,
+                        diagnostic.lineno,
+                        line="",
+                    ),
+                    file=sys.stderr,
+                    end="",
+                )
+    return result, diagnostics
+
+
+def _check_scaled_gaussian_failure_success(result, x, y, truth, data_unit):
+    """Verify finite public fit arrays without squaring a large data unit."""
+    units = np.array([data_unit, 1.0, 1.0])
+    peaks = np.asarray(result.peak_parameters)
+    assert peaks.shape == (1, 3)
+    assert np.isrealobj(peaks) and np.all(np.isfinite(peaks))
+    assert np.all(peaks[:, [0, 2]] > 0)
+    assert_allclose(peaks / units, truth / units, rtol=2e-12, atol=2e-12)
+    background = np.asarray(result.background_parameters)
+    assert background.shape == (0,) and np.isrealobj(background)
+    fitted, residuals = map(np.asarray, (result.fitted, result.residuals))
+    for values in (fitted, residuals):
+        assert values.shape == y.shape
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    scaled_peaks = peaks / units
+    assert_allclose(fitted / data_unit, _model(x, scaled_peaks, "gauss"), rtol=2e-10, atol=2e-12)
+    assert_allclose(residuals / data_unit, (y - fitted) / data_unit, rtol=2e-12, atol=2e-12)
+    return residuals / data_unit
+
+
+def _check_large_unit_covariance(result, expected, units, diagnostics):
+    """Check physical entries and variance overflow in the returned dtype."""
+    covariance = np.asarray(result.covariance)
+    assert covariance.shape == (3, 3) and np.isrealobj(covariance)
+    assert_allclose(covariance, covariance.T, rtol=2e-10, atol=2e-12, equal_nan=True)
+    diagonal = np.diag(covariance)
+    assert np.all(diagonal[np.isfinite(diagonal)] >= 0)
+    if np.any(~np.isfinite(covariance)):
+        assert diagnostics
+    if not np.any(expected):
+        # An exact zero-residual identifiable minimizer has zero covariance.
+        assert_array_equal(covariance, np.zeros((3, 3)))
+        return
+    # Keep the limit in the returned dtype: a wider maximum can exceed float64.
+    log_limit = np.log(np.finfo(covariance.dtype).max)
+    for j in range(3):
+        if math.log(expected[j, j]) + 2 * math.log(units[j]) > log_limit:
+            assert not np.isfinite(diagonal[j])
+            assert diagnostics
+    # Sequential divisions avoid an overflowing outer product of data units.
+    converted = covariance / units[:, None] / units[None, :]
+    uncertainty_units = np.sqrt(np.outer(np.diag(expected), np.diag(expected)))
+    finite = np.isfinite(covariance)
+    assert_allclose(
+        converted[finite] / uncertainty_units[finite],
+        expected[finite] / uncertainty_units[finite],
+        rtol=0.01,
+        atol=2e-4,
+    )
+
+
+@pytest.mark.parametrize("height", [1e200, np.finfo(float).max])
+def test_s29_s31_extreme_finite_height_exact_custom_minimum(fit, height):
+    x = np.arange(-4, 5, dtype=float)
+    profile = np.exp(-0.5 * x * x)
+    y = height * profile
+    truth = np.array([[height, 0.0, 1.0]])
+    assert np.all(np.isfinite(y)) and np.all(np.isfinite(truth))
+    relative_jacobian = np.column_stack((profile, profile * x, profile * x * x))
+    assert np.linalg.cond(relative_jacobian) < 3
+    calls = []
+
+    def exact_minimizer(residual, initial, *, bounds, max_nfev):
+        assert_array_equal(initial, truth.ravel())
+        assert_array_equal(bounds[0], [0, -np.inf, 0])
+        assert_array_equal(bounds[1], [np.inf, np.inf, np.inf])
+        assert max_nfev == 10
+        assert_allclose(residual(initial) / height, 0, rtol=0, atol=2e-12)
+        calls.append(True)
+        return SimpleNamespace(x=initial.copy(), success=True)
+
+    result, diagnostics = _numerical_failure_outcome(
+        fit,
+        y,
+        x,
+        guesses=truth.copy(),
+        background="none",
+        optimizer=exact_minimizer,
+        max_nfev=10,
+    )
+    if result is None:
+        return
+    assert calls == [True]
+    scaled_residuals = _check_scaled_gaussian_failure_success(result, x, y, truth, height)
+    assert_allclose(result.fitted / height, profile, rtol=2e-10, atol=2e-12)
+    assert_allclose(scaled_residuals, 0, rtol=0, atol=2e-12)
+    expected = (
+        np.linalg.inv(relative_jacobian.T @ relative_jacobian)
+        * (scaled_residuals @ scaled_residuals)
+        / (len(x) - 3)
+    )
+    _check_large_unit_covariance(result, expected, np.array([height, 1, 1]), diagnostics)
+    print("Extreme finite height returned a verified exact-model fit:", height)
+
+
+def test_s29_s31_large_noise_units_unrepresentable_height_variance(fit):
+    x, base_truth, base_y, model, residuals, jacobian, expected = (
+        _stationary_gaussian_failure_fixture()
+    )
+    data_unit = 1e160
+    units = np.array([data_unit, 1, 1])
+    truth = base_truth * units
+    y = base_y * data_unit
+    assert np.all(np.isfinite(y)) and np.all(np.isfinite(truth))
+    assert math.log(expected[0, 0]) + 2 * math.log(data_unit) > math.log(np.finfo(float).max)
+    # Scaling finite point data is a unit change. In scaled physical coordinates
+    # the stationary solution and positive objective Hessian are unchanged.
+    represented_noise = y / data_unit - model
+    norms = np.linalg.norm(jacobian, axis=0)
+    assert (
+        np.max(
+            np.abs(jacobian.T @ represented_noise) / (norms * np.linalg.norm(represented_noise))
+        )
+        < 1e-12
+    )
+    calls = []
+
+    def stationary_minimizer(residual, initial, *, bounds, max_nfev):
+        assert_array_equal(initial, truth.ravel())
+        assert_array_equal(bounds[0], [0, -np.inf, 0])
+        assert_array_equal(bounds[1], [np.inf, np.inf, np.inf])
+        assert max_nfev == 10
+        assert_allclose(residual(initial) / data_unit, residuals, rtol=2e-12, atol=2e-12)
+        calls.append(True)
+        return SimpleNamespace(x=initial.copy(), success=True)
+
+    result, diagnostics = _numerical_failure_outcome(
+        fit,
+        y,
+        x,
+        guesses=truth.copy(),
+        background="none",
+        optimizer=stationary_minimizer,
+        max_nfev=10,
+    )
+    if result is None:
+        return
+    assert calls == [True]
+    actual_noise = _check_scaled_gaussian_failure_success(result, x, y, truth, data_unit)
+    assert_allclose(result.fitted / data_unit, model, rtol=2e-12, atol=2e-12)
+    assert_allclose(actual_noise, residuals, rtol=2e-12, atol=2e-12)
+    _check_large_unit_covariance(result, expected, units, diagnostics)
+    print("Large noise units returned a verified fit with physical covariance")
+
+
+@pytest.mark.parametrize("boundary", ["optimizer_lstsq", "covariance_svd"])
+def test_s29_s31_public_numerical_backend_failure(fit, monkeypatch, boundary):
+    x, truth, y, model, residuals, jacobian, expected = _stationary_gaussian_failure_fixture()
+    calls, injections = [], []
+
+    def minimizing_adapter(residual, initial, *, bounds, max_nfev):
+        assert_array_equal(initial, truth.ravel())
+        assert_array_equal(bounds[0], [0, -np.inf, 0])
+        assert_array_equal(bounds[1], [np.inf, np.inf, np.inf])
+        assert max_nfev == 10
+        observed = residual(initial)
+        assert_allclose(observed, residuals, rtol=2e-12, atol=2e-12)
+        calls.append(True)
+        if boundary == "optimizer_lstsq":
+            # A real Gauss-Newton stationarity check at the proved strict local
+            # minimum. The unpatched least-squares step is zero to roundoff.
+            step = np.linalg.lstsq(jacobian, observed, rcond=None)[0]
+            assert_allclose(step, 0, rtol=0, atol=2e-12)
+        return SimpleNamespace(x=initial.copy(), success=True)
+
+    def unavailable_decomposition(matrix, *args, **kwargs):
+        matrix = np.asarray(matrix)
+        assert matrix.ndim >= 2 and matrix.size
+        assert np.all(np.isfinite(matrix))
+        if boundary == "optimizer_lstsq":
+            assert matrix.ndim == 2 and np.isrealobj(matrix)
+            assert_allclose(matrix, jacobian, rtol=0, atol=0)
+            assert_allclose(args[0], residuals, rtol=2e-12, atol=2e-12)
+        injections.append(matrix.shape)
+        print(
+            "Injecting public numerical failure:", boundary, "finite operand shape:", matrix.shape
+        )
+        raise np.linalg.LinAlgError("Numerical decomposition did not converge (injected)")
+
+    # Patch only documented NumPy boundaries. A covariance implementation may
+    # use another valid algorithm/binding or recover; verified success is allowed.
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            np.linalg,
+            "lstsq" if boundary == "optimizer_lstsq" else "svd",
+            unavailable_decomposition,
+        )
+        result, diagnostics = _numerical_failure_outcome(
+            fit,
+            y,
+            x,
+            guesses=truth.copy(),
+            background="none",
+            optimizer=minimizing_adapter,
+            max_nfev=10,
+        )
+    assert calls
+    print("Public numerical boundary:", boundary, "injected operands:", injections)
+    if result is None:
+        assert injections  # An unrelated rejection cannot satisfy this case.
+        return
+    _check_result(result, x, y, "gauss", 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=2e-12, atol=2e-12)
+    assert_allclose(result.fitted, model, rtol=2e-12, atol=2e-12)
+    assert_allclose(result.residuals, residuals, rtol=2e-12, atol=2e-12)
+    uncertainty_units = np.sqrt(np.outer(np.diag(expected), np.diag(expected)))
+    assert_allclose(
+        result.covariance / uncertainty_units,
+        expected / uncertainty_units,
+        rtol=0.01,
+        atol=2e-4,
+    )
+    print("Public numerical boundary returned an independently verified successful fit")
+
+
+@pytest.mark.parametrize("family", ["gauss", "lorentz"])
+@pytest.mark.parametrize("optimizer_mode", ["exact", "lm"])
+def test_s29_large_origin_narrow_width_point_boundary(fit, family, optimizer_mode):
+    # Valid point observations; coordinate spacing exceeds this positive width.
+    # A numerical failure or a verified success is permitted, not exact recovery.
+    x = 1e12 + np.arange(9, dtype=float)
+    guesses = np.array([[2.0, x[4], 1e-6]])
+    y, _ = _stable_narrow_component(x, guesses[0], family)
+    assert np.all(np.isfinite(x)) and np.all(np.diff(x) > 0)
+    assert np.all(np.isfinite(y)) and np.all(np.isfinite(guesses))
+    assert np.all(guesses[:, [0, 2]] > 0) and len(y) > guesses.size
+    assert guesses[0, 2] < np.spacing(x[4]) < np.min(np.diff(x))
+    roundoff_floor = 8 * np.finfo(float).smallest_subnormal
+    calls = []
+
+    def exact_minimizer(residual, initial, *, bounds, max_nfev):
+        assert_allclose(initial, guesses.ravel(), rtol=0, atol=0)
+        assert_array_equal(bounds[0], [0, -np.inf, 0])
+        assert_array_equal(bounds[1], [np.inf, np.inf, np.inf])
+        assert max_nfev == 10
+        values = np.asarray(residual(guesses.ravel().copy()))
+        assert values.shape == y.shape and np.isrealobj(values)
+        assert np.all(np.isfinite(values))
+        # The generating row has zero mathematical RSS, hence is a minimizer.
+        # Relative-to-data roundoff resolves the narrow Lorentzian tails.
+        assert np.all(np.abs(values) <= 2e-12 * np.abs(y) + roundoff_floor)
+        calls.append(True)
+        return SimpleNamespace(x=guesses.ravel().copy(), success=True)
+
+    options = {"optimizer": exact_minimizer, "max_nfev": 10} if optimizer_mode == "exact" else {}
+    with warnings.catch_warnings(record=True) as diagnostics:
+        warnings.simplefilter("always")
+        try:
+            result = _preserving_call(
+                fit, y, x, peak_type=family, guesses=guesses, background="none", **options
+            )
+        except RuntimeError as failure:
+            print(f"Large-origin {family}/{optimizer_mode} numerical failure: {failure}")
+            return
+        except Exception as failure:
+            print(
+                f"Large-origin {family}/{optimizer_mode} leaked {type(failure).__name__}: {failure}"
+            )
+            raise
+        finally:
+            for diagnostic in diagnostics:
+                print(
+                    warnings.formatwarning(
+                        diagnostic.message,
+                        diagnostic.category,
+                        diagnostic.filename,
+                        diagnostic.lineno,
+                        line="",
+                    ),
+                    file=sys.stderr,
+                    end="",
+                )
+    if optimizer_mode == "exact":
+        assert calls == [True]
+    peaks = np.asarray(result.peak_parameters)
+    assert peaks.shape == (1, 3)
+    assert np.isrealobj(peaks) and np.all(np.isfinite(peaks))
+    assert np.all(peaks[:, [0, 2]] > 0)
+    background = np.asarray(result.background_parameters)
+    assert background.shape == (0,) and np.isrealobj(background)
+    for values in (result.fitted, result.residuals):
+        values = np.asarray(values)
+        assert values.shape == y.shape
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    model, sensitivity = _stable_narrow_component(x, peaks[0], family)
+    assert_allclose(result.fitted, model, rtol=2e-10, atol=roundoff_floor)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    assert_allclose(result.residuals, y - result.fitted, rtol=2e-12, atol=2e-12)
+    assert_allclose(result.residuals, 0, rtol=0, atol=MODEL_ATOL)
+    covariance = np.asarray(result.covariance)
+    assert covariance.shape == (3, 3) and np.isrealobj(covariance)
+    assert_allclose(covariance, covariance.T, rtol=2e-10, atol=2e-12, equal_nan=True)
+    diagonal = np.diag(covariance)
+    assert np.all(diagonal[np.isfinite(diagonal)] >= 0)
+    # Assess the returned row analytically; do not prescribe derivative steps.
+    scales = np.max(np.abs(sensitivity), axis=0)
+    normalized = sensitivity / np.where(scales > 0, scales, 1)
+    rank = np.linalg.matrix_rank(normalized)
+    if rank < 3:
+        unidentifiable = [
+            j for j in range(3) if np.linalg.matrix_rank(np.delete(normalized, j, axis=1)) == rank
+        ]
+        assert np.all(~np.isfinite(diagonal[unidentifiable]))
+        assert diagnostics
+    if np.any(~np.isfinite(covariance)):
+        assert diagnostics
+    print(f"Large-origin {family}/{optimizer_mode} returned a verified sampled-model fit")

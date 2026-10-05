@@ -1118,3 +1118,875 @@ input/reference reading and final report/preservation preparation. Retained
 owner time/token cap was supplied; exact token usage/billing are unavailable.
 No approval, review allowance, or C allowance was reset. One fresh independent
 B review is the next handoff before any C repair.
+
+
+## Post-repair numerical-failure coverage correction — new B window
+
+This fresh independent root A was authorized for the three narrow public needs
+in the owner packet. R3 and all 33 scenarios remain approved. This is
+**post-repair test-correction evidence**, not original test-first evidence.
+The owner supplied accepted checkpoint
+`f70661a9ed1813312e5bc409fae8a288c8c3d025`, test SHA-256
+`c5e51bab70912a674d7242541591d1844939dca981c5b78cbce9de70617accca`, and report
+SHA-256 `2bd7819d6c6112d2a6660fd03cd5f71685613565f11081fa8b340f3647a8ef3c`.
+Both preimage hashes were confirmed before editing. The 276 old cases and all
+76,378 historical report bytes remain preserved. No implementation, private
+coverage evidence, or other role conversation supplied the new expectations.
+This appendix adds no competing Current state and grants no acceptance.
+
+### Mapping and independently allowed outcomes
+
+Three appended public test functions add five cases, for 281 total. All map to
+existing S29/S31, using the R3 Gaussian, no-background, finite-domain and
+physical-covariance conventions. No new scenario or behavior was added.
+
+| Added test, prefix `test_` | Cases | Independent expectation |
+|---|---:|---|
+| `s29_s31_extreme_finite_height_exact_custom_minimum` | 2 | Heights `1e200` and largest finite float, nine integer coordinates from -4 to 4, exact Gaussian row; RuntimeError numerical failure or independently checked exact-model success, with valid covariance and input preservation |
+| `s29_s31_large_noise_units_unrepresentable_height_variance` | 1 | Well-conditioned stationary Gaussian with finite data and a data-unit factor `1e160`; RuntimeError or verified success with a warning and nonfinite height variance, without fabricated finite uncertainties |
+| `s29_s31_public_numerical_backend_failure` | 2 | A documented NumPy decomposition fails on valid finite operands inside the selected custom optimizer or during covariance calculation; RuntimeError with input preservation, or an independently verified mathematically valid successful result |
+
+All product calls use only `dphtools.utils.fitfuncs.spectrum_fit`, through the
+unchanged `_preserving_call` helper. It checks data, coordinates and full guesses
+in `finally`, on success and failure. No production helper, module patch, seam,
+supplied covariance, or optimizer-supplied Jacobian is used. A None successful
+return, an input-validation exception, a leaked backend exception, or mutation
+cannot satisfy the numerical-failure helper. No product timeout is imposed.
+The owner-supplied earlier stalled probe remains an incomplete observation;
+this session does not claim that it completed or supplied a result.
+
+### Exact-height and noise-projection proofs
+
+For the extreme-height cases, `P=exp(-x*x/2)`, `y=A*P`, and the full initial
+row is `(A,0,1)`. Every sample is finite because `0<P<=1` and A is finite.
+There are nine observations and three parameters, hence six residual degrees
+of freedom. The exact generating row achieves zero squared residual sum and
+is an exact minimizer. The custom callable checks physical initial values,
+bounds, the limit, and the residual at that row, then returns a copied physical
+vector and Boolean success. It makes one residual call under `max_nfev=10`.
+No iterative convergence or arbitrary parameter vector supplies the oracle.
+
+Using relative amplitude coordinates, the model Jacobian divided by A is
+`Jrel=(P,P*x,P*x*x)`. It is full rank with condition number below 3. All three
+columns have magnitudes at most one. Physical derivative values remain finite,
+although squaring the largest can exceed float representation; the fixture
+checks this in logarithms without causing an oracle overflow. Successful model,
+residual and parameter checks divide data-valued quantities by A first.
+Their tolerances cannot accept an arbitrary width, a lost center sample, or
+wrong peak-height units just because the data are large.
+
+For the ordinary stationary fixture, `x=linspace(-4,4,201)`, `(A,c,sigma)=(3,0,1)`
+and `m=3*P`. The analytic physical model-Jacobian columns are
+`J=(P,m*x,m*x*x)`. Let Q span J's columns and
+`u_i=0.01*(sin(1.63*i)+0.6*cos(0.71*i))`. Define `y=m+u-Q*(Q.T*u)` and use the
+represented `r=y-m`. Algebraically, `J.T*r=0`. The measured normalized gradient
+projection is `1.7330390199790092e-15`, below the independently fixed `1e-12`
+bound. The column-normalized Jacobian condition number is `1.931855195700513`.
+
+For half the squared residual objective, `H=J.T*J-K`, where
+`K=sum_i(r_i*Hessian(m_i))`. At the chosen row, the independent second derivatives
+are `m_AA=0`, `m_Ac=P*x`, `m_A_sigma=P*x*x`, `m_cc=m*(x*x-1)`,
+`m_c_sigma=m*(x**3-2*x)`, and `m_sigma_sigma=m*(x**4-3*x*x)`.
+The fixture requires `norm(K,2)<0.01*lambda_min(J.T*J)`; the measured ratio is
+`6.75008518981806e-5`. H's eigenvalues are approximately
+`(28.014499,199.400969,315.398190)`, all positive. This establishes a strict
+local minimum to floating-point precision, without reading or trusting a
+product optimizer result. R3 requires minimization, not a global optimum.
+
+Complex-step checks of the independent elementary Gaussian validate the first
+derivatives at relative/absolute `2e-14`. Central second differences with step
+`1e-4` validate the six analytic second derivatives at relative/absolute `2e-6`.
+Real unpatched NumPy least squares gives rank 3 and a step below absolute
+`2e-12` in these base parameter units. Real SVD reconstructs J and agrees with
+the independent inverse Gram matrix within relative/absolute `2e-14`.
+These checks do not prescribe a production differentiation/decomposition method.
+
+R3 gives `C=(r.T*r)/(201-3)*inv(J.T*J)`. Observed base squared residual sum is
+`0.013791440787719714` squared data units and height variance is
+`2.357879943719217e-6` squared base data units. Multiplying data and amplitude
+by finite `s=1e160` maps parameters through `D=diag(s,1,1)`. Since
+`Jphysical=s*J*inv(D)` and `rphysical=s*r`, covariance becomes `D*C*D`.
+Thus physical height variance is approximately `2.35788e314` squared physical
+data units, while all inputs and model samples remain finite.
+The logarithmic calculation gives `log10(C_AA_physical)=314.37252168833004`,
+well above `log10(max_float)`, approximately 308.255. This is a physical
+uncertainty-representation limit, not loss of identifiability. Scaling represented
+data back preserves stationarity below `1e-12` and covariance within relative
+`2e-12`, absolute `2e-18`. The positive-curvature proof is unaffected by this
+roundoff margin.
+
+The large-unit custom callable returns the proved stationary physical vector,
+after one residual evaluation and physical-protocol checks. A successful return
+must have the correct finite positive row, empty background, finite fitted values
+and residuals, the independently checked model, and real symmetric covariance.
+Its height variance must be nonfinite and an observable warning must exist.
+NaN or infinity and broader nonfinite covariance markings are allowed. No exact
+warning category/text is imposed. Every finite covariance entry must agree with
+the physical analytic convention after sequential unit conversion; finite
+diagonal entries must be nonnegative. An honest all-nonfinite uncertainty matrix
+with a warning is allowed; a finite substituted height variance is rejected.
+This follows the R3 prohibition on fabricated finite uncertainty and leaves
+nonfinite encoding unspecified.
+
+The extreme-height success path computes covariance expectations from the
+returned, independently checked residuals in relative amplitude coordinates.
+This accommodates arithmetic roundoff at enormous heights. For exactly zero
+represented residuals the identifiable covariance is zero. Otherwise the same
+logarithmic overflow test, warning checks, and finite-entry comparison apply.
+No unavoidable failure is inferred from a particular arithmetic implementation.
+
+### Numerical fault boundaries, discrimination and limits
+
+Opened primary references document a `LinAlgError` on nonconvergence at
+[NumPy least squares](https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html)
+and [NumPy singular value decomposition (SVD)](https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html).
+The [floating-point limits reference](https://numpy.org/doc/stable/reference/generated/numpy.finfo.html)
+defines the largest representable value. The opened
+[R3 covariance reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html)
+supports local linear scaling; the opened
+[optimizer reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html)
+supports the residual objective. R3 supplies public RuntimeError classification.
+
+The ordinary fixture's real decompositions converge. No reproducible natural
+backend nonconvergence on this valid, well-conditioned finite fixture was
+established. Making operands invalid would confound numerical failure with input
+validation. A narrow fault injection instead models the documented numerical
+nonconvergence, without depending on a platform-specific failing matrix.
+
+In `optimizer_lstsq`, the selected custom callable evaluates the real physical
+residual, then performs a real analytic Gauss-Newton stationarity check through
+`np.linalg.lstsq(J,residual,rcond=None)`. If available, its negligible step confirms
+the already proved minimum before the adapter returns the physical vector.
+Only this documented dependency is replaced with a nonconvergence exception.
+The injection verifies the exact independently known finite J and residual
+operands before raising. This proves propagation/classification of a numerical
+failure inside a legitimate selected optimizer, not arbitrary callback-programming
+exceptions or default LM backend behavior.
+
+In `covariance_svd`, the custom callable returns the stationary vector without a
+decomposition. Only `np.linalg.svd` is patched during the public fit call. Each
+injected matrix must be real, finite, nonempty and two-dimensional. No covariance
+algorithm or operand scaling/shape beyond that documented input domain is required.
+The patch is restored before all result checks. A conforming implementation may
+use another valid algorithm, an earlier imported binding, or recover from failure;
+it may return success with the independently verified row/model/residuals and
+analytic finite covariance. No assertion requires this backend to be called on
+success. A failed public call must have actually reached the injected boundary,
+so an unrelated rejection cannot satisfy the test. This case proves only the
+public failure boundary when the chosen dependency is reached; it is not a
+universal covariance-method or backend-coverage guarantee.
+
+Arithmetic comparisons reuse `2e-12` relative/absolute tolerances in normalized
+base units; reconstruction uses relative `2e-10`, absolute `2e-12` in scaled data
+units. Covariance comparisons reuse relative `0.01`, absolute `2e-4` after division
+by independent uncertainty units. Covariance symmetry reuses relative `2e-10`,
+absolute `2e-12`, with symmetric nonfinite encodings allowed for extreme cases.
+These tolerances and both outcome alternatives were fixed before product calls.
+The base 201-sample degrees-of-freedom correction is 1.492537%, beyond the variance
+tolerance. Independent synthetic checks reject zero/unit/max-float fabricated
+finite height variance, missing warnings, doubled finite width variance, and
+nonzero covariance for an exact zero-residual identifiable model. They accept
+correct finite entries and honest warned NaN/infinity encodings. No expectation
+or tolerance was tuned to product output; no unresolved requirement was found.
+
+### Source-free checks, preservation and classification
+
+All evidence resides outside Git at
+`/private/tmp/SPECTRUM-FITTING-001-A-postrepair-xm4t1pf2/`.
+Every Python launch installs category/message/filename/line-only warning formatting
+and exception-only rendering before imports. Temporary `sitecustomize.py` supplies
+the hooks to child interpreters; the unchanged real LM child has its own hooks.
+Pytest uses `-p no:warnings --tb=no -q -ra --capture=tee-sys`. The diagnostic plugin
+prints only failure identifiers and exception type/message. Recorded warnings
+are explicitly rendered even when a fit fails. Pytest exit status is printed
+and propagated through `set -o pipefail`; no diagnostics or failure status are hidden.
+
+Exact final full-spectrum command from the permitted worktree:
+
+```sh
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/private/tmp/SPECTRUM-FITTING-001-A-postrepair-xm4t1pf2 MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache /private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3 /private/tmp/SPECTRUM-FITTING-001-A-postrepair-xm4t1pf2/launch.py tests/test_spectrum_fitting.py 2>&1 | tee /private/tmp/SPECTRUM-FITTING-001-A-postrepair-xm4t1pf2/spectrum-tests-exact-final.log
+```
+
+Black uses the same interpreter/environment with `format.py --check --line-length
+99 tests/test_spectrum_fitting.py`, and `black-check-exact-final.log`. Independent
+checks substitute the evidence file `test_fixture_checks.py` for the spectrum
+file, retaining `fixture-checks.log`. The initial focused command adds
+`-k 'extreme_finite_height or large_noise_units or public_numerical_backend_failure'`
+and retains `new-cases.log`. Preservation uses `preservation.py`, retaining
+`preservation-final.log`, `preflight.json` and `final-identity.json`.
+
+| Check | Result | Evidence file |
+|---|---|---|
+| Independent fixture/environment/oracle checks | 6 passed in 0.64 s; exit 0; no product import or warnings | `fixture-checks.log`; `analytic-preflight.json` |
+| Initial new cases | 1 failed, 4 passed, 276 deselected in 0.67 s; exit 1 | `new-cases.log` |
+| Final full spectrum on exact formatted test bytes | 1 failed, 280 passed in 1.38 s; pytest/shell exit 1; no errors/skips | `spectrum-tests-exact-final.log` |
+| Black 99 on exact final test bytes | One file would be left unchanged; exit 0 | `black-check-exact-final.log` |
+| Original tests | All 45,853 preimage bytes are an exact prefix; original AST nodes/constants/oracles/tolerances are unchanged | `tests-before.py`; `preservation-final.log`; `final-identity.json` |
+| Historical report | All 76,378 preimage bytes remain an exact prefix | `report-before.md`; `preservation-final.log`; `final-identity.json` |
+
+The `1e200` case returned a verified exact-model fit with zero covariance. Largest
+finite height retained an overflow RuntimeWarning and returned RuntimeError.
+Large noise units returned RuntimeError for unrepresentable covariance.
+The optimizer boundary reached the verified finite `(201,3)` J and residual,
+then leaked `LinAlgError: Numerical decomposition did not converge (injected)`.
+Caller-input checks completed before the leak. The covariance boundary reached
+a finite `(201,3)` operand and returned RuntimeError. Its alternative successful
+path is independently checked but was not the observed product outcome.
+
+**Classification: product defect — numerical failure inside a selected custom
+optimizer leaks LinAlgError instead of RuntimeError**, high confidence, subject
+to fresh independent B validation of the injection and tests. This is valid
+post-repair product-red evidence at S29/S31. The other new outcomes satisfy R3.
+All 276 previously accepted cases pass on this run. No test, fixture or environment
+failure explains the optimizer leak; A performs no product repair. The full run
+retains ten RuntimeWarnings and three OptimizeWarnings, including the new height
+warning and previous numerical/uncertainty warnings. The real LM child exits 0.
+
+All attempts remain retained. An initial Black check passed. Adding an injection
+diagnostic print subsequently caused a format-only test defect; the intermediate
+full run still had 1 failed/280 passed in 1.45 s, and intermediate Black exit was
+1 (`spectrum-tests-final.log`, `black-check-final.log`). Formatting only appended
+bytes corrected it; exact complete AST equality was asserted, then full-spectrum
+and Black checks were rerun on the final bytes as above. No oracle or tolerance
+changed. Final test SHA-256 is
+`b241e8d23eda41ecdc3f95ed6d9641007d58e5e000a78947243a8e43e9ed9417`.
+The report's final hash is returned outside its tracked tree.
+
+Environment: supplied non-Conda CPython 3.12.14, NumPy 2.5.3, SciPy 1.18.1,
+pytest 9.1.1, Black 26.5.1; interpreter/base prefixes both identify the supplied
+clean Python. No package, environment or repository configuration edits occurred.
+Public imports execute the worktree entry point; no source bytes were inspected.
+The supplied checkpoint identifies prior acceptance, not the uninspected current
+product candidate. Full coverage/platform-matrix verification was not run or
+claimed. These passing additions alone do not prove complete coverage.
+
+Read only root AGENTS.md, the owner packet, contract R3, selected design-tests
+skill, setup.cfg conventions, the permitted spectrum test/historical report,
+opened primary references, and this session's own source-free evidence. No
+implementation/private helper source, source/history/diff, private coverage data,
+other tests/oracles, PROJECT.md, task state/role packet, existing lessons, or role
+conversation was read. Only the two authorized tracked files were edited. No
+Superpowers, optional memory, delegation, commit/push/PR, broad full verification,
+merge or release occurred. **Source exposure: none observed.** Diagnostics retain
+filenames/line numbers without implementation excerpts or source-bearing tracebacks.
+
+Metrics: 33 unchanged scenarios / 281 cases / 5 added cases; 1 fresh root A launch
+(7 known A launches), 0 reviewer/C launches in this session. Owner-supplied original
+B 2/2, format B 1/2, earlier coverage B 1/2 and numerical B 1/2 are accepted/closed.
+This new post-repair correction window has B 0/2 used, round1 next. Initial C and
+C repair 1/1 are used; this work grants no further repair. Partial measured
+authoring/check interval: 192 s, 19:32:59–19:36:11 UTC on 2026-10-05, excluding
+earlier input/reference reading and final report/preservation preparation. Retained
+1,247 s plus this interval totals 1,439 s of partial measured spending. No new
+budget cap was supplied; exact token usage/billing remain unavailable. No approval,
+attempt, spending, scenario or allowance was reset. Fresh independent B round1
+review is the next handoff; any further C repair needs owner allowance extension.
+
+## Supplementary large-origin narrow-width public boundary — same post-repair window
+
+This fresh independent root A was authorized for one S29 boundary supplement,
+concurrently with A7 authoring other numerical boundaries. This is supplementary
+post-implementation public-boundary evidence. It is not original test-first
+red evidence or independent acceptance. Owner approval of R3 and all 33 scenarios
+is unchanged. The supplied accepted checkpoint is
+`f70661a9ed1813312e5bc409fae8a288c8c3d025` (276 cases), with accepted public test
+SHA-256 `c5e51bab70912a674d7242541591d1844939dca981c5b78cbce9de70617accca` and
+accepted public report SHA-256
+`2bd7819d6c6112d2a6660fd03cd5f71685613565f11081fa8b340f3647a8ef3c`.
+Both snapshots were hashed before any public probe. Original, format, coverage,
+and prior numerical windows remain accepted/closed. This supplement shares A7's
+existing post-repair test-correction window, before combined B round1/2. Initial
+C and the sole C repair are used (repair1/1). No allowance/window/spending reset,
+new budget cap, repair authorization, or competing Current state is introduced.
+
+### Mapping and independent mathematical proof
+
+One parametrized public test, `test_s29_large_origin_narrow_width_point_boundary`,
+adds four variants of existing S29: Gaussian/Lorentzian, each with a legitimate
+exact-minimizer custom callable or the omitted default LM optimizer. Supporting
+expectations are R3's S01/S02 point-model definitions, S08 no-background schema,
+S17/S19 finite positive domain, S30 default LM, S31 physical callable protocol,
+and local-linear covariance/warning convention. No scenario is added.
+
+The fixture is precisely `x=1e12+arange(9)`, full row `(2,x[4],1e-6)`, and
+`background="none"`. Height has data units; origin, center, width and coordinate
+spacing have x units. The test independently checks all finite inputs, strictly
+increasing coordinates, positive height/width, and `N=9>P=3` (six residual
+degrees of freedom). Coordinate spacing is 1 x unit. Around this origin, float64
+representable spacing is `2**-13=0.0001220703125` x units, approximately 122
+widths; adding or subtracting `1e-6` x units from the center leaves its represented
+value unchanged. This establishes a real numerical boundary without choosing any
+production derivative step, method, or failure wording.
+
+Let `d=x-center`, `w=1e-6`, and `A=2`. R3 gives
+
+`m_G=A*exp(-0.5*(d/w)**2)`; `m_L=A*w**2/(d**2+w**2)`.
+
+At `d=0`, both samples are exactly 2 data units. Every off-center sample has
+`abs(d)>=1`. The Gaussian exponent is at most `-5e11`, so its float64 point
+samples are zero. Lorentzian adjacent samples are approximately `2e-12` data
+units; endpoint samples are approximately `1.25e-13`. They remain positive and
+finite. Data use the accepted independent `_stable_narrow_component` equation
+helper. An independent 80-digit Decimal calculation of the Lorentzian model
+and analytic scaled sensitivities agrees within relative `2e-14`; observed
+maximum model relative error is `2.625329092575691e-15`. Gaussian samples and
+sensitivities are checked exactly against the analytic zero-tail result. No
+product helper or optimizer output supplies numerical truth.
+
+The full row generates these point observations. Thus mathematical residuals
+are zero and RSS=0, the global lower bound of the unweighted sum of squares.
+It is a minimizer even when parameters are weakly identifiable. The real custom
+optimizer checks the physical initial vector, bounds `(0,-inf,0)` / all positive
+infinities, evaluation limit 10, and finite correctly shaped supplied residuals.
+It evaluates one physical residual vector and returns only a copied physical
+minimizer and Boolean success. It supplies no derivative or covariance. The
+other two cases call the real omitted default optimizer. No mocks, production
+seams, private coordinates, private derivative recipe or synthetic failure are
+used.
+
+### Tolerances, discrimination and allowed outcomes
+
+All proposal equations, data, tolerances, assertions and allowed outcomes were
+fixed before public execution. The custom residual at the known minimizer must
+satisfy `abs(r_i)<=2e-12*abs(y_i)+8*smallest_subnormal` in data units. This accepts
+arithmetic roundoff while resolving the Lorentzian tails instead of comparing
+them with an order-one absolute allowance.
+
+Success reconstruction uses the accepted independent stable helper at the
+**returned** physical row, with `rtol=2e-10` and absolute floor
+`8*smallest_subnormal`, approximately `3.95e-323` data units. These are model
+arithmetic checks at identical parameters; an 80-digit sanity check establishes
+precision well within this allowance. Existing absolute `MODEL_ATOL=2e-7`
+data units applies to fit quality and zero residuals, allowing solver stopping.
+Existing residual consistency `rtol=2e-12, atol=2e-12` checks `data-fitted`.
+No exact returned center/width/height recovery is required. Independent Gaussian
+rows with widths `1e-6`, `1e-4` and `1e-2` produce identical point samples and
+rank-one sampled sensitivity, demonstrating why width recovery is inappropriate.
+
+Temporary independent discriminator checks reject zero Lorentzian tails in the
+reconstruction check, a lost center sample, Lorentzian width `1e-3` with spurious
+fitted tails, peak area substituted for peak height, and the wrong residual sign.
+Ordinary equivalent direct Lorentzian arithmetic passes the fixed reconstruction
+tolerance. These are mathematical incorrect-output examples, not production
+mutations or tuning to observed output.
+
+A numerical fit inability may raise RuntimeError. There is no mandatory failure,
+warning category/message, or exception wording. Other exceptions fail, including
+ValueError and leaked linear-algebra errors. Input preservation is checked in
+`finally` on both outcomes. A successful return must have one finite real positive
+row, empty real background, finite real fitted samples/residuals, real 3-by-3
+covariance, independently consistent point model/residuals, symmetry with
+`rtol=2e-10, atol=2e-12` including symmetric nonfinite encodings, and nonnegative
+finite diagonal entries.
+
+The reused helper analytically evaluates physical model-Jacobian columns scaled
+by `(A,w,w)`. Gaussian columns are `(m,m*z,m*z*z)` with `z=d/w`; Lorentzian
+columns are `(m,2*m*d*w/(d*d+w*w),2*m*d*d/(d*d+w*w))`. The residual sign cancels
+in the covariance Gram matrix. Positive column scaling and normalization preserve
+rank/estimability. Rank is assessed at the **returned** row. If deficient,
+parameters whose column removal leaves rank unchanged need nonfinite diagonal
+uncertainties and an observable warning. Any nonfinite covariance also needs an
+observable warning. These checks reuse the accepted public uncertainty boundary.
+
+At the initial row, Gaussian rank is 1: center and width sensitivities vanish,
+so their individual local-linear uncertainties cannot be finite. Lorentzian
+normalized rank is 3 with condition number `1.4688443954432964`: its tiny positive
+tails carry formal sensitivity even though center perturbations can be below
+coordinate representation. A robust analytical/scaled calculation may succeed;
+finite uncertainty is not forbidden solely by small physical units or large
+origin. Returned alternatives are assessed without requiring either initial
+rank or a particular covariance computation. The identifiable covariance
+helper demanding finite entries is deliberately not used here.
+
+### Sequential boundary and retained checks
+
+All initial proposal work and probes lived in
+`/private/tmp/SPECTRUM-FITTING-001-A-origin-r8f18rb3/`. Only the accepted B5 public
+snapshots were read before A7's completion marker. The frozen proposal SHA-256
+is `ae4a51de1fb0391a94dbd71f0d71f078d83299a4417f12b5b0bb40edca42df3d` (4,608
+bytes), recorded before the public probe at 2026-10-05 19:37:30 UTC. Mutation
+waited for `/private/tmp/dphtools-spectrum-delivery/A7-editing-complete.json`;
+exact marker/live hashes and preimages are retained in this evidence directory.
+
+The marker identified A7 test SHA-256
+`b241e8d23eda41ecdc3f95ed6d9641007d58e5e000a78947243a8e43e9ed9417` and report
+SHA-256 `270b0d4b6eaa1daed5f02fa5ddef6cf1c61a7816a6d33eebe5dbdef8727b6d9e`.
+Both exact live identities were verified before interpreting current public
+content or mutating either file. Marker bytes were retained and rechecked.
+The 57,441-byte A7 test preimage and 94,978-byte A7 report preimage remain exact
+prefixes; each also retains its B5 accepted snapshot as an exact prefix.
+Appending only the frozen proposal plus two separator newlines added 4,610 test
+bytes and one top-level function. Removing only that function restores the
+complete 12,276-node A7 abstract syntax tree (AST), excluding location attributes,
+SHA-256 `16fe12017fed883d88f5e62e9082e89cae98d74a996b4ebe55186bae263eb4ad` under
+CPython 3.12.14. Every prior decorator, constant, helper, oracle, tolerance and
+case is unchanged. The final file contains 285 cases: 276 accepted, A7's five,
+and this supplement's four. No unexplained changed input was observed.
+
+Every Python probe/check installed category/message/file/line-only warning
+rendering and exception-only rendering before imports. All pytest runs used
+`-p no:warnings --tb=no -q -ra --capture=tee-sys`. A diagnostic plugin printed
+failure identifiers and exception/assertion type/message without traceback or
+source. Captured boundary warnings were explicitly rendered in `finally`.
+Pytest and pipeline failure statuses were retained. The existing real LM child
+has its own source-free hooks. No temporary sitecustomize or environment repair
+was needed in this session; only task-local launchers and command-local variables
+were used.
+
+Exact final spectrum command from the authorized worktree:
+
+```sh
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache /private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3 /private/tmp/SPECTRUM-FITTING-001-A-origin-r8f18rb3/launch.py tests/test_spectrum_fitting.py 2>&1 | tee /private/tmp/SPECTRUM-FITTING-001-A-origin-r8f18rb3/spectrum-tests-final.log
+```
+
+Black used the same command-local environment/interpreter, with
+`format.py --check --line-length 99 tests/test_spectrum_fitting.py`, retaining
+`black-check-final.log`. Independent fixture checks and the proposal probe used
+`launch.py` with respectively `test_fixture_checks.py` and `test_proposal.py`
+under the evidence directory and `--confcutdir` set to that directory.
+Preservation used `preservation.py`, retaining `preservation-initial.log`,
+`preservation-final.log`, and `final-identity.json`. Black formatting was applied
+only to new temporary proposal/check files; tracked preimages were never reformatted.
+
+| Check | Actual result | Evidence in the temporary directory |
+|---|---|---|
+| Independent fixture/geometry/oracle/discrimination checks | 5 passed in 0.59 s; pytest/shell exit 0; no product import or warnings | `fixture-checks.log`; `gauss-proof.json`; `lorentz-proof.json`; `environment.json` |
+| Smallest frozen public proposal, before live access | 4 passed in 0.63 s; pytest/shell exit 0; all four RuntimeError outcomes; one retained RuntimeWarning each | `proposal-probe.log`; `proposal-frozen.json` |
+| Combined temporary candidate format preflight | Black 99 exit 0; one file unchanged; no tracked mutation | `candidate-black-check.log` |
+| Whole final spectrum file | 1 failed, 284 passed in 1.77 s; pytest/shell exit 1; no errors/skips | `spectrum-tests-final.log` |
+| Exact final tracked Black 99 | Exit 0; one file unchanged | `black-check-final.log` |
+| Sequential inputs / exact prefix and AST proof | Exact A7 marker/live identities; all accepted and A7 bytes/AST preserved; one function/four cases appended | `sequential-preflight.json`; preimages; `preservation-final.log`; `final-identity.json` |
+
+All four supplementary cases reach a contract-permitted RuntimeError, preserve
+caller inputs, and retain an invalid-value RuntimeWarning. Both robust success
+alternatives are specified independently but were not observed against the
+product. No failure or warning is required merely because the current candidate
+fails numerically. **Classification for this supplement: authorized public
+numerical-boundary coverage, passing initially**, high confidence, subject to B's
+independent expectation/tolerance review. No product-red claim is manufactured.
+
+The single combined-file failure remains A7's
+`test_s29_s31_public_numerical_backend_failure[optimizer_lstsq]`: a valid finite
+custom-optimizer decomposition boundary leaks
+`LinAlgError: Numerical decomposition did not converge (injected)`.
+**Classification: product defect — leaked selected-optimizer numerical failure**,
+subject to independent B validation of A7's fixture/injection and expectations.
+All 276 accepted cases pass, four other A7 cases pass, and all four supplementary
+cases pass. The full run retains 14 RuntimeWarnings and three OptimizeWarnings;
+the real LM child exits 0. No failure, diagnostic, warning, count, skip, or status
+was hidden. A performs no product repair; the supplied C repair1/1 is exhausted.
+
+All local attempts remain retained. Initial temporary formatting of two files
+failed, exit 123 (`proposal-black.log`), because this session's Black wrapper
+lacked a multiprocessing main guard. This is a **temporary tooling-script defect**,
+not a product or environment defect. The task-local wrapper was corrected; the
+next formatting attempt passed (`proposal-black-corrected.log`). No product
+probe, oracle/tolerance change, repository/environment edit, or implementation
+source exposure occurred in that failed attempt. Independent/public checks then
+ran once on the frozen proposal. No later test edits invalidated them.
+
+Final test SHA-256:
+`c3151ae5fd74a315ad185b6fbc3d4b137909f87a275ce927e5ff4137dcd6f43c`.
+The report's final SHA-256 is returned outside its tracked tree. Public imports
+exercise the working-tree entry point; the accepted checkpoint identifies prior
+test acceptance and makes no identity claim about uninspected product bytes.
+Environment evidence: supplied non-Conda CPython 3.12.14, macOS 27.0 arm64,
+NumPy 2.5.3, SciPy 1.18.1, pytest 9.1.1, Black 26.5.1. Interpreter and base
+prefixes both identify the supplied clean Python.
+
+Read only root AGENTS.md, selected design-tests skill, owner packet, R3, accepted
+B5 public snapshots, the coordinator completion marker, current permitted public
+tests/report only after exact marker verification, and this session's own evidence.
+No implementation/private-helper source, history/diff, coverage report, other
+preexisting tests/oracles, PROJECT.md, task state/role packet, lessons or role
+transcript was read. Only the two authorized tracked paths were edited. No
+Superpowers, memory, delegation, config/rules/environment edit, commit/push/PR,
+full verification, merge or release occurred. **Source exposure: none observed.**
+Warning and failure diagnostics retained filenames/line numbers without product
+source excerpts or source-bearing traceback. Mathematical sensitivity probes
+constrain no production derivative algorithm. Full coverage and platform-matrix
+measurement were neither run nor claimed; B must review the combined additions.
+
+Metrics: 33 unchanged scenarios / 285 cases / 4 supplementary cases; 1 fresh root
+A launch (8 known including six in B5 history and A7), 0 reviewer/C launches in
+this session. Original/format/coverage/prior numerical windows remain
+accepted/closed. This is the same post-repair correction window as A7, B 0/2
+used, combined round1/2 next. Initial C and repair1/1 remain used. Measured partial
+authoring/probing/sequential-check interval: 288 s, 19:35:22–19:40:10 UTC on
+2026-10-05, including initial draft preparation and the marker boundary, excluding
+earlier permitted input reading and final report completion. Prior recorded
+1,439 s plus this interval totals 1,727 s of partial measured spending; overlapping
+root sessions are counted as agent effort, not elapsed wall time. All prior
+attempts/spending are retained. No fixed owner time/token cap or new cap is
+introduced; exact model-token usage/billing is unavailable. Combined fresh B
+round1 is the next handoff; A grants no acceptance or further C repair allowance.
+
+## Correction of the two B6 test defects — same post-repair window
+
+Fresh independent root A was authorized only to correct the two evidenced B6
+observers. This is post-repair test correction, not original test-first evidence.
+The owner packet reports B6 round1/2 rejection of these restrictions, a spectrum
+run of 284 passed/1 failed, 16 independent checks and passing Black 99. It also
+confirms that the selected custom optimizer's LinAlgError leak is valid product-red
+evidence. That report/transcript was not read. R3 and the 33 approved scenarios
+remain unchanged. B round1 is spent; fresh independent B round2 is next. C
+repair1/1 remains exhausted. The coordinator's extra-repair request supplies no
+authorization in this packet. No window, allowance, spending or budget cap resets.
+This appendix is historical evidence, without acceptance or competing Current state.
+
+Confirmed rejected preimages: test SHA-256
+`c3151ae5fd74a315ad185b6fbc3d4b137909f87a275ce927e5ff4137dcd6f43c`; report SHA-256
+`d001e99a794331c5e6031814c0cca2f05673a8e57b0a7cdfd450db94bccb3cf7`.
+Both exact preimages and all local attempts are retained outside Git. The B5
+accepted snapshots retain hashes `c5e51bab70912a674d7242541591d1844939dca981c5b78cbce9de70617accca`
+and `2bd7819d6c6112d2a6660fd03cd5f71685613565f11081fa8b340f3647a8ef3c`.
+
+### Explicit historical corrections and unchanged mapping
+
+The earlier A7 restriction to two-dimensional covariance SVD operands was a
+**test defect**. Its statement that this described the documented input domain
+was incorrect. [NumPy's SVD documentation](https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html),
+opened in this session, permits operands with at least two dimensions and applies
+decomposition to stacked matrices. The injection now accepts `ndim>=2`, while
+retaining real, finite, nonempty operand checks. The custom optimizer's independently
+derived least-squares context still requires a two-dimensional matrix exactly
+equal to the analytic Jacobian and the independently known residual. Its adapter
+and those exact comparisons are unchanged. Input preservation, reached-boundary
+failure checks, RuntimeError classification, recovery/alternate-algorithm success,
+and the physical model/covariance oracle are unchanged.
+
+The A7 large-unit statement that height variance must always be nonfinite with
+a warning was also a **test defect**. The physical variance exceeds float64 range;
+R3 does not promise a float64 covariance dtype. That historical mapping, overflow
+wording and mandatory-warning claim are superseded by this correction: nonfinite
+height variance and an observable warning are required when its physical variance
+exceeds the actual returned covariance dtype's maximum. A correct representable
+finite variance may succeed without a warning. Every finite covariance entry still
+has to satisfy the physical analytic expectation, symmetry and nonnegative
+variances; all nonfinite encodings still require an observable warning. Exact
+zero-residual identifiable covariance still has to be exactly zero.
+
+The observer now uses `np.log(np.finfo(covariance.dtype).max)`. It takes the logarithm
+before any narrowing conversion, so a valid wider maximum is not first converted
+to float64 infinity. [NumPy's finfo documentation](https://numpy.org/doc/stable/reference/generated/numpy.finfo.html),
+opened here, defines limits for the supplied dtype and documents platform variation
+in longdouble. The success diagnostic now says physical covariance rather than
+claiming variance overflow for every possible dtype. This changes no assertion
+outside the two rejected observers. Earlier A7/A8 attempts, restrictions and
+claims remain in their historical bytes; this appendix explicitly corrects them.
+
+| Existing mapping | Corrected observer | Cases/tolerances |
+|---|---|---|
+| S29/S31, `test_s29_s31_public_numerical_backend_failure[covariance_svd]` | Documented stacked SVD domain; legitimate optimizer matrix context retained | Same two boundary cases and all physical failure/success tolerances |
+| S29/S31, the extreme-height and large-noise-unit tests | Actual returned covariance dtype's representable range | Same three cases; unchanged finite-entry `rtol=0.01, atol=2e-4` in independent uncertainty units |
+
+No functions, parameterizations, fixtures or scenarios were added to the public
+suite: 285 cases remain, including all 276 accepted cases and all nine A7/A8
+additions. The four A8 boundary variants and their oracles/tolerances are unchanged.
+
+### Host-independent range proof and both-direction observer checks
+
+The unchanged stationary Gaussian yields base height variance
+`C_AA=2.357879943719217e-6` squared base data units. For data-unit factor `s=1e160`,
+`D=diag(s,1,1)` and `C_physical=D*C*D`, so
+
+`V=C_AA*s*s=2.3578799437192171e314` squared physical data units.
+
+A 90-digit Decimal calculation uses exact conversions of the represented base
+variance and unit factor. It establishes `log10(V)=314.372521688330045...`, whereas
+`log10(float64_max)=308.254715559916744...`. Thus float64 cannot represent V.
+For a mathematical binary format with 113 significant bits and maximum exponent
+16384, the largest finite value is `(2-2**-112)*2**16383`, with decimal logarithm
+`4932.075448958667902...`. Hence `float64_max < V < max_wide`. Rounding at relative
+precision `2**-112` is far below the fixed 1.02% diagonal-variance allowance.
+The old threshold would reject that mathematically valid finite covariance;
+the corrected threshold permits it, subject to the same physical-entry comparisons.
+This is a mathematical possible-format proof, not a claim about local availability.
+
+Local ARM longdouble has maximum exponent 1024, equal to float64. No local wider
+result, product wide-dtype success, or additional runtime dependency is claimed.
+The retained proof includes a real wider-longdouble observer check only when
+such a dtype exists; that conditional branch did not execute here and no pytest
+skip hides it. Separate narrow instrumentation verifies that the observer queries
+the actual dtype and passes its maximum directly to NumPy logarithm without
+float64 narrowing; it is explicitly instrumentation, not a synthetic host dtype.
+
+The 25 independent observer checks do not import product code. They demonstrate:
+valid SVD reconstruction and analytic covariance for `(201,3)`, `(1,201,3)` and
+`(2,1,201,3)`; successful recovery after injected failure; legitimate RuntimeError
+translation at both boundaries; valid covariance through an alternate algorithm;
+continued rejection of an optimizer LinAlgError leak and vector/empty/nonfinite/
+complex decomposition operands; preserved exact optimizer matrix/residual context;
+actual float32/float64/longdouble limit lookup and valid finite physical covariance;
+honest warned nonfinite encodings when range is exceeded; rejection of missing
+warnings, saturated maximum/zero/unit fabricated height variance, doubled width
+variance and nonzero covariance for exact zero residual; and the mathematical
+range/nonnarrowing proofs. All equations and tolerances precede product execution.
+These checks are evidence outside the public suite, not new contract scenarios.
+
+### Exact checks, retained attempts and classification
+
+Evidence directory: `/private/tmp/SPECTRUM-FITTING-001-A-B6-correction-20261005/`.
+Every Python launch/probe/test installs category/message/filename/line-only
+`warnings.formatwarning` and exception-only rendering before probe imports. Pytest
+uses `-p no:warnings --tb=no -q -ra --capture=tee-sys -o addopts=`. The diagnostic
+plugin prints only failed identifiers, exception type and message. Captured
+warnings and the unchanged LM child retain source-free rendering. Exit statuses
+are propagated directly; stdout/stderr are retained without a masking pipeline.
+No sitecustomize, environment, repository config or rule file was edited.
+
+Exact whole-spectrum command, from the authorized worktree:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache /private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3 /private/tmp/SPECTRUM-FITTING-001-A-B6-correction-20261005/launch.py /private/tmp/SPECTRUM-FITTING-001-A-B6-correction-20261005/spectrum-results.json tests/test_spectrum_fitting.py > /private/tmp/SPECTRUM-FITTING-001-A-B6-correction-20261005/spectrum-tests.log 2>&1
+```
+
+Black uses the same interpreter and command-local variables with
+`run.py black --check --line-length 99 tests/test_spectrum_fitting.py`.
+Observer checks use `launch.py observer-results.json test_observer_proofs.py`
+with absolute evidence paths and `--confcutdir` set to the evidence directory.
+Preservation and count checks use `run.py preservation.py` and
+`run.py outcome_summary.py`; all scripts/logs are retained in that directory.
+
+| Check | Actual result | Evidence |
+|---|---|---|
+| Independent observer/proof checks | 25 passed in 0.67 s; pytest/process exit 0 | `observer-checks.log`, `observer-results.json`, `mathematical-range-proof.json` |
+| Exact whole spectrum | 284 passed, 1 failed in 1.43 s; pytest/process exit 1; no errors/skips | `spectrum-tests.log`, `spectrum-results.json` |
+| Exact Black 99 | One file would be left unchanged; exit 0 | `black-check.log` |
+| Accepted case membership/outcomes | All 276 accepted cases passed; total 285 | `outcome-summary.log`, `outcome-summary.json` |
+| Preservation | Accepted 45,853 test bytes, every accepted AST node/oracle/tolerance unchanged; only authorized observer AST changes; all other A7/A8 AST unchanged | `preservation-corrected.log`, `final-identity.json` |
+| Historical evidence | All 111,341 rejected report bytes retained as exact prefix, including all 76,378 accepted report bytes | `report-before.md`, `final-identity.json` |
+
+The sole public failure is still
+`test_s29_s31_public_numerical_backend_failure[optimizer_lstsq]`:
+`LinAlgError: Numerical decomposition did not converge (injected)` on the valid
+finite `(201,3)` analytic Jacobian and independent residual. Input-preservation
+checks complete before propagation. **Classification: product defect — leaked
+selected-optimizer numerical failure instead of RuntimeError**, high confidence;
+fresh B round2 must review the corrected candidate. Neither covariance observer
+defect explains or weakens this separate red evidence. No production repair occurred.
+
+The other appended cases satisfy R3. Extreme height `1e200` returns a verified
+exact fit; maximum finite height and large-noise units return RuntimeError.
+Covariance SVD reaches a finite `(201,3)` operand and returns RuntimeError. All
+four A8 variants return RuntimeError. The full log retains 14 RuntimeWarnings
+and three OptimizeWarnings; the real LM child exits 0. No warning category/message,
+failure count, exception or status was hidden.
+
+One initial preservation attempt failed with source-free `IndexError: list index
+out of range`, exit 1 (`preservation-initial.log`). **Classification: temporary
+tooling-script defect**: the local launcher dropped the script's argument while
+forwarding it to runpy. Correcting only that launcher yielded preservation exit 0
+(`preservation-corrected.log`). The failed attempt remains retained. This changed
+no product, public test, oracle, tolerance, environment or repository configuration.
+
+Final test SHA-256:
+`4c40f4cf5bac99b3d47d4f3bb1fcf18ae366941b23428dc0bc9fbfa7bf81cafe`.
+The final report hash and exact final preservation results are returned outside
+its tracked tree. Accepted module AST hash under CPython 3.12.14 is
+`ee2bc688f9c90d1b4044f21223d23f72237b36b31b5b64d1b28d9863f0053b80`
+(9,790 nodes, locations excluded). No tracked formatting was applied.
+
+Observed host: supplied clean non-Conda CPython 3.12.14, macOS 27.0 arm64,
+NumPy 2.5.3, SciPy 1.18.1, pytest 9.1.1 and Black 26.5.1. Interpreter/base prefixes
+identify the supplied clean Python. Public execution exercises the uninspected
+worktree product; accepted checkpoint identity is prior test acceptance, not a
+claim about current product bytes. Wider-range runtime execution, full coverage
+and Linux/macOS/Windows verification were not performed or claimed.
+
+Read only root AGENTS.md, design-tests skill, owner packet, R3 public contract,
+current permitted spectrum tests/historical report, B5 accepted public snapshots,
+the two opened NumPy references, and this session's own evidence. No implementation,
+private helpers/source/history/diffs, private coverage, other preexisting tests/
+oracles, PROJECT.md, task state/role packets, lessons or role transcripts were read.
+Only the two authorized tracked files changed. No Superpowers, memory, delegation,
+environment/config/rules edits, commit/push/PR, full verification, merge or release
+occurred. **Source exposure: none observed.** Diagnostics disclosed filenames/line
+numbers without implementation excerpts or source-bearing tracebacks.
+
+Metrics: 33 unchanged scenarios / 285 unchanged public cases / 0 added cases;
+1 fresh root A launch (9 known), 0 reviewer/C launches in this session. Same
+post-repair B window: 1/2 used and rejected, one remaining. C repair1/1 exhausted;
+extra repair requested but not authorized. All earlier attempts/spending and closed
+windows remain retained. Partial measured authoring/proof/check interval: 243 s,
+19:50:18–19:54:21 UTC on 2026-10-05, excluding earlier input/reference reading
+and final report preparation. Prior recorded 1,727 s plus this interval totals
+1,970 s of partial measured agent spending. No fixed owner time/token cap or new cap is supplied;
+exact model-token usage/billing are unavailable. Fresh independent B round2 is next.
+After another nonacceptance, no extra rewrite is authorized without diagnosed
+resolution or explicit extension.
+
+## Supplementary complex SVD operand observer correction — same post-repair window
+
+This fresh independent root A (A10) corrects one further independently evidenced
+test-observer defect before combined B round2/2. R3, all 33 scenarios, and the
+285 public cases remain unchanged. This is a test correction and independent
+counterexample, not original test-first evidence, product-red evidence, or
+self-acceptance. B6 round1/2 rejected the dimensional restriction and float64
+output-range assumption; A9 corrected those before this sequential supplement.
+The current owner packet explicitly authorizes one additional C repair for the
+valid custom-optimizer numerical exception defect. That later authorization
+supersedes the earlier report's statements that the extra repair was merely
+requested. Original repair1/1 remains spent; no review window, scenario, spending
+or budget cap resets. Only B round2/2 remains in this correction window.
+
+### Sequential identity and narrow correction
+
+All proposal work initially used only the supplied B5 accepted and B6 rejected
+public snapshots, R3, root AGENTS.md, and design-tests skill. No live test/report
+was read or written before `/private/tmp/dphtools-spectrum-delivery/A9-editing-complete.json`
+existed. Both live hashes exactly matched that marker before live access:
+
+- A9 test: `4c40f4cf5bac99b3d47d4f3bb1fcf18ae366941b23428dc0bc9fbfa7bf81cafe`.
+- A9 report: `6391435c246b4c3933c2f7437587b505aad4d669ead710b4efae315dcc50d375`.
+
+Exact copies are retained in
+`/private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY/A9-tests-before.py`
+and `A9-report-before.md`. A9 had removed the two-dimensional covariance
+restriction but still asserted `np.isrealobj(matrix)` for covariance SVD operands.
+The only additional test change moves this real-only check into the test-owned
+`optimizer_lstsq` context, whose operand is specifically the independently
+derived real Jacobian. Covariance operands retain `ndim>=2`, nonempty and finite
+checks. The exact least-squares matrix/residual checks, injected LinAlgError,
+required reached-boundary RuntimeError outcome, input preservation, permitted
+verified success, public real outputs and all mathematical expectations/tolerances
+remain unchanged. A9's dtype-range correction and other bytes remain intact.
+
+Earlier A7/A9 descriptions of real-only covariance SVD inputs, including A9's
+claim that complex operands must be rejected, are superseded here. They describe
+an unsupported **test defect**. [NumPy's SVD documentation](https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html),
+opened independently in this session, allows real or complex input with at least
+two dimensions and stacked decomposition. R3 requires real public observations,
+parameters, model and physical covariance. It specifies no dtype for an internal
+numerical operand. No complex public output is required or permitted by this
+correction. No production algorithm or binding is mandated.
+
+### Independent counterexample and outcome discrimination
+
+The unchanged stationary fixture has `N=201`, physical `(A,c,sigma)=(3,0,1)` and
+projected finite noise. Its analytic Jacobian is
+`J=[g, m*(x-c)/sigma**2, m*(x-c)**2/sigma**3]`, with `g=exp(-z**2/2)` and
+`m=A*g`. Independently observed normalized stationarity is `1.73304e-15`, the
+column-normalized condition number is `1.93186`, and the fixture's unchanged
+curvature inequality proves a strict local minimum. All inputs use ordinary
+finite base units; no extreme-unit or covariance-output-range issue is involved.
+
+A temporary conforming observer alternative calls the supplied optimizer via
+its physical residual/initial/bounds/limit protocol, computes J at the returned
+solution and casts J to complex128. With NumPy's documented decomposition
+`J=U*S*V^H`, it forms `F=V/S` and real covariance
+`C=real(F*F^H)*RSS/(N-P)`. Here `RSS=0.013791440787719714` squared data units and
+`N-P=198`. Because this J is physically real, `J^H*J=J.T*J`; the Hermitian factor
+product yields the same real physical covariance. Unpatched covariance agrees
+with the unchanged analytic expectation at `rtol=1e-12, atol=1e-14`; maximum error
+in independent uncertainty units is `1.21242e-15`. Public parameters, fitted
+values, residuals and covariance satisfy all existing real-output checks.
+
+The B6 observer rejects this `(201,3)` complex128 path with AssertionError solely
+at its real-only check. A9's completed observer also rejects complex128 2-D and
+4-D paths. The corrected live observer accepts real and complex inputs with
+shapes `(201,3)`, `(1,201,3)` and `(1,2,201,3)`, including legitimate RuntimeError
+translation, successful recovery and a correct earlier binding/alternate path
+that does not reach the injection. Independent negative alternatives still fail
+for a leaked LinAlgError, unrelated early RuntimeError, mutated data or guesses,
+doubled covariance, incorrect fitted model, complex public covariance, scalar/
+vector/empty/nonfinite operands. The unchanged real optimizer-lstsq context still
+accepts a valid translated numerical failure. No probe imports production code.
+
+The initial frozen-snapshot proof passed 38 checks in 0.68 s, exit 0. Expanded
+proof against the exact corrected live observer passed 44 checks in 0.70 s,
+exit 0, with no skips or warnings. Both attempts are retained as
+`observer-proof.log` and `live-observer-proof.log`; the public suite gains no case.
+The alternatives are independently derived discriminating witnesses for this
+fixture, not a general fitter, production repair or universal backend-coverage
+claim. A covariance implementation may use any conforming numerical algorithm.
+
+### Exact verification evidence
+
+Evidence and all temporary scripts reside outside Git at
+`/private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY/`. Every Python probe/test
+installs category/message/filename/line-only warning rendering and exception-only
+rendering before imports. Pytest uses `-p no:warnings --tb=no -p no:cacheprovider
+-q -ra --capture=tee-sys -o addopts=`. The diagnostic plugin retains exception
+type/message, case outcomes and process status without source or traceback.
+Recorded warnings and the existing LM subprocess retain their own source-free
+rendering. Pipeline exit status is preserved with `set -o pipefail`.
+
+Exact corrected test SHA-256:
+`50bb168312355b5c3035f534195260f4a0081a6f171cdd6a6de52235774837dd`.
+The report's own final hash is returned outside the tracked tree.
+
+The whole-spectrum command, from the authorized worktree, is:
+
+```sh
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 SPECTRUM_A10_RESULTS=/private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY/spectrum-results.json MPLBACKEND=Agg MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache /private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3 /private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY/launch.py tests/test_spectrum_fitting.py 2>&1 | tee /private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY/spectrum-tests-final.log
+```
+
+Black uses the same interpreter and command-local variables, with
+`format.py --check --line-length 99 tests/test_spectrum_fitting.py` and
+`black-check-final.log`. Exact preservation/case outcomes use `launch.py
+test_preservation.py --confcutdir=/private/tmp/SPECTRUM-FITTING-001-A-complex-2LPa2aaY`,
+with absolute evidence paths, retaining `preservation-final.log`,
+`final-identity.json` and `outcome-summary.json`. Final results follow below.
+
+| Check | Actual result | Retained evidence |
+|---|---|---|
+| Initial independent snapshot proof | 38 passed in 0.68 s; exit 0 | `observer-proof.log`, six `unpatched-*.json` mathematical witnesses |
+| Corrected live observer and discriminating negatives | 44 passed in 0.70 s; exit 0; no skips/warnings; no product import | `live-observer-proof.log`, `test_observer_proof.py` |
+| Exact whole spectrum | 284 passed, 1 failed in 1.62 s; pytest/shell exit 1 | `spectrum-tests-final.log`, `spectrum-results.json` |
+| Exact Black 99 | One file would be left unchanged; exit 0 | `black-check-final.log` |
+
+The sole spectrum failure remains
+`test_s29_s31_public_numerical_backend_failure[optimizer_lstsq]`, with
+`LinAlgError: Numerical decomposition did not converge (injected)` at the valid
+finite `(201,3)` analytic Jacobian and independently known residual. This is
+**product defect — leaked custom-optimizer numerical exception**, high confidence,
+subject to final independent B review. Neither covariance observer correction
+explains or weakens that red evidence. A did not repair production code.
+
+The covariance case reaches the finite `(201,3)` boundary and returns RuntimeError;
+the success alternative remains independently checked. The suite retains 14
+RuntimeWarnings and three OptimizeWarnings; the real LM subprocess exits 0.
+There are no errors or skips. Accepted-case membership/outcomes and preservation
+are recorded by the final source-free preservation check outside the tracked
+candidate. Its assertions require all 276 accepted cases to pass, unchanged
+accepted test prefix/AST, exact equality to the A9 preimage except the two moved
+assertions, and the A9/rejected/accepted report preimages as exact prefixes.
+All 45,853 accepted test bytes, all 125,173 A9 report bytes, all 111,341 rejected
+report bytes and all 76,378 accepted report bytes are retained. The final report
+and test hashes are in `final-identity.json` and the handoff conversation.
+
+Environment: supplied clean non-Conda CPython 3.12.14, NumPy 2.5.3, SciPy 1.18.1,
+pytest 9.1.1, Black 26.5.1; interpreter and base prefixes identify the supplied
+clean Python. Only command-local supplied environment values and task-local
+scripts were used. No environment/config/rules change occurred. Full coverage
+and platform-matrix verification were neither run nor claimed. No local
+counterexample prescribes an internal dtype, decomposition or covariance algorithm.
+
+Read only the authorized public inputs/snapshots, marker and permitted live
+test/report after exact hash verification, the opened NumPy reference, and this
+session's own evidence. Directory filename inventory was used for permitted
+input discovery; no forbidden file content was read. No product implementation,
+private helpers/source/history/diffs, coverage, other preexisting tests/oracles,
+PROJECT.md, task state/role packets, lessons or role transcripts were inspected.
+Only the authorized two tracked files changed. No Superpowers, memory,
+delegation, commit/push/PR, full verification, merge or release occurred.
+**Source exposure: none observed.** Diagnostics contain category/message/file/line
+and exception types/messages, without product source excerpts or traceback.
+
+Metrics: 33 unchanged scenarios / 285 unchanged public cases / 0 added cases;
+1 fresh independent root A launch (10 known), 0 reviewer/C launches in this
+session. Same post-repair B window: round1/2 rejected, combined final round2/2
+next. Initial C and original repair1/1 remain spent; the owner explicitly approved
+one additional repair for the valid custom numerical exception defect. Partial
+measured authoring/proof/sequential-check interval: 225 s, 19:54:17–19:58:02 UTC
+on 2026-10-05, excluding earlier input/reference reading and final report/hash
+completion. Prior recorded 1,970 s plus this interval totals 2,195 s of partial
+measured agent spending; concurrent effort is not elapsed wall time. All local
+attempts remain retained. No fixed owner time/token cap or new cap was supplied;
+exact model-token usage/billing remain unavailable. No allowance or spending reset
+is claimed. Fresh independent combined B round2 is the next handoff; A grants no
+acceptance and launches no reviewer or product repair.
