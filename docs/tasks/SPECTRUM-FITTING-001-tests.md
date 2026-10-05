@@ -2477,3 +2477,507 @@ accepted/closed with all historical attempts/spending retained. Initial C and
 the two authorized repairs remain used 2/2; this correction grants no C repair.
 No fixed cap was supplied; token/billing totals are unavailable and no renewed
 allowance is inferred.
+
+
+
+## Fresh independent A: ordinary wavelength-unit regression within R4
+
+This append covers only the evidenced nm-to-m physical-unit gap. It adds six
+cases to the exact accepted 287-test prefix, for 293 cases across the same 33
+approved scenarios. It uses the public `spectrum_fit` entry point. The default
+cases omit `optimizer`; the custom cases run real SciPy least squares on the
+supplied physical residuals. The default is Levenberg–Marquardt (LM). No
+optimizer is monkeypatched in these new cases.
+This is an A proposal for fresh B review, not self-acceptance or a product repair.
+
+### Case mapping and expectation sources
+
+All six cases belong to
+`test_s01_s02_s03_s09_s30_s31_resolved_voltage_nm_to_m`. Each case performs both
+nm and m fits on the same measured voltage samples. The original 287 mappings,
+AST nodes, oracles, tolerances, and bytes remain unchanged.
+
+| Parameterized case | Existing scenarios | Actual baseline outcome |
+|---|---|---|
+| default_lm-gauss | S01, S06, S09, S30 | nm checks pass; m recovery fails |
+| default_lm-lorentz | S02, S06, S09, S30 | nm checks pass; m recovery fails |
+| default_lm-voigt | S03, S06, S09, S30 | nm checks pass; m recovery fails |
+| real_custom_trf-gauss | S01, S06, S09, S31 | both units and full comparison pass |
+| real_custom_trf-lorentz | S02, S06, S09, S31 | both units and full comparison pass |
+| real_custom_trf-voigt | S03, S06, S09, S31 | both units and full comparison pass |
+
+R4's physical scope, point-sample equations, unweighted objective, physical
+parameter/covariance convention, caller preservation, and optimizer protocol
+supply the expectations. The unit-transform relation follows directly from
+those equations and the chain rule. The permitted primary references opened
+during A are [SciPy's Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html),
+[local covariance convention](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html),
+and [least-squares methods, scaling, evaluation limits and status](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html).
+Installed SciPy is 1.18.1; these are R4's pinned expectation references, not a
+claim that the installed runtime equals the referenced version.
+
+### Physical data and tolerances frozen before new candidate calls
+
+The axis is 500–510 nm with 201 samples spaced by 0.05 nm. Each illustrative
+analog-voltage spectrum has one resolved positive 1.2 V peak at 505.1 nm,
+constant 0.4 V background, and independent unprojected additive normal read noise
+with standard deviation 0.01 V. Gaussian uses the accepted R4 fixture unchanged:
+sigma=0.7 nm, seed 20261005, starting row (1.0 V,505.0 nm,0.85 nm). Lorentz uses
+gamma=0.7 nm, seed 20261006, and the same starting row. Voigt uses sigma=0.55 nm,
+gamma=0.30 nm, seed 20261007, starting row (1.0 V,505.0 nm,0.65 nm,0.40 nm).
+The metre version multiplies x, centers and widths by 1e-9 and keeps the voltage
+data, heights and background unchanged. These are not photon-counting fixtures.
+
+The full pre-fit freeze is retained at
+`/private/tmp/dphtools-physical-unit-a-x8CEk4/frozen-expectations.md`, SHA-256
+`3c3b24f04fa02c8aae7272362a14ae47d911c037694a14a197cba6ce18aaed5a`.
+Its append-code SHA-256 is
+`969c5fa6ec81142a5e7f7f0455bf30552ea10ddd9d43ea2b82fa8be6cfc6db2b`.
+No tolerance or fixture changed after the six new cases were run.
+
+Recovery bounds in flattened peak/background order are:
+
+| Family | Absolute bounds in V/nm coordinates |
+|---|---|
+| Gaussian | 0.020 V, 0.012 nm, 0.012 nm, 0.006 V; accepted R4 bounds |
+| Lorentz | 0.0182540 V, 0.0105556 nm, 0.0190753 nm, 0.00674961 V |
+| Voigt | 0.0205224 V, 0.0104073 nm, 0.0476363 nm, 0.0766331 nm, 0.00956303 V |
+
+Lorentz/Voigt bounds equal six local standard-error scales from the independent
+generating model, using nominal 0.01 V noise, computed before fitting. They are
+generous recovery limits, not confidence-interval coverage requirements. The
+code evaluates the unrounded formula. Wavelength bounds scale by 1e-9 in m.
+
+Fitted voltage must be within 0.006 V root mean square (RMS) of the noiseless
+physical model; residual RMS must lie between 0.006 and 0.014 V. A noise RMS
+sampling scale is approximately 0.01/sqrt(402)=0.000499 V. Model fluctuation is
+approximately 0.01*sqrt(p/201), at most 0.00158 V for five parameters. These
+estimates make the chosen bounds generous without permitting unfinished fits.
+Residual sum of squares (RSS) must not exceed the feasible generating-model
+noise RSS times (1+1e-6). The maximum Jacobian-column/residual cosine must be
+below 3e-4, checking first-order stationarity independently of solver status.
+
+### Independent covariance and unit relation
+
+Gaussian reuses the accepted analytic physical Jacobian. Lorentz differentiates
+the approved unit-height model analytically. Voigt uses five-point differences
+of the independent public model in canonical nm coordinates, with
+`h=eps**(1/5)*scale`, where eps is machine epsilon, and local scales
+(1.2 V,0.55 nm,0.55 nm,0.30 nm,0.4 V).
+It does not use the old absolute-step helper on metre coordinates. Fourth-order
+truncation is O(eps**(4/5)); center subtraction contributes about
+spacing(505 nm)/h, below 2e-10. A source-free, product-free mathematical probe
+checked analytic versus finite differences for Gaussian/Lorentz and halved-step
+agreement for Voigt; maximum column-relative discrepancies were 4.77e-11,
+4.77e-11, and 2.09e-10. No fitted candidate output entered this probe.
+
+Column-normalized condition limits are Gaussian<4, Lorentz<5, Voigt<20.
+Independent generating-model values are 2.29857, 3.43081, 13.63981. Expected
+covariance is `inverse(J.T@J)*RSS/(201-p)` at each returned physical solution.
+All entries, including background correlations, are compared in their natural
+`sigma_i*sigma_j` scales. Absolute normalized tolerance is 0.002 for
+Gaussian/Lorentz and 0.01 for Voigt; the latter accommodates stronger width
+correlations while remaining far above oracle roundoff. These limits prescribe
+observable covariance accuracy, not product derivative machinery. Normalized
+symmetry tolerance is 1e-10 and minimum eigenvalue must be >=-1e-10. Independent
+truth-model background correlations reach about 0.40, 0.62 and 0.81, making
+omitted background correlations discriminating.
+
+For `U=diag(1,1e-9,1e-9[,1e-9],1)`, the same physical model has
+`C_m=U@C_nm@U.T`. Returned covariance is converted back to nm before the oracle
+and cross-unit comparisons. Thus tiny m variances and V*m cross-covariances
+cannot pass via a loose absolute tolerance. Peak/background recovery, physical
+model reconstruction, fit quality, stationarity and independent covariance are
+checked before unit agreement, preventing two equally wrong results from
+validating each other. Parameter agreement across units allows 0.05 nominal
+generating-model standard-error scales; fitted/residual voltage agreement allows
+2e-5 V, 0.2% of the read-noise scale. Cross-unit covariance allows 2.5 times the
+individual normalized tolerance, accommodating two approximation errors and
+small fitted-point differences. These are numerical consistency checks.
+
+The custom adapter maps physical initial/bounds into invertible local affine
+variables, with center origin x[0] and voltage/width scales from the fixture.
+It runs real `least_squares(method="trf", jac="3-point")` on the supplied
+residual callable, forwards `max_nfev=2000`, and uses ftol/xtol/gtol=1e-11.
+It returns the actual solver x in physical units and actual success/message.
+It supplies no fabricated optimum, covariance or Jacobian. Real custom statuses
+were 2 in both units; evaluation counts were 6, 6 and 7 for the three families,
+within the supplied limit. Existing protocol matrices remain untouched.
+Every new case checks caller x/data/guesses and storage preservation by modifying
+writable returned arrays and rechecking caller snapshots.
+
+### Real baseline evidence and classification
+
+| Family | Default nm RSS (V²) | Default m RSS (V²) | Feasible truth RSS (V²) | Default m RMS (V) | Default m stationarity |
+|---|---|---|---|---|---|
+| Gaussian | 0.0170722116 | 1.19075167 | 0.0172294242 | 0.0769684 | 0.537673 |
+| Lorentz | 0.0188368985 | 0.747881114 | 0.0191605702 | 0.0609984 | 0.634971 |
+| Voigt | 0.0180133489 | 1.02348407 | 0.0184590891 | 0.0713580 | 0.549989 |
+
+Each default m case returns a result but first fails the independent physical
+recovery assertion. It also has objective, residual-noise and stationarity
+values far outside frozen bounds. The corresponding nm fit passes all per-unit
+checks. Each real custom case passes both units, full physical covariance and
+the cross-unit comparisons, at the same successful RSS shown in the nm column.
+These are black-box product defects at approved representative behavior, not
+environment/tooling failures, oracle defects, unresolved requirements, or
+manufactured product-red. Implementation/root cause was not inspected.
+
+Accepted prefix baseline: 287 passed in 1.66 s, actual exit status 0.
+Proposed spectrum suite: 293 collected, 290 passed, 3 failed in 1.74 s, actual
+exit status 1. All original 287 node IDs retain their passing outcomes. Black99
+check passes, exit 0, and reports the entire test file would be unchanged.
+Mathematical discrimination passes, exit 0. No rerun or output tuning occurred.
+
+Runtime: clean specified interpreter, Python 3.12.14, macOS-27.0 arm64,
+NumPy 2.5.3, SciPy 1.18.1, pytest 9.1.1, Black 26.5.1. Each probe/test/Black
+used the supplied `physical-sourcefree.py` renderer and the required
+MPLBACKEND=Agg, MPLCONFIGDIR, PIP_CACHE_DIR and PYTHONDONTWRITEBYTECODE=1 values.
+Each pytest invocation has its own diagnostics destination. Full source-free
+logs, diagnostics, recorded outcomes, versions and preservation proofs are in
+`/private/tmp/dphtools-physical-unit-a-x8CEk4/`. Key files are
+`baseline287.log`, `baseline287-diagnostics.json`, `candidate293.log`,
+`candidate293-diagnostics.json`, `black293.log`, `mathematical-probe.log`,
+`freeze-proof.json` and `evidence-summary.json`. Log hashes are retained in the
+summary; final file hashes are recorded outside the tracked tree to avoid
+self-reference. Commands were the specified interpreter and source-free
+launcher with `pytest -q -s tests/test_spectrum_fitting.py`, or
+`black --config /dev/null --check --line-length 99 tests/test_spectrum_fitting.py`.
+
+### Preservation proof, exposure and limits
+
+The entire accepted 67,472-byte test prefix is exactly the supplied approved
+file, SHA-256
+`0628df219e68d935b1bda6c3d438e5352b6a971b14fcbdd309270bb8cb6ebfb5`.
+All 86 original top-level abstract syntax tree (AST) nodes remain identical;
+only two helpers and one
+six-case parameterized test are appended. The entire 167,691-byte report prefix
+is preserved, SHA-256
+`e121055b3f63d6ff704352b5e388e2de95d85fbe1e69257368512fd8f41311e5`.
+The report prefix was hashed as opaque bytes and never decoded or read.
+Post-Black and final preservation proofs are retained externally. Only the new
+report append is readable by this A. Only the test/report suffixes were authored
+in tracked files; no product, fixture file, contract, settings, workflow,
+instruction or environment changes were made. No repository diff/history or
+implementation source was inspected.
+
+No accidental product-source exposure occurred. Source-free warnings retain
+category, message, pathname and line number. Failure messages retain exception
+type, test assertion diagnostics and true pytest status; no product source or
+traceback lines were printed. Optional memory and delegation were not used.
+Only the permitted public inputs, root AGENTS.md, design-tests skill, own new
+temporary evidence and opened R4 primary references were used.
+
+The test proposal does not add extreme-offset, subnormal, dynamic-range,
+Poisson/weighted-fit or interval-calibration acceptance requirements. It makes
+no global-optimum or repeated-measurement uncertainty claim. Coverage and full
+platform verification were not measured in this narrow A run. No commit, push,
+pull request, merge or release was attempted.
+
+Metrics/allowances retained: 33 scenarios, 293 proposed cases; this fresh A is
+one author launch, zero reviewer launches/delegation. Completed cumulative
+launches are A14/B10 after this A, versus supplied A13/B10 beforehand. The new
+physical-unit A/B window remains 0/2 until fresh B review. Prior closed windows
+2/2,1/2,1/2,1/2,2/2,2/2,1/2 and all attempts/spending remain retained. Initial C
+and two C repairs (2/2) remain spent; no new C authority is granted here, and
+the owner physical-coordinate scaling extension is pending. Two spectrum-suite
+invocations consumed 3.40 s of pytest-reported time; the six added cases consumed
+about 0.0204 s in their case reports. No fixed execution cap was supplied;
+token/billing totals are unavailable. Fresh independent B is the next role.
+
+### A15 — R4 linear-background physical-unit gap, before first B round
+
+Fresh independent ROOT A used `design-tests`. Owner authorization is the narrow
+gap-completion request: append three end-to-end cases to A14's 293 proposed cases,
+without changing the 33 approved scenarios. This is additional evidence before B,
+not a rejection, new scenario, reset, or self-acceptance. No optional memory,
+delegation, Superpowers, implementation inspection, or private-role context was used.
+Permitted inputs were root instructions, the selected skill, public contract R4,
+the proposed test file, and the four supplied public gap/prefix/source-free files.
+The prior report was read as bytes solely for hashing; it was never decoded.
+
+The three appended cases are
+`test_s01_s02_s03_s07_s09_s30_resolved_linear_voltage_nm_to_m[gauss|lorentz|voigt]`.
+Each calls `spectrum_fit` twice with full peak guesses, a linear background,
+`max_nfev=2000`, and the optimizer omitted. These are actual default fits; no
+custom oracle returns a planted optimum. The unchanged S30 subprocess test
+observes the actual SciPy LM method before importing the opaque public product.
+
+| Appended variant | Approved rows | Independent observations |
+|---|---|---|
+| Gaussian | S01, S07, S09, S30 | Positive recovered Gaussian, line convention, voltage objective, full physical covariance, nm/m conversion, input/storage preservation |
+| Lorentzian | S02, S07, S09, S30 | Same checks with Lorentzian half-width |
+| Voigt | S03, S07, S09, S30 | Same checks with two independently estimated positive widths |
+
+Thus `293 + 3 = 296` proposed cases, still 33 scenarios. A14's six constant
+background unit cases remain intact: three families times default LM and real
+custom TRF. Fresh B should review all nine new unit cases together, retaining
+A14's real custom controls. A15 adds no custom protocol/invalid-input matrix.
+
+#### Physical fixture and mathematical expectation sources
+
+Reuse `_resolved_unit_voltage_fixture` without editing it: 201 voltage samples at
+500–510 nm, 0.05 nm spacing, component height 1.2 V, center 505.1 nm, and b0=0.4 V
+at the first sample. Gaussian sigma=0.7 nm; Lorentzian gamma=0.7 nm; Voigt
+sigma=0.55 nm and gamma=0.3 nm. Full peak guesses remain those of the supplied
+fixtures: (1.0 V, 505.0 nm, 0.85 nm), or Voigt (1.0 V, 505.0 nm, 0.65 nm, 0.4 nm).
+The same family-specific ordinary independent additive read-noise draws remain
+unprojected, with nominal standard deviation 0.01 V and original seeds
+20261005/20261006/20261007. They are illustrative analog voltage, not photon counts.
+
+Only add `0.015*(x_nm-x_nm[0]) V` to the noiseless spectrum and measured data.
+The line rises `0.015 V/nm * 10 nm = 0.15 V`; b0 remains 0.4 V. In metres,
+x spans 5.00e-7–5.10e-7 m, center=5.051e-7 m, Gaussian/Lorentzian width=7e-10 m,
+Voigt widths=5.5e-10 m and 3e-10 m, and slope=1.5e7 V/m. The two calls receive
+identical voltage arrays. All full-guess center/width coordinates multiply by
+1e-9; height remains V.
+
+The public R4 equations define every expected spectrum and line origin.
+[SciPy's Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html)
+supplies the two width conventions and convolution; normalize it to unit peak
+height per R4. The unweighted objective and local residual scaling follow R4 and
+[SciPy's covariance convention](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html).
+The retained actual-default observation is consistent with the approved
+[SciPy optimizer interface](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html).
+All three primary-reference URLs were opened in this A session; no product source
+was opened.
+
+`_linear_unit_voltage_nm_jacobian` reuses the approved tests' analytic Gaussian
+and Lorentzian peak derivatives. It adds EXACT columns `1` and `x-x[0]` for b0
+and b1. For Voigt, the height column is the exact unit-height profile; center,
+sigma, and gamma use independent five-point O(h^4) differences of the peak alone
+after subtracting the wavelength origin. Steps are
+`eps**0.2 * (0.55, 0.55, 0.3) nm`; this balances h^4 truncation against eps/h
+roundoff at resolved local width scales. Half-step differences control the
+derivatives at generating truth before fitting and at each fitted vector. No
+metre-sized absolute differencing step or approximate line column is used.
+
+For fitted physical parameter vector theta in nm units, compute the independent
+model Jacobian J and RSS from the actual residual voltage. The oracle is
+`C_nm = inv(J.T @ J) * RSS/(201-p)`, with p=5 for Gaussian/Lorentzian and p=6
+for Voigt: 196 or 195 residual degrees of freedom, including BOTH line columns.
+Normalize each covariance entry by its own `sqrt(C_ii*C_jj)`; compare the complete
+matrix, not only diagonal uncertainties. Check symmetry and positive
+semidefiniteness in these same uncertainty units. This includes all peak/line
+cross terms and the substantial b0/b1 correlation.
+
+The parameter-unit transformation is diagonal U: height and b0 have 1;
+center and every width have 1e-9; b1 has 1e9. Thus `theta_m=U*theta_nm` and
+`C_m=U*C_nm*U.T`. Divide both covariance indices by U to compare in nm uncertainty
+units, which cannot accept erroneous tiny metre variances merely through an
+absolute tolerance. Each unit result first must satisfy independent physical
+truth, voltage, objective, stationarity, and covariance checks. Two wrong fits
+cannot establish correctness by agreeing with each other.
+
+#### Bounds frozen before any A15 product call
+
+Independent model-only probe and artifacts:
+`/private/tmp/dphtools-spectrum-a15-ju3ARF/linear_math.py`,
+`math-prefreeze.json`, and `math-prefreeze.log`. The probe imported the permitted
+test equations/fixtures but never called or inspected the product. It computed
+the generating-truth Jacobian and checked all corners of the six-scale parameter
+recovery box. Noise draws were never changed or projected; a linearized projection
+was calculated only to assess expected error magnitude, not to manufacture data.
+
+| Model-only quantity | Gaussian | Lorentzian | Voigt |
+|---|---:|---:|---:|
+| Scaled-J condition at truth | 4.65635 | 5.17534 | 14.95847 |
+| Largest recovery-box corner condition | 4.67010 | 5.21400 | 16.49446 |
+| Realized read-noise rms, V | 0.00925843 | 0.00976351 | 0.00958312 |
+| Linearized fit error rms, V | 0.00136468 | 0.00141593 | 0.00150167 |
+| b0/b1 correlation at truth | -0.808087 | -0.731647 | -0.591276 |
+
+Voigt half-step relative column differences across all corners were at most
+3.18e-12. The runtime control bound is 1e-7, leaving a wide floating-point margin
+while checking stability independently. Condition limits are 6 for Gaussian and
+Lorentzian, 20 for Voigt. Corner checks are evidence of representative conditioning,
+not a proof about every point in the box; runtime checks also test actual solutions.
+
+Recovery limits are six local standard-error scales at truth,
+`6 * 0.01 V * sqrt(diag(inv(J_truth.T@J_truth)))`. They are generous deterministic
+acceptance margins, not claims of confidence-interval calibration. Ordered bounds:
+
+| Family | Height, V | Center, nm | Width(s), nm | b0, V | b1, V/nm |
+|---|---:|---:|---|---:|---:|
+| Gaussian | 0.0152272 | 0.0100825 | sigma 0.0108687 | 0.00905412 | 0.00148072 |
+| Lorentzian | 0.0182547 | 0.0107436 | gamma 0.0190816 | 0.00990137 | 0.00148564 |
+| Voigt | 0.0205347 | 0.0105996 | sigma 0.0476655; gamma 0.0766996 | 0.0118579 | 0.00148754 |
+
+Voltage model error must be <0.006 V rms, compared to the independently generated
+noiseless line-plus-peak. Residual rms must lie between 0.006 and 0.014 V, retaining
+ordinary read noise. RSS must not exceed the feasible generating-truth noise RSS
+times (1+1e-6). Require `max(abs(J.T@r)/(column_norms*norm(r))) < 3e-4`; normalization
+makes stationarity unit invariant and detects an unfinished least-squares fit.
+The same predeclared margins apply in both coordinate units. RuntimeError fails.
+
+Covariance absolute normalized-entry bounds are 0.003 for Gaussian/Lorentzian and
+0.012 for Voigt, with zero relative tolerance. A desired per-column derivative
+accuracy budget delta=1e-4 gives `eta <= kappa*sqrt(p)*delta`. Gram inverse perturbation
+then gives normalized-entry error at most `(1-eta)**-2 - 1`, bounded above by
+`2*eta/(1-eta)**2`: <0.00270 for kappa=6,p=5; <0.00990 for kappa=20,p=6. The chosen
+margins also cover controlled-oracle differentiation and arithmetic. This is an
+independent accuracy budget, not a claim about the opaque product's derivatives.
+Normalized symmetry and eigenvalue roundoff bounds are 1e-10. The unchanged public
+schema checks enforce shapes, finite real arrays, positive widths/heights, point
+model voltage agreement (2e-10 relative/absolute), and residual identity (2e-12).
+
+Unit invariance limits are 0.05 truth standard-error scales for every converted
+parameter, 2e-5 V pointwise for fitted/residual voltage (0.2% of nominal read noise),
+and 2.5 times the covariance accuracy bound after conversion and normalization in
+truth uncertainty units. The covariance margin allows two independent numerical
+accuracy allowances plus curvature/roundoff margin; ideal unit conversion is exact.
+These invariance checks supplement the absolute model checks. Input arrays are
+compared exactly even on failed calls. Writable result arrays are then mutated
+individually and inputs rechecked exactly, to exercise result-storage preservation.
+
+All bounds, models, seeds, transformations, and checks were written and frozen
+before product calls. They will not be adjusted using observed product outputs.
+Black 99 formats only the new private append first; the final combined file must
+pass Black and retain the complete byte prefix. No existing helper, case, oracle,
+tolerance, fixture, or scenario changes.
+
+#### Preservation, scope, and retained spending
+
+Initial byte proof matched the complete existing 76,388-byte test file to the
+supplied approved snapshot: SHA256
+`9bc96c8ec1f493e06ed5a034a470362ded7657f02e5c1d5acff99968ab3229ae`.
+All 89 top-level AST nodes, including line/column attributes, are retained;
+canonical AST-list SHA256
+`ff74e2d13fdd97af8114a508c9184fa47d35b07089be4adcb6751f8ef926438d`.
+The complete 180,616-byte prior report was hashed without decoding:
+`16b45cf72e899843935bb6d934e1d362d79680a2b170fc8f3613f188f3161c4e`.
+Final prefix proof and candidate hashes are kept outside the tracked candidate in
+the A15 private directory and returned in the handoff. Only these two tracked
+files may be appended. No Current state section is added to this report.
+
+Preserve prior spending exactly as supplied: completed A14/B10; prior closed
+windows 2/2, 1/2, 1/2, 1/2, 2/2, 2/2, 1/2. The physical-unit window remains 0/2
+before B. C initial plus two repairs exhausted 2/2; additional C authority remains
+pending. A15 is one fresh A launch for gap completion, with no B/C/D launch, no
+allowance reset, and no fixed execution cap. Billing/token totals are unavailable.
+The supplied A14 baseline is 290 pass / 3 product-red default-SI failures; it is
+prior evidence, not an A15 rerun result. New exact-candidate results follow below.
+
+No installs, product/private-helper/history/diff/coverage reads, project/task-state
+reads, lessons, private reports/events/conversations, commits, pushes, full
+verification, PRs, merges, or releases. Imports/public calls are opaque. No
+repeated-measurement uncertainty calibration, weighted/Poisson model, extreme or
+subnormal accuracy guarantee, or new numerical scenario is requested. Source-free
+rendering precedes every mathematical probe, pytest, and Black check. Actual
+warnings, exception type/message, and real status must remain in private logs.
+
+#### A15 exact-candidate baseline and handoff evidence
+
+The single spectrum-suite run collected exactly 296 cases. Real pytest status was
+1: **290 passed / 6 failed**, in 1.75 s. There were no skipped or xfailed cases.
+The retained prefix contributes the same 290 passes and three default-SI failures
+as the supplied A14 baseline. A15 contributes three additional product-red cases.
+All three new nm calls completed all recovery, voltage model, residual/objective,
+stationarity, full covariance, and input/result-storage checks before their m call.
+The SI outcomes are not accepted alternatives for these representative spectra.
+
+| New case / unit | Observed RSS, V^2 | Residual rms, V | Normalized stationarity | Scaled-J condition | Outcome |
+|---|---:|---:|---:|---:|---|
+| Gaussian / nm | 0.0168548119 | 0.00915722588 | 2.57605489e-7 | 4.65813428 | All per-unit assertions passed |
+| Gaussian / m | unavailable | unavailable | unavailable | unavailable | RuntimeError: Spectrum residual is not finite |
+| Lorentzian / nm | 0.0187581038 | 0.00966042957 | 2.79055724e-7 | 5.17987751 | All per-unit assertions passed |
+| Lorentzian / m | 0.729234358 | 0.060233144 | 0.625152071 | 5.52732264 | Physical recovery AssertionError |
+| Voigt / nm | 0.0179984647 | 0.00946280089 | 1.56473949e-8 | 14.9582164 | All per-unit assertions passed |
+| Voigt / m | 1.04026893 | 0.0719407208 | 0.557151431 | 17.7285307 | Physical recovery AssertionError |
+
+The failed Lorentzian m fit retained the full-guess peak at 1.0 V, 505.0 nm,
+0.85 nm after conversion, instead of truth 1.2 V, 505.1 nm, 0.7 nm. Its b0 was
+0.394743650 V and slope 0.0165587398 V/nm. Voigt likewise retained peak guesses
+1.0 V, 505.0 nm, 0.65 nm, 0.4 nm; its b0 was 0.376095911 V and slope
+0.0159919704 V/nm. Recovery errors exceed independently frozen bounds; objective
+and stationarity diagnostics also disagree strongly with a completed fit.
+Source-free warning diagnostics include overflow in exp and invalid multiply
+during the new-case execution. Their category/message/file/line remain in the
+log; no product source was rendered. The retained numerical-boundary warnings
+and covariance warnings also remain in that log, with their original statuses.
+
+Classification: all six failures are **product defects under R4**, subject to
+fresh B's independent test review. Three are the preserved A14 default constant
+background SI recovery failures. The new Gaussian is a prohibited representative
+fit failure; new Lorentzian/Voigt return unfinished SI solutions. There is no
+observed environment/tooling failure, test defect, or unresolved unit requirement.
+Confidence is high in this observable classification: the models are independently
+specified, generating truth is feasible, nm checks pass, and measurement units
+do not change the physical objective. Product-source diagnosis is outside A's
+inputs, and no implementation cause is asserted. B finding an oracle/fixture
+defect would change the classification; no repair scope or C allowance is granted.
+
+Limit: the new m full-covariance and cross-unit invariance assertions were not
+reached after the earlier failures. They remain requirements of the proposal;
+this baseline proves neither their SI success nor general covariance calibration.
+The nm matrix checks were reached and passed, including peak/line and b0/b1 terms.
+All callers' input-preservation finally checks ran, including the Gaussian m
+RuntimeError. Result-storage checks ran for each successful nm result; SI failures
+prevent the later result-storage assertions. No accuracy assertion was loosened.
+
+The independent mathematical discrimination probe used zero product calls and
+passed with real status 0. It checks the final appended Jacobian and bounds,
+without changing product code or test data. For Gaussian/Lorentzian/Voigt it rejects:
+
+| Wrong mathematical result | Gaussian normalized error | Lorentzian | Voigt |
+|---|---:|---:|---:|
+| Diagonal-only covariance | 0.808087 | 0.731647 | 0.959748 |
+| Missing peak/line cross-covariance | 0.224040 | 0.402103 | 0.631730 |
+| Missing b0/b1 correlation | 0.808087 | 0.731647 | 0.591276 |
+| RSS/n rather than RSS/(n-p) | 0.0248756 | 0.0248756 | 0.0298507 |
+| Missing slope covariance unit factor | 1.0 | 1.0 | 1.0 |
+
+All exceed the frozen 0.003/0.012 entry bounds. Failing to transform the slope
+would cause ~0.015 V/nm recovery error, against bounds ~0.00149 V/nm. Using x
+rather than x-x[0] with the approved b0 produces a 7.5 V model error, against
+the 0.006 V model-rms bound. These controls discriminate the intended linear-unit
+gap and full covariance without adding pytest cases or an unrelated matrix.
+
+Exact commands (all from the worktree; identical required environment):
+
+```text
+MPLBACKEND=Agg
+MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig
+PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache
+PYTHONDONTWRITEBYTECODE=1
+python=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3
+launcher=/private/tmp/dphtools-spectrum-delivery/physical-sourcefree.py
+
+$python $launcher run /private/tmp/dphtools-spectrum-a15-ju3ARF/linear_math.py
+  status 0; model-only freeze probe
+$python $launcher black --line-length 99 /private/tmp/dphtools-spectrum-a15-ju3ARF/append_tests.py
+  status 0; only the private new append formatted
+$python $launcher black --check --line-length 99 tests/test_spectrum_fitting.py
+  status 0; full candidate left unchanged
+SPECTRUM_DIAGNOSTICS_JSON=/private/tmp/dphtools-spectrum-a15-ju3ARF/spectrum-suite-first.json
+$python $launcher pytest -q -s tests/test_spectrum_fitting.py
+  status 1; 296 collected, 290 pass, 6 fail; one spectrum-suite run
+$python $launcher run /private/tmp/dphtools-spectrum-a15-ju3ARF/discrimination.py
+  status 0; model-only discrimination; zero product calls
+```
+
+Environment recorded by the source-free probe: Python 3.12.14, darwin,
+NumPy 2.5.3, SciPy 1.18.1, pytest 9.1.1, Black 26.5.1. The frozen primary references
+are the R4-linked SciPy 1.15.3 manuals; no installed-version source was inspected.
+There were no installs or persistent environment edits. Every pytest invocation
+(one total) named a fresh own-private diagnostics JSON. Logs preserve actual
+warnings, exception type/message, and subprocess/pytest status without tracebacks
+or source lines. Permitted test assertion messages appear as exception messages.
+Accidental forbidden source exposure: **none observed**.
+
+Private artifacts in `/private/tmp/dphtools-spectrum-a15-ju3ARF/` include
+`prefix-proof-initial.json`, `prefit-freeze.json`, `math-prefreeze.json/log`,
+`black-append.log`, `black-candidate.log`, `spectrum-suite-first.json/log`,
+`discrimination.json/log`, and final prefix/candidate evidence. The freeze record
+precedes every A15 product call; the test candidate hash remains unchanged afterward.
+No new pytest runs are needed for documentation-only completion.
+
+A15 measurable spending: one fresh A session, one model-only conditioning probe,
+one model-only discrimination probe, one 296-case spectrum-suite execution, one
+private-append Black formatting run, one whole-test-file cheap Black check.
+No B/C/D sessions or repairs. No fixed execution cap was supplied; token/billing
+totals are unavailable. All supplied prior windows, A14/B10, and C initial plus
+two repairs remain counted. Open physical-unit B window stays 0/2. The handoff is
+an **unreviewed proposed 296-case checkpoint** for fresh B to review the combined
+nine physical-unit cases. Additional C authority is still pending. Full verification,
+coverage, publication, and merge are outside this A15 task.

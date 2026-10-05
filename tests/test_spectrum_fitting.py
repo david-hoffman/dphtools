@@ -1614,3 +1614,360 @@ def test_s06_s09_s31_resolved_voltage_gaussian_full_physical_covariance(fit, opt
             values.flat[0] += 1
         for value, snapshot in zip((x, data, guesses), snapshots):
             assert_array_equal(value, snapshot)
+
+
+def _resolved_unit_voltage_fixture(family):
+    """One resolved 1.2 V peak and 0.4 V baseline, with 0.01 V read noise."""
+    if family == "gauss":
+        return _resolved_gaussian_voltage_fixture()
+    x = np.linspace(500, 510, 201)  # nm; 0.05 nm spacing resolves both widths.
+    row = [1.2, 505.1, 0.7] if family == "lorentz" else [1.2, 505.1, 0.55, 0.3]
+    truth = np.array(row + [0.4])  # height V, center/widths nm, baseline V.
+    guesses = np.array([[1.0, 505.0, 0.85]])
+    if family == "voigt":
+        guesses = np.array([[1.0, 505.0, 0.65, 0.4]])
+    noiseless = _model(x, truth[:-1].reshape(1, -1), family, truth[-1:])
+    seed = 20261006 if family == "lorentz" else 20261007
+    noise = np.random.default_rng(seed).normal(0, 0.01, len(x))
+    return x, noiseless + noise, guesses, truth, noiseless, noise
+
+
+def _unit_voltage_nm_jacobian(x, parameters, family):
+    """Independent model Jacobian in V/nm coordinates, never metre-sized steps."""
+    if family == "gauss":
+        return _gaussian_background_physical_jacobian(x, parameters)
+    amplitude, center, width = parameters[:3]
+    if family == "lorentz":
+        z = (x - center) / width
+        profile = 1 / (1 + z * z)
+        return np.column_stack(
+            (
+                profile,
+                2 * amplitude * z * profile**2 / width,
+                2 * amplitude * z * z * profile**2 / width,
+                np.ones_like(x),
+            )
+        )
+    # Five-point O(h**4) differences of the public Voigt equation. Steps use
+    # local height/width/background scales, not the 505 nm center magnitude.
+    scales = np.array([1.2, 0.55, 0.55, 0.3, 0.4])
+    columns = []
+    for index, scale in enumerate(scales):
+        h = np.finfo(float).eps ** 0.2 * scale
+        step = np.zeros_like(parameters)
+        step[index] = h
+
+        def model_at(p):
+            return _model(x, p[:-1].reshape(1, -1), family, p[-1:])
+
+        columns.append(
+            (
+                model_at(parameters - 2 * step)
+                - 8 * model_at(parameters - step)
+                + 8 * model_at(parameters + step)
+                - model_at(parameters + 2 * step)
+            )
+            / (12 * h)
+        )
+    return np.column_stack(columns)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("optimizer_mode", ["default_lm", "real_custom_trf"])
+def test_s01_s02_s03_s09_s30_s31_resolved_voltage_nm_to_m(fit, family, optimizer_mode):
+    x_nm, data, guesses_nm, truth, noiseless, noise = _resolved_unit_voltage_fixture(family)
+    nparameter = len(truth)
+    truth_jacobian = _unit_voltage_nm_jacobian(x_nm, truth, family)
+    # Frozen noise-derived recovery bounds, computed before either product call.
+    # Six local standard-error scales are generous bounds, not coverage claims.
+    truth_scales = np.sqrt(np.diag(np.linalg.inv(truth_jacobian.T @ truth_jacobian))) * 0.01
+    recovery = 6 * truth_scales
+    if family == "gauss":
+        recovery = np.array([0.020, 0.012, 0.012, 0.006])  # Existing R4 bounds.
+    covariance_tolerance = 0.01 if family == "voigt" else 0.002
+    condition_limit = {"gauss": 4, "lorentz": 5, "voigt": 20}[family]
+    summaries = []
+    for wavelength_unit in (1.0, 1e-9):  # nm, then m; voltage samples unchanged.
+        units = np.ones(nparameter)
+        units[1:-1] = wavelength_unit
+        x = x_nm * wavelength_unit
+        guesses = guesses_nm * units[:-1]
+        snapshots = [value.copy() for value in (x, data, guesses)]
+        calls = []
+
+        def real_scaled_optimizer(residual, initial, *, bounds, max_nfev):
+            assert_array_equal(initial[:-1], guesses.ravel())
+            lower = np.zeros(nparameter)
+            lower[[1, -1]] = -np.inf
+            assert_array_equal(bounds[0], lower)
+            assert_array_equal(bounds[1], np.full(nparameter, np.inf))
+            assert max_nfev == 2000
+            # This invertible affine change only conditions the adapter's local
+            # solver. All residual calls and returned values remain physical.
+            origin = np.zeros(nparameter)
+            origin[1] = x[0]
+            local_scale = np.array([1.2, 0.7, 0.7, 0.4])
+            if family == "voigt":
+                local_scale = np.array([1.2, 0.55, 0.55, 0.3, 0.4])
+            local_scale *= units
+            solution = least_squares(
+                lambda local: residual(origin + local_scale * local),
+                (initial - origin) / local_scale,
+                bounds=((bounds[0] - origin) / local_scale, (bounds[1] - origin) / local_scale),
+                jac="3-point",
+                method="trf",
+                ftol=1e-11,
+                xtol=1e-11,
+                gtol=1e-11,
+                max_nfev=max_nfev,
+            )
+            assert solution.nfev <= max_nfev
+            calls.append((bool(solution.success), int(solution.status), int(solution.nfev)))
+            return SimpleNamespace(
+                x=origin + local_scale * solution.x,
+                success=bool(solution.success),
+                message=str(solution.message),
+            )
+
+        options = {} if optimizer_mode == "default_lm" else {"optimizer": real_scaled_optimizer}
+        result = _preserving_call(
+            fit,
+            data,
+            x,
+            peak_type=family,
+            guesses=guesses,
+            background="constant",
+            max_nfev=2000,
+            **options,
+        )
+        if optimizer_mode == "real_custom_trf":
+            assert len(calls) == 1 and calls[0][0] and calls[0][1] > 0
+        _check_result(result, x, data, family, 1, 1)
+        physical_nm = np.concatenate(
+            (result.peak_parameters.ravel(), result.background_parameters)
+        )
+        physical_nm = physical_nm / units
+        fitted, residuals = np.asarray(result.fitted), np.asarray(result.residuals)
+        rss = residuals @ residuals  # V**2.
+        rms = np.sqrt(rss / len(data))  # V.
+        jacobian = _unit_voltage_nm_jacobian(x_nm, physical_nm, family)
+        norms = np.linalg.norm(jacobian, axis=0)
+        condition = np.linalg.cond(jacobian / norms)
+        stationarity = np.max(np.abs(jacobian.T @ residuals) / (norms * np.linalg.norm(residuals)))
+        print(
+            f"Physical units {family}/{optimizer_mode}/{wavelength_unit:g}: "
+            f"RSS={rss:.9g} V**2; rms={rms:.9g} V; stationarity={stationarity:.9g}; "
+            f"condition={condition:.9g}; custom status/nfev={calls}"
+        )
+        # Independent physical checks prevent two equally wrong unit results
+        # from validating one another. Ordinary resolved spectra must succeed.
+        assert np.all(np.abs(physical_nm - truth) <= recovery), "Physical parameter recovery"
+        assert np.sqrt(np.mean((fitted - noiseless) ** 2)) < 0.006  # V rms.
+        assert 0.006 < rms < 0.014  # V; retain the measured read noise.
+        assert rss <= (noise @ noise) * (1 + 1e-6), "Fit must improve feasible truth"
+        assert stationarity < 3e-4, "Unfinished least-squares objective"
+        assert condition < condition_limit
+        expected = np.linalg.inv(jacobian.T @ jacobian) * rss / (len(data) - nparameter)
+        scales = np.sqrt(np.diag(expected))
+        assert np.all(np.isfinite(expected)) and np.all(scales > 0)
+        covariance_nm = np.asarray(result.covariance) / units[:, None] / units[None, :]
+        uncertainty_units = np.outer(scales, scales)
+        normalized = covariance_nm / uncertainty_units
+        assert_allclose(normalized, normalized.T, rtol=0, atol=1e-10)
+        assert np.min(np.linalg.eigvalsh(normalized)) >= -1e-10
+        assert_allclose(
+            normalized, expected / uncertainty_units, rtol=0, atol=covariance_tolerance
+        )
+        summaries.append(
+            (physical_nm.copy(), fitted.copy(), residuals.copy(), covariance_nm.copy())
+        )
+        for values in (
+            result.peak_parameters,
+            result.background_parameters,
+            result.fitted,
+            result.residuals,
+            result.covariance,
+        ):
+            values = np.asarray(values)
+            if values.flags.writeable:
+                values.flat[0] += 1
+            for value, snapshot in zip((x, data, guesses), snapshots):
+                assert_array_equal(value, snapshot)
+    nm, metres = summaries
+    assert np.all(np.abs(metres[0] - nm[0]) <= 0.05 * truth_scales)
+    assert_allclose(metres[1], nm[1], rtol=0, atol=2e-5)  # V; 0.2% of read noise.
+    assert_allclose(metres[2], nm[2], rtol=0, atol=2e-5)  # Same measured voltage.
+    # C_m = U C_nm U.T, including every peak/background correlation. Conversion
+    # above avoids tiny absolute tolerances that could accept wrong m variances.
+    comparison_units = np.outer(truth_scales, truth_scales)
+    assert_allclose(
+        metres[3] / comparison_units,
+        nm[3] / comparison_units,
+        rtol=0,
+        atol=2.5 * covariance_tolerance,
+    )
+
+
+def _linear_unit_voltage_nm_jacobian(x, parameters, family, voigt_step=1.0):
+    """Independent peak derivatives and exact line columns 1 and x-x[0]."""
+    size = ROW_SIZE[family]
+    if family != "voigt":
+        peaks = _unit_voltage_nm_jacobian(x, parameters[:-1], family)[:, :size]
+    else:
+        # Center the independent equation before differences. Steps depend on
+        # resolved local widths, never the wavelength origin or metre units.
+        local_x = x - x[0]
+        row = parameters[:size].copy()
+        row[1] -= x[0]
+        unit_row = row.copy()
+        unit_row[0] = 1
+        columns = [_model(local_x, unit_row.reshape(1, -1), family)]
+        for index, scale in ((1, 0.55), (2, 0.55), (3, 0.3)):
+            h = voigt_step * np.finfo(float).eps ** 0.2 * scale
+            step = np.zeros(size)
+            step[index] = h
+            columns.append(
+                (
+                    _model(local_x, (row - 2 * step).reshape(1, -1), family)
+                    - 8 * _model(local_x, (row - step).reshape(1, -1), family)
+                    + 8 * _model(local_x, (row + step).reshape(1, -1), family)
+                    - _model(local_x, (row + 2 * step).reshape(1, -1), family)
+                )
+                / (12 * h)
+            )
+        peaks = np.column_stack(columns)
+    return np.column_stack((peaks, np.ones_like(x), x - x[0]))
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s01_s02_s03_s07_s09_s30_resolved_linear_voltage_nm_to_m(fit, family):
+    # A15 fills only the R4 inverse-coordinate slope gap. The 293-case prefix,
+    # including actual-LM observation and real custom controls, stays intact.
+    x_nm, constant_data, guesses_nm, constant_truth, constant_noiseless, noise = (
+        _resolved_unit_voltage_fixture(family)
+    )
+    slope = 0.015  # V/nm; 0.15 V change over 10 nm, or 1.5e7 V/m.
+    line_change = slope * (x_nm - x_nm[0])
+    data = constant_data + line_change  # Same measured voltages in both calls.
+    noiseless = constant_noiseless + line_change
+    truth = np.append(constant_truth, slope)
+    nparameter = len(truth)
+    truth_jacobian = _linear_unit_voltage_nm_jacobian(x_nm, truth, family)
+    truth_scales = 0.01 * np.sqrt(np.diag(np.linalg.inv(truth_jacobian.T @ truth_jacobian)))
+    # ALL bounds below are frozen before product calls. Six local read-noise
+    # standard-error scales require meaningful recovery, not interval coverage.
+    recovery = 6 * truth_scales
+    condition_limit = 20 if family == "voigt" else 6
+    covariance_tolerance = 0.012 if family == "voigt" else 0.003
+    derivative_control = 1e-7
+    stationarity_bound = 3e-4
+    model_rms_bound = 0.006  # V; 60% of nominal read-noise rms.
+    residual_rms_bounds = (0.006, 0.014)  # V; ordinary read noise remains.
+    feasible_objective_slack = 1e-6
+    invariance_parameter_bounds = 0.05 * truth_scales
+    invariance_voltage_bound = 2e-5  # V; 0.2% of the 0.01 V read noise.
+    invariance_covariance_bound = 2.5 * covariance_tolerance
+    summaries = []
+    if family == "voigt":
+        half_step = _linear_unit_voltage_nm_jacobian(x_nm, truth, family, voigt_step=0.5)
+        assert (
+            np.max(
+                np.linalg.norm(half_step - truth_jacobian, axis=0)
+                / np.linalg.norm(truth_jacobian, axis=0)
+            )
+            < derivative_control
+        )
+
+    for wavelength_unit in (1.0, 1e-9):  # nm, m; V observations unchanged.
+        units = np.ones(nparameter)
+        units[1 : ROW_SIZE[family]] = wavelength_unit  # Center and widths.
+        units[-1] = 1 / wavelength_unit  # Inverse-coordinate background slope.
+        x = x_nm * wavelength_unit
+        guesses = guesses_nm * units[: ROW_SIZE[family]]
+        snapshots = [value.copy() for value in (x, data, guesses)]
+        # Omit optimizer: exercise the real default LM, with no custom adapter.
+        # RuntimeError fails; representative fits must succeed in both units.
+        result = _preserving_call(
+            fit,
+            data,
+            x,
+            peak_type=family,
+            guesses=guesses,
+            background="linear",
+            max_nfev=2000,
+        )
+        _check_result(result, x, data, family, 1, 2)
+        physical_nm = (
+            np.concatenate((result.peak_parameters.ravel(), result.background_parameters)) / units
+        )
+        fitted = np.asarray(result.fitted)
+        residuals = np.asarray(result.residuals)
+        jacobian = _linear_unit_voltage_nm_jacobian(x_nm, physical_nm, family)
+        if family == "voigt":
+            half_step = _linear_unit_voltage_nm_jacobian(x_nm, physical_nm, family, voigt_step=0.5)
+            assert (
+                np.max(
+                    np.linalg.norm(half_step - jacobian, axis=0) / np.linalg.norm(jacobian, axis=0)
+                )
+                < derivative_control
+            )
+        norms = np.linalg.norm(jacobian, axis=0)
+        condition = np.linalg.cond(jacobian / norms)
+        rss = residuals @ residuals  # V**2.
+        rms = np.sqrt(rss / len(data))  # V.
+        stationarity = np.max(np.abs(jacobian.T @ residuals) / (norms * np.sqrt(rss)))
+        print(
+            f"Linear physical units {family}/default_lm/{wavelength_unit:g}: "
+            f"RSS={rss:.9g} V**2; rms={rms:.9g} V; "
+            f"stationarity={stationarity:.9g}; condition={condition:.9g}"
+        )
+        # Each unit result must satisfy independent truth/objective checks.
+        # Two wrong fits cannot validate one another by conversion alone.
+        assert np.all(np.abs(physical_nm - truth) <= recovery), "Physical recovery"
+        assert np.sqrt(np.mean((fitted - noiseless) ** 2)) < model_rms_bound
+        assert residual_rms_bounds[0] < rms < residual_rms_bounds[1]
+        assert rss <= (noise @ noise) * (1 + feasible_objective_slack)
+        assert stationarity < stationarity_bound, "Unfinished least-squares objective"
+        assert condition < condition_limit
+        # Full physical covariance: every peak/line entry, including b0/b1.
+        # Five parameters for Gauss/Lorentz; six for Voigt; dof 196 or 195.
+        expected = np.linalg.inv(jacobian.T @ jacobian) * rss / (len(data) - nparameter)
+        scales = np.sqrt(np.diag(expected))
+        assert np.all(np.isfinite(expected)) and np.all(scales > 0)
+        covariance_nm = np.asarray(result.covariance) / units[:, None] / units[None, :]
+        uncertainty_units = np.outer(scales, scales)
+        normalized = covariance_nm / uncertainty_units
+        assert_allclose(normalized, normalized.T, rtol=0, atol=1e-10)
+        assert np.min(np.linalg.eigvalsh(normalized)) >= -1e-10
+        assert_allclose(
+            normalized, expected / uncertainty_units, rtol=0, atol=covariance_tolerance
+        )
+        summaries.append(
+            (physical_nm.copy(), fitted.copy(), residuals.copy(), covariance_nm.copy())
+        )
+        for values in (
+            result.peak_parameters,
+            result.background_parameters,
+            result.fitted,
+            result.residuals,
+            result.covariance,
+        ):
+            values = np.asarray(values)
+            if values.flags.writeable:
+                values.flat[0] += 1
+            for value, snapshot in zip((x, data, guesses), snapshots):
+                assert_array_equal(value, snapshot)
+
+    nm, metres = summaries
+    assert np.all(np.abs(metres[0] - nm[0]) <= invariance_parameter_bounds)
+    assert_allclose(metres[1], nm[1], rtol=0, atol=invariance_voltage_bound)
+    assert_allclose(metres[2], nm[2], rtol=0, atol=invariance_voltage_bound)
+    # C_m = U*C_nm*U.T, with 1e9 for b1 and 1e-9 for center/widths.
+    # Convert to nm uncertainty units so tiny SI entries cannot hide defects.
+    comparison_units = np.outer(truth_scales, truth_scales)
+    assert_allclose(
+        metres[3] / comparison_units,
+        nm[3] / comparison_units,
+        rtol=0,
+        atol=invariance_covariance_bound,
+    )
