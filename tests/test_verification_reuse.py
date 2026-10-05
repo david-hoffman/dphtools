@@ -8,6 +8,8 @@ import subprocess
 import sys
 import hashlib
 import venv
+from numpy._core import _multiarray_umath as native_module
+from importlib.machinery import EXTENSION_SUFFIXES
 
 import pytest
 
@@ -120,7 +122,10 @@ def test_reuse_is_never_a_full_gate_or_an_uncontrolled_import_proof(reuse_comman
     assert "fast" in result.stderr
 
 
-@pytest.mark.parametrize("unknown", ["import-path", "root-module", "root-package", "user-site"])
+@pytest.mark.parametrize(
+    "unknown",
+    ["import-path", "root-module", "root-package", "native-module", "native-package", "user-site"],
+)
 def test_unknown_import_inputs_decline_even_identical_receipts(reuse_command, unknown):
     root, env, run = reuse_command
     if unknown == "import-path":
@@ -131,6 +136,12 @@ def test_unknown_import_inputs_decline_even_identical_receipts(reuse_command, un
         package = root / "pydocstyle"
         package.mkdir()
         (package / "__main__.py").write_text("raise SystemExit(0)\n")
+    elif unknown == "native-module":
+        shutil.copy2(native_module.__file__, root / ("_multiarray_umath" + EXTENSION_SUFFIXES[0]))
+    elif unknown == "native-package":
+        package = root / "_multiarray_umath"
+        package.mkdir()
+        shutil.copy2(native_module.__file__, package / ("__init__" + EXTENSION_SUFFIXES[0]))
     else:
         env["PYTHONUSERBASE"] = str(root / "private-user-base")
         result = subprocess.run(

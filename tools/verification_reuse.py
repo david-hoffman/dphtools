@@ -1,6 +1,7 @@
 """Reuse only closed, unchanged deterministic docstring evidence with provenance."""
 
 import json
+from importlib.machinery import all_suffixes
 import os
 from pathlib import Path
 import site
@@ -23,12 +24,16 @@ def runtime_identity(root):
         return None
     if "sitecustomize" in sys.modules or "usercustomize" in sys.modules:
         return None
-    if any(path.name not in ("setup.py", "versioneer.py") for path in root.glob("*.py*")):
+    suffixes = tuple(all_suffixes())
+    if any(
+        path.name.endswith(suffixes) and path.name not in ("setup.py", "versioneer.py")
+        for path in root.iterdir()
+    ):
         return None
     if any(
         path.is_dir()
         and path.name not in ("dphtools", "tools", "tests")
-        and any(path.glob("*.py*"))
+        and any(child.name.endswith(suffixes) for child in path.iterdir())
         for path in root.iterdir()
     ):
         return None
