@@ -8,6 +8,12 @@ import sys
 
 from verification_inputs import CHECK_VERSION, digest, file_hash
 
+# Audited startup hooks from the unchanged setuptools/coverage verification lock.
+KNOWN_STARTUP_HOOKS = {
+    "distutils-precedence.pth": "2638ce9e2500e572a5e0de7faed6661eb569d1b696fcba07b0dd223da5f5d224",
+    "a1_coverage.pth": "ef2ed06d19867ec669c09a804060666a9cd5e383af0a9d11aa2de79b77d448e8",
+}
+
 
 def runtime_identity(root):
     """Recheck exact interpreter/dependency bytes; decline uncontrolled imports."""
@@ -17,13 +23,34 @@ def runtime_identity(root):
         return None
     if any(path.name not in ("setup.py", "versioneer.py") for path in root.glob("*.py*")):
         return None
+    if any(
+        path.is_dir()
+        and path.name not in ("dphtools", "tools", "tests")
+        and any(path.glob("*.py*"))
+        for path in root.iterdir()
+    ):
+        return None
+    prefixes = sorted({Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve()})
+    if any(
+        not (
+            path in (root.resolve(), (root / "tools").resolve())
+            or any(path.is_relative_to(prefix) for prefix in prefixes)
+        )
+        for path in (Path(entry or root).resolve() for entry in sys.path)
+    ):
+        return None
     entries = []
-    for prefix in sorted({Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve()}):
+    for prefix in prefixes:
         for path in sorted(prefix.rglob("*")):
             if path.is_symlink() and path.is_dir():
                 return None
             if path.is_file():
-                entries.append((str(path), file_hash(path)))
+                hashed = file_hash(path)
+                if (
+                    path.suffix == ".pth" and KNOWN_STARTUP_HOOKS.get(path.name) != hashed
+                ) or path.name.startswith(("sitecustomize.", "usercustomize.")):
+                    return None
+                entries.append((str(path), hashed))
     return {
         "runtime_digest": digest(entries),
         "runtime_files": len(entries),
