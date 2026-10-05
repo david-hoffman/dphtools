@@ -2357,3 +2357,123 @@ edits, environment installation, coverage, other tests, broad/platform
 verification, commits, push, PR, merge, release, lessons, memory, Superpowers,
 or delegation were performed. This remains post-implementation correction
 evidence, not original test-first evidence or delivery acceptance.
+
+
+## R4 owner physical-scope correction — independent A proposal, 2026-10-05
+
+Only the two appended extreme-offset cases were replaced. The original 285-case
+prefix (62,168 bytes) is byte-for-byte equal to the permitted original and has
+SHA-256 `50bb168312355b5c3035f534195260f4a0081a6f171cdd6a6de52235774837dd`.
+The historical report prefix (159,279 bytes) was hashed without viewing its
+content: SHA-256
+`e44db5ca4e2ff95d6cdc49e8873267f2b03999f7e3b6853b9b9fc776b6aa386b`.
+It is preserved, with this append after it. The prior 287-case checkpoint at
+`e5bc47e1448c5466f981cfb4dd29150e8539552f` is retained historical evidence;
+this proposal does not reinterpret its original boundary cases as measurements.
+
+| Scenario | Replacement public-entry-point evidence |
+|---|---|
+| S06 | Both variants of `test_s06_s09_s31_resolved_voltage_gaussian_full_physical_covariance`: joint constant background, successful noisy fit, full covariance including peak/background correlations. |
+| S09 | Same two variants: V/nm parameter and covariance units, analytic physical Jacobian, input/model/residual/storage invariants. Existing nonuniform-coordinate and sorting cases remain unchanged. |
+| S31 | `real_custom_trf` variant uses actual SciPy `least_squares` on the supplied physical residual/bounds/evaluation limit; returns only x, native Boolean success, and message. Existing protocol/schema checks remain unchanged. |
+
+The default variant omits `optimizer`, so it exercises the public default
+Levenberg–Marquardt (LM) path. The unchanged S30 real-solver dispatch test also
+passes. Neither replacement permits `RuntimeError`. Total collection remains
+287; the approved Contract table remains 33 scenarios.
+
+Physical fixture: 201 wavelength point observations from 500 to 510 nm at
+0.05 nm spacing; Gaussian height 1.2 V, center 505.1 nm, sigma 0.7 nm, constant
+background 0.4 V. Full width at half maximum is
+`2*sqrt(2*ln(2))*0.7 = 1.64837 nm`, or 32.97 sampling intervals. The window
+extends approximately seven sigma on either side. Background/height is 1/3;
+height/read-noise standard deviation is 120. Add independent Gaussian read
+noise with standard deviation 0.01 V and `default_rng(20261005)`, without
+projection, selection, clipping, or weighting. This illustrates analog detector
+voltage; it makes no claim about an actual instrument or photon-counting data.
+
+Fixture/tolerances were frozen before any product call in
+[precall-design.md](/private/tmp/dphtools-physical-A-jKfBli/precall-design.md),
+SHA-256 `39e0bf4d402ba5c36d2ead477541bb82b108b1654f4f3f89c6a871e9e84bf4a2`.
+The independent analytic model Jacobian is
+`J = [g, A*g*z/sigma, A*g*z*z/sigma, 1]`, where
+`z=(wavelength-center)/sigma` and `g=exp(-z*z/2)`. The residual Jacobian is `-J`.
+An independent mathematical probe, before product calls, gave nominal local
+noise scales `[0.002538 V, 0.001656 nm, 0.001811 nm, 0.000889 V]` from
+`0.01**2 * inv(J.T@J)` at generating truth. Frozen absolute recovery bounds
+`[0.020 V, 0.012 nm, 0.012 nm, 0.006 V]` are 6.6–7.9 of those scales, allowing
+noise and modest local nonlinearity. These are functional accuracy bounds,
+not confidence intervals or repeated-measurement calibration.
+
+Fit-quality bounds: fitted-versus-noiseless root mean square <0.006 V;
+residual root mean square between 0.006 and 0.014 V; residual sum of squares
+(RSS) no greater than generating-noise RSS times `1+1e-6`, since generating
+truth is feasible; dimensionless column/residual stationarity <`3e-4`.
+The latter permits cosine errors of order `sqrt(1e-8)` from ordinary solver
+stopping tolerances with a factor-three allowance, while rejecting an appreciably
+unfinished fit. Model/residual equality checks use the unchanged result helper's
+roundoff allowances (about 1e-10 V, far below noise), plus positivity, shapes,
+finiteness and storage preservation. Solver objective, status, numerical
+differences, and stopping conventions follow the approved
+[SciPy least_squares reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html).
+
+Full covariance expectation is `Cref = RSS/(201-4) * inv(J.T@J)` at RETURNED
+parameters, using ACTUAL residuals. This follows R4 and the
+[SciPy local covariance/scaling reference](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html).
+Height/background covariance has V² units, center/width covariance nm²,
+and cross-unit entries V*nm. Each entry is normalized by
+`sqrt(Cref_ii*Cref_jj)` and compared with absolute tolerance 0.002, including
+correlations and small entries. Symmetry and positive semidefiniteness are checked.
+Require column-normalized Jacobian condition <4. Four unit-norm columns imply
+smallest singular value >=`2/7`; column derivative errors <=`1e-4` imply
+whitened error <=0.0007 and inverse error <=0.001403 in reference uncertainty
+units. The 0.002 allowance includes arithmetic roundoff. Smooth binary64 forward
+steps give center step/sigma about `1.1e-5`. Independent forward/centered probes
+at truth and truth plus/minus recovery bounds gave conditions 2.290–2.307 and
+maximum relative column error `6.70e-6`, well inside the bound. This is local
+covariance accuracy, not confidence-interval coverage. Discriminating mathematical
+examples: deleting correlations gives normalized error 0.411; RSS/N scaling
+gives 0.01990; multiplying covariance by 0.99 gives 0.010. All exceed 0.002.
+
+Baseline on the exact proposed test file (SHA-256
+`0628df219e68d935b1bda6c3d438e5352b6a971b14fcbdd309270bb8cb6ebfb5`):
+
+| Check | Actual result |
+|---|---|
+| Source-free spectrum suite, one run | 287 passed, 0 failed, 0 skipped; pytest exit 0; 1.68 s reported runtime. |
+| Default LM replacement | Successful; residual rms 0.00921609 V; RSS 0.01707221 V²; condition 2.299717; maximum normalized covariance error `4.47e-11`. |
+| Real custom TRF replacement | Successful; residual rms 0.00921609 V; RSS 0.01707221 V²; condition 2.299717; maximum normalized covariance error `5.27e-11`. |
+| Black, line length 99 | Temporary full-file formatting left file unchanged; exact protected-prefix comparison passed before installation; final file check exit 0. |
+
+All commands used the supplied source-free launcher, clean interpreter and
+prescribed environment. Pytest used `-p no:warnings --tb=no`, disabled cache,
+and fresh diagnostics
+[spectrum-suite-001-diagnostics.json](/private/tmp/dphtools-physical-A-jKfBli/spectrum-suite-001-diagnostics.json).
+Full attempts, commands, environment and proofs reside only in
+[/private/tmp/dphtools-physical-A-jKfBli](/private/tmp/dphtools-physical-A-jKfBli).
+Initially passing results are valid baseline evidence; no product-red claim.
+Failure classification: none in this proposal. The retained robustness cases
+reported expected numerical failures/warnings and passed their existing checks;
+they remain outside representative-measurement acceptance.
+
+No implementation/source/history/diffs, coverage, project/task state, lessons or
+prior role reports were inspected. Only permitted report suffix access was used
+(it was initially empty). Source-free diagnostics retained warning category,
+message, file and line; no source lines/tracebacks were exposed. No accidental
+source exposure. Optional memory/delegation and Superpowers were unused.
+Only the test suffix and this report append changed in the repository. No
+installation, product repair, broad verification, coverage measurement, commit,
+push, PR, merge or release occurred. Coverage and platform verification are not
+established by this focused A run; product revision was not queried under the
+blind packet. Finite-range extremes and weighted/Poisson fitting remain outside
+this acceptance, and local covariance does not establish uncertainty calibration.
+
+Handoff: proposed checkpoint only; fresh B must review expectation sources,
+tolerances, scope, prefix proofs and results. No A self-acceptance. Metrics:
+33 scenarios, 287 cases, this correction A launch 1 (cumulative A13/B9), one
+math probe and one pytest run, two Black invocations; owner-scope A/B window
+0/2 before B review. Previous windows 2/2, 1/2, 1/2, 1/2, 2/2, 2/2 remain
+accepted/closed with all historical attempts/spending retained. Initial C and
+the two authorized repairs remain used 2/2; this correction grants no C repair.
+No fixed cap was supplied; token/billing totals are unavailable and no renewed
+allowance is inferred.

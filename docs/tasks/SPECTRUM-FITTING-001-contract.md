@@ -1,6 +1,7 @@
 # SPECTRUM-FITTING-001 public contract
 
-**Version 1.0. Contract revision R3 — approved by owner on 2026-10-05.**
+**Version 1.0. Contract revision R4 — R3 approved by owner on 2026-10-05,
+with the owner's physical-plausibility clarification on 2026-10-05.**
 This is the public behavior packet. It contains no implementation or task status.
 
 ## Purpose and scope
@@ -103,6 +104,24 @@ uncertainty estimate, not a guarantee of identifiability or a global optimum.
 Preserve applicable numerical warnings; do not fabricate finite uncertainties.
 Numerical test tolerances are chosen independently by A and reviewed by B.
 
+### Physical scope of numerical acceptance
+
+The owner clarified: "No, let’s keep this grounded in terms of physical
+plausibility." Required successful-fit and covariance-accuracy examples use
+resolved spectra, plausible measurement noise, and reasonable background-to-peak
+ratios in stated physical units. An artificial arithmetic baseline of 1e12 data
+units with a height-three peak and noise around 0.01 data units is outside this
+acceptance scope. This slice does not guarantee numerical accuracy throughout
+the entire range of finite floating-point inputs.
+
+Keep accurate local covariance, fit quality, positivity, input preservation, and
+the approved default/custom optimizer behavior on representative spectra.
+Invalid-input and numerical-failure boundary checks remain useful robustness
+checks; they are not evidence of physically representative measurements. Do not
+interpret additive read-noise fixtures as photon-counting data or claim that a
+local covariance recipe establishes repeated-measurement uncertainty. Weighted
+or Poisson fitting remains outside this slice.
+
 ## Optimizer interface
 
 The default is SciPy's Levenberg-Marquardt solver through
@@ -173,6 +192,9 @@ silently drop nonfinite samples or return a baseline-only fit for no peaks.
 - Owner approval on 2026-10-05: "Approve R3 and the 33-scenario exception."
   This approves the complete contract, including width conventions, schema,
   custom-optimizer protocol, failures, and one coherent 33-scenario slice.
+- Owner scope clarification on 2026-10-05: "No, let’s keep this grounded in
+  terms of physical plausibility." R4 records that scope without changing the
+  public interface, optimizer protocol, or the 33 approved scenario rows.
 - [SciPy 1.15.3 Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html)
   gives the normalized Gaussian/Cauchy convolution and sigma/gamma convention.
 - [SciPy peak discovery](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.signal.find_peaks.html)
