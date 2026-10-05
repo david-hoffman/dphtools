@@ -1990,3 +1990,370 @@ attempts remain retained. No fixed owner time/token cap or new cap was supplied;
 exact model-token usage/billing remain unavailable. No allowance or spending reset
 is claimed. Fresh independent combined B round2 is the next handoff; A grants no
 acceptance and launches no reviewer or product repair.
+
+
+## Evidenced covariance correction — independent A, 2026-10-05
+
+This append-only regression closes an evidenced public covariance gap within
+approved R3 S06/S09/S31. The coherent 33-scenario slice remains unchanged. This
+is post-implementation regression evidence, not original test-first evidence.
+Only two Gaussian public cases and two small mathematical helpers were added.
+The approved 285-case snapshot's AST, oracles, tolerances, and all 62,168 prefix
+bytes remain identical. The preceding report was treated as raw bytes only:
+136,921 prefix bytes with SHA-256
+`73bf5276ddf3a315544f37627701615ab9651b9f967f9aebe96c8bb0b528c55c`
+remain intact. Final candidate hashes and preservation proof are outside the
+tracked candidate, in the handoff and `/private/tmp/dphtools-spectrum-covariance-a12/`.
+
+### Mapping and public observations
+
+| New public test variant | Approved scenarios | Observations |
+|---|---|---|
+| `test_s06_s09_s31_large_constant_background_full_physical_covariance[default_lm]` | S06/S09 | Omitted optimizer; jointly fitted constant background; physical 4-by-4 covariance, including background correlations; fitted/residual consistency and caller input/result-storage preservation |
+| `test_s06_s09_s31_large_constant_background_full_physical_covariance[analytic_custom_trf]` | S06/S09/S31 | Same checks through a real bounded SciPy least-squares adapter; physical residuals/initial parameters/bounds, forwarded evaluation limit, and Boolean convergence status |
+
+The expectation source is R3's Gaussian point-sample model, physical optimizer
+protocol, and local residual-variance covariance estimator. No implementation,
+private helper, coverage, historical execution report, or other oracle was read.
+No numerical success guarantee at this background was introduced. An actual
+numerical fit failure may raise RuntimeError, with diagnostics and input checks
+retained. Other exceptions fail the test. Adapter protocol checks are recorded
+outside the callback's exception path, so a wrapped RuntimeError cannot hide a
+failed protocol assertion. A warning does not excuse inaccurate finite covariance.
+
+### Independent fixture, solver, and covariance proof
+
+Use N=201 coordinates uniformly spaced from -4 to 4 x units, one component
+with height 3 data units, center 0 x units, sigma 1 x unit, and constant 1e12
+data units. Starting peak guesses are (2.8, 0.08, 1.06), rather than a purported
+production fitting result. Noise starts as
+`0.01*(sin(1.73*i) + 0.4*cos(0.61*i))` data units and is projected off the
+four analytic Jacobian columns by a reduced QR factorization. Projection is
+only fixture construction, not a production algorithm requirement.
+
+At physical parameters (A,c,s,b0), set z=(x-c)/s and G=exp(-z*z/2). The analytic
+model Jacobian is `[G, A*G*z/s, A*G*z*z/s, 1]`. The residual Jacobian has the
+opposite sign, which leaves J.T J unchanged. At every successful returned fit,
+compute `C = (residuals @ residuals)/197 * inverse(J.T @ J)` using its actual
+returned parameters and residuals. Do not substitute generating truth or a
+solver-specific convergence result. This is the full covariance in flattened
+peak-row then constant-background order. Height/background variances have data
+units squared; center/sigma variances have x units squared; cross covariances
+have their corresponding products of units.
+
+Independent binary64 representability evidence, computed before any product
+call: spacing at 1e12 is 0.0001220703125 data units; represented noise has
+RSS 0.0116786211729 data units squared and peak magnitude 0.013916015625 data
+units (114 spacings). Quantization is below 1% of the unrounded noise's peak.
+All data, model/Jacobian entries, and the covariance oracle are finite. The
+column-normalized Jacobian has condition number 3.256924914 and minimum singular
+value 0.469793750. At generating parameters, the covariance's standard deviations
+are approximately (0.001562921 data units, 0.0005452542 x units,
+0.0006996599 x units, 0.0009319442 data units). These numbers are proof/sanity
+checks, not expected recovered parameters or hard-coded test uncertainties.
+Height/background and sigma/background correlations are approximately -0.42245
+and -0.62663. Thus dropping correlations is a substantial error.
+
+The custom adapter calls real SciPy `least_squares(method="trf")` on the supplied
+residual callable, with its independent negative analytic model Jacobian. It
+forwards bounds and max_nfev=2000, checks positive returned height/sigma, and
+returns physical x and the real Boolean solver success, without a Jacobian or
+covariance. Translating only the background coordinate within the adapter avoids
+premature step termination from a 1e12 parameter norm. This is an adapter choice,
+not a prescribed product transform. Independent solver controls on the contract
+model succeeded for zero background (5 evaluations) and 1e12 (15 evaluations),
+reducing RSS from about 2.423 to about 0.01167. The zero-background control is
+only an external fixture/oracle proof, not a redundant additional public case.
+
+### Tolerances and discrimination
+
+Normalize every covariance entry by `sqrt(C_ii*C_jj)` from the analytic oracle.
+The oracle diagonal becomes one, and off-diagonals become correlations. Check
+all 16 entries with relative tolerance zero and absolute tolerance 0.03. This
+checks variances and physically meaningful background correlations without a
+near-zero-entry relative-error problem. Symmetry and positive semidefiniteness
+are additionally checked in these dimensionless units with 1e-10 roundoff slack.
+
+The 0.03 limit was chosen independently before product calls. A central
+full-model derivative using a 0.05 physical-unit step is one allowed numerical
+variation, not a required differentiation algorithm. Its normalized Frobenius
+roundoff bound is 0.003279155 from the background spacing, and its independent
+smooth-model central-difference truncation bound is 0.002433733. Dividing their
+sum by the minimum normalized singular value gives eta=0.012160417. The inverse
+Gram perturbation bound `(1-eta)**(-2)-1` is 0.024771764. A 0.03 normalized-entry
+tolerance allows this bound with modest slack. The directly calculated full-model
+central-difference covariance error is 0.003584724; a 1% covariance scale change
+has error 0.01. Both pass. Covariance halved has error 0.5; background variance
+100 times too small has error 0.99; zeroed cross correlations have error
+0.626631248. Each fails by a wide margin. No bound or tolerance was fitted to
+production output. No differentiation method, decomposition, internal dtype, or
+optimizer internals are prescribed.
+
+Fitted-model agreement uses absolute tolerance two binary64 background spacings,
+0.000244140625 data units, with relative tolerance zero. A relative tolerance
+on the 1e12 background would hide a wrong peak. Residual agreement with
+`data-fitted` uses absolute tolerance 8*binary64 epsilon and relative tolerance
+zero; this allows subtraction roundoff without hiding an inconsistent residual.
+Input preservation uses exact equality, including on RuntimeError. Writable
+returned arrays are modified after successful verification to check that caller
+inputs remain intact. The returned column-normalized condition number must be
+below 1e4 to guard this inverse oracle's applicability; failure of that guard
+would require diagnosis before claiming this covariance defect. No recovered
+truth or particular convergence path is asserted.
+
+### Baseline results, classification, and retained attempts
+
+The final changed test file was formatted with Black, line length 99, and its
+Black check passed with exit status 0. Source-free full spectrum testing on
+clean CPython 3.12.14 collected 287 cases: 285 passed, two new cases failed,
+exit status 1, reported duration 1.66 s. Both failures occur at the fixed full
+covariance comparison; schema, finite output, positivity, protocol where
+applicable, model/residual consistency, conditioning, symmetry, and positive
+semidefiniteness checks preceding it passed.
+
+| Variant | Actual RSS (data units squared) | Returned normalized Jacobian condition | Maximum normalized covariance error | Classification |
+|---|---:|---:|---:|---|
+| Default LM | 2.4032688 | 3.49278348 | 0.929593142 | Product defect against the physical covariance convention, pending fresh B review |
+| Real analytic custom TRF | 0.0116734058 | 3.25694088 | 0.907581986 | Same product defect, pending fresh B review |
+
+For default LM, returned variance/oracle variance ratios are approximately
+(0.185806, 0.151028, 0.070407, 0.342974). For custom TRF they are approximately
+(0.131869, 0.123265, 0.092418, 0.391890). Important background cross covariances
+also fail. These are inaccurate finite uncertainties on successful returns,
+not the contract's allowed RuntimeError numerical-failure outcome. The oracle
+uses each fit's own residual variance, so the default fit's higher RSS does not
+explain or invalidate the covariance failure. No optimizer-convergence behavior
+is rewritten or separately claimed by this gap correction.
+
+Retained author attempts: one independent mathematical proof run; two full
+spectrum runs; two Black format invocations and two Black check invocations.
+The first test draft had the same two covariance failures and 285 passes; its
+log is retained as `full-spectrum-initial.log`. Before reading that baseline
+output, one control-flow revision hardened callback protocol assertion retention
+and removed an unsupported exact callback-count requirement. It changed no
+fixture, covariance oracle, or numerical tolerance. The final run is
+`full-spectrum-final.log`; `final-spectrum-session.json` retains counts, statuses,
+node IDs and durations. Independent proof is `independent-proof.json`, preservation
+proof is `preservation.json`, and final hashes/commands are in `handoff-manifest.json`,
+all under `/private/tmp/dphtools-spectrum-covariance-a12/`.
+
+Every probe/test launcher installed source-free warning rendering (category,
+message, file, line only) and uncaught-exception rendering (type, message, real
+failure status) before third-party imports. Pytest used `-p no:warnings --tb=no`;
+failure diagnostics exposed only type/message and public numeric arrays, without
+source or traceback frames. All warnings and real exit statuses were retained.
+No accidental source exposure occurred. Imports and public calls remained opaque.
+Only the authorized tests/report were changed; no product/configuration/workflow,
+environment installation, coverage, broad verification, delegation, Git mutation,
+PR, merge, release, or lesson activity occurred.
+
+This invocation used one fresh root A, no additional author/reviewer/C launches,
+and no delegation. The new covariance B window has used 0/2 rounds; fresh B
+round 1 is next. Original B window 2/2, formatting 1/2, coverage 1/2, numerical
+1/2, and final post-repair 2/2 remain accepted/closed and counted. Both authorized
+C repairs remain used 2/2; the owner's additional extension is pending. This
+handoff is not self-acceptance and authorizes no C work. No fixed budget was
+supplied; token/billing usage is unavailable here, not reset or claimed unlimited.
+
+
+## A13 — B8 bookkeeping-only correction and independent discrimination
+
+This append records only the authorized test defect from the public
+`/private/tmp/dphtools-spectrum-delivery/B8-public-finding.md`. R3 and its 33
+approved scenarios remain the expectation source. This is the same covariance
+correction window: B8 round 1/2 rejected; final B round 2/2 remains. Earlier
+windows, attempts, and spending remain counted. C repairs 2/2 are used, the owner
+extension is pending, and this A session has no C authority or self-acceptance.
+
+### Correction and failure discrimination
+
+The old custom marker started `False` and became `True` only after both residual
+checks completed. A permitted numerical `RuntimeError` from `residual(trial)`
+therefore left a false marker despite no failed test assertion. This is a **test
+bookkeeping defect**, reproduced twice against the exact B8 snapshot: the first
+residual callback and the second callback each raised a numerical `RuntimeError`
+with correct physical initial values, bounds, ordering, and evaluation limit.
+
+Only that bookkeeping changed. The callback now catches `AssertionError`, records
+the actual failure, and re-raises it. The outer assertion requires an empty
+failure list. Numerical `RuntimeError` interrupts checks without recording a test
+assertion failure. A fitter that catches the callback assertion and wraps it as
+`RuntimeError`, even suppressing its cause, still leaves the recorded failure and
+is rejected. There is no exception-chain inspection, completion requirement on a
+failed fit, numerical-success requirement at a 1e12 background, or new algorithm,
+decomposition, or dtype requirement.
+
+The unchanged successful-fit path still requires real custom optimization,
+successful callback status, accurate finite model/residual/covariance outputs,
+physical covariance with correlations, and preservation of caller inputs and
+returned storage. The custom adapter's physical protocol assertions and all
+tolerances are unchanged.
+
+Independent stand-ins follow R3's public protocol and use the Gaussian equation
+directly. They do not import product code or use product helpers. They drive the
+actual permitted covariance test, with a real SciPy solver for successful custom
+controls. Full diagnostic outcomes and stage counters are retained in
+`/private/tmp/dphtools-spectrum-covariance-a13/bookkeeping-proof.json`.
+
+| Control group | Outcomes |
+|---|---|
+| Default numerical RuntimeError before, between, and after independent valid model evaluations | 3 accepted; default has no custom callback checks |
+| Custom numerical RuntimeError before the adapter, first residual before its checks, second residual between checks, solver residual after protocol checks, and after adapter return | 5 accepted |
+| Exact B8 numerical-interruption reproductions at first and second residual | 2 rejected by the defective original marker |
+| Invalid initial shape/nonfinite/value/order; every lower/upper-bound entry; evaluation limit; first/second residual shape, values/sign, and trial dependence | 18 variants, each rejected bare, wrapped with cause, and wrapped without cause: 54 rejections |
+| Accurate finite covariance and 1% covariance variations, for default/custom | 4 accepted |
+| Half covariance, missing correlations, nonfinite covariance, wrong model, wrong residual, input mutation on success, and mutation followed by numerical RuntimeError, for default/custom | 14 rejected |
+| Total independent controls | 82/82 matched expected outcomes; launcher exit 0 |
+
+These temporary controls are proof evidence, not additional repository scenarios
+or collected tests. No stub replaces the production public-entry-point spectrum
+run. The stand-ins establish discrimination and do not establish product
+correctness or a specific internal algorithm.
+
+### Preserved covariance mathematics and mapping
+
+The independently reviewed fixture, analytic Gaussian Jacobian, actual-returned
+RSS scaling, real custom solver, and absolute normalized covariance tolerance
+0.03 are byte/AST preserved from B8. For `z=(x-c)/s`, `G=exp(-z²/2)` and
+`m=b0+A*G`, physical model Jacobian columns remain
+`[G, A*G*z/s, A*G*z²/s, 1]`, ordered `(A,c,s,b0)`.
+With N=201 observations and P=4 parameters, residual degrees of freedom are
+N−P=197 and `C=(JᵀJ)⁻¹ * (rᵀr)/197`. The test evaluates J and RSS at the returned
+fit; it does not demand generating-truth parameters. Height/background have data
+units, center/sigma have x units, and C entries have the product of their two
+parameter units. Dividing by `sqrt(C_expected[i,i]*C_expected[j,j])` gives
+dimensionless variances/correlations.
+
+The retained public A12 proof records represented-noise RSS
+0.011678621172904968, peak magnitude 0.013916015625 data units, 1e12 binary64
+spacing 0.0001220703125 data units, normalized Jacobian condition
+3.2569249135612877, and inverse perturbation bound 0.024771763782000855. B8's
+public finding separately records conservative bound 0.02663. Both are below
+the unchanged 0.03 tolerance. No tolerance was fitted to candidate output.
+These values are retained reviewed evidence, not a new covariance-proof run.
+
+Original 285 cases keep their exact approved bytes, AST, oracles, tolerances,
+and mapping. The two covariance cases remain
+`test_s06_s09_s31_large_constant_background_full_physical_covariance[default_lm]`
+and `[analytic_custom_trf]`, covering S06 constant background, S09 physical
+covariance units, and S31 physical custom protocol/covariance. Spectrum
+collection/execution is 287 cases, zero skips; scenario count remains 33.
+Counts below overlap where a case exercises multiple approved scenarios.
+
+| Scenario | Collected cases |
+|---|---:|
+| S01 | 8 |
+| S02 | 4 |
+| S03 | 2 |
+| S04 | 10 |
+| S05 | 8 |
+| S06 | 5 |
+| S07 | 3 |
+| S08 | 9 |
+| S09 | 6 |
+| S10 | 3 |
+| S11 | 3 |
+| S12 | 2 |
+| S13 | 4 |
+| S14 | 5 |
+| S15 | 3 |
+| S16 | 12 |
+| S17 | 45 |
+| S18 | 6 |
+| S19 | 8 |
+| S20 | 8 |
+| S21 | 6 |
+| S22 | 5 |
+| S23 | 7 |
+| S24 | 8 |
+| S25 | 6 |
+| S26 | 4 |
+| S27 | 37 |
+| S28 | 8 |
+| S29 | 14 |
+| S30 | 1 |
+| S31 | 20 |
+| S32 | 6 |
+| S33 | 27 |
+
+### Mechanical preservation
+
+- Candidate tests SHA-256: `33501511bff9dcf676821606341516790eb30ffec1319eec27dbb730835e617d`.
+- Approved A11 tests: exact 62,168-byte prefix, SHA-256
+  `50bb168312355b5c3035f534195260f4a0081a6f171cdd6a6de52235774837dd`;
+  all 83 original top-level AST nodes match. All 285 cases are unchanged.
+- Full B8 file reconstructs byte-for-byte after reversing only the authorized
+  marker/list, assertion capture, and outer assertion changes. Covariance math,
+  fixture, solver, finite/model/mutation checks, and tolerance bytes are retained.
+- Entire report before this append: 148,077 bytes, SHA-256
+  `f6c0cc3799ad642a96935db54eca96d64b793bb34396318dd2fb4953c41f6a82`.
+  It was hashed as bytes and never semantically read. The older A11 136,921-byte
+  report prefix also retains SHA-256
+  `73bf5276ddf3a315544f37627701615ab9651b9f967f9aebe96c8bb0b528c55c`.
+- Final report hash and final preservation evidence are recorded outside its
+  tracked tree in the final handoff manifest and conversation to avoid a
+  self-referential hash.
+
+### Exact-candidate baseline and checks
+
+All checks used clean CPython 3.12.14 at
+`/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/python/bin/python3`, with
+`MPLBACKEND=Agg`,
+`MPLCONFIGDIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/mplconfig`, and
+`PIP_CACHE_DIR=/private/tmp/dphtools-spectrum-clean-env-w0q0h1ko/pip-cache`.
+No environment or configuration changed. Before every probe/check, the temporary
+launcher installed source-free warning category/message/file/line rendering and
+uncaught exception type/message/failure-status rendering. Pytest always received
+`-p no:warnings --tb=no`. Failure records retain type/message and frame
+file/line/name without source lines. No accidental implementation source exposure
+occurred; warning file/line diagnostics remain visible.
+
+Commands use that interpreter and
+`/private/tmp/dphtools-spectrum-covariance-a13/sourcefree.py`:
+
+| Launcher arguments | Status/result |
+|---|---|
+| `black --line-length 99 tests/test_spectrum_fitting.py` | 0; already formatted, unchanged |
+| `run /private/tmp/dphtools-spectrum-covariance-a13/preservation-proof.py` | 0; exact approved prefix/AST and narrow-change reconstruction |
+| `run /private/tmp/dphtools-spectrum-covariance-a13/bookkeeping-proof.py` | 0; all 82 independent outcomes matched |
+| `pytest -q -s -ra tests/test_spectrum_fitting.py` (launcher adds `-p no:warnings --tb=no`) | 1; 285 passed, 2 failed, 287 executed, 1.53 s |
+| `black --check --line-length 99 tests/test_spectrum_fitting.py` | 0; unchanged |
+
+Both public baseline failures are `AssertionError` at the retained
+`assert_allclose(normalized, expected_normalized, rtol=0, atol=0.03)`, candidate
+line 1648. Default RSS=2.4032688, normalized condition=3.49278348,
+covariance error=0.929593142. Custom RSS=0.0116734058, condition=3.25694088,
+error=0.907581986. Successful finite outputs reached the actual covariance
+assertion; this is not a bookkeeping failure. The observing A classifies these
+as retained **product covariance defects against R3**, supported by B8's public
+finding and the preserved math, pending final independent B review. Numerical
+failure remains a permitted alternative. A neither accepts its own correction
+nor repairs product code.
+
+### Evidence and remaining limits
+
+All complete logs, scripts, mapping, and proof results are outside Git under
+`/private/tmp/dphtools-spectrum-covariance-a13`. SHA-256 values at this append:
+
+| Artifact | SHA-256 |
+|---|---|
+| `bookkeeping-proof.py` | `b23c5c9ab50d11082feb1ae5f7a15fbe2be3f9c2c9a5c7cc65c95c9e63cb74d5` |
+| `bookkeeping-proof.json` | `c6d3c539e2c694beb9928e7063583d3f6add7825cd0137f00e29accad8334022` |
+| `bookkeeping-proof.log` | `3b9d3fbf6353fbd96074ed864510e43095dfd2a08c6f53891aeeabb1af2d6349` |
+| `sourcefree.py` | `7b1f3b1129d2845d1a1becb79fb879487b599224de47fb5042d310abb3b99be8` |
+| `preservation-proof.py` | `89e2a595b98f662d8a04aab6af7b5b30a29c7c683868f1752dbd9b578c157aa2` |
+| `mapping-proof.json` | `66b1933696cb6c409afe194746cd599bb45e6d019940a89566ee106672d4fc9f` |
+| `spectrum-session.json` | `7cf33ecfac1ae5a98ffdceedead92dad12a19212d36206823504b47f4cc33964` |
+| `spectrum.log` | `547ee0abe75eccc5c5ebac94ffa3dcebe9f947424ce6641d6573c7c0039f4a62` |
+| `black99.log` | `1a56c7cd8457fd05d978cfbd139d7bfd86e86acaa9b57668e718ef8bccc0cf48` |
+
+This root A launch: 1. Delegation, additional author/reviewer/C launches: 0.
+Independent bookkeeping proof runs: 1. Spectrum runs: 1. Black format/check
+runs: 1/1. Preservation runs: initial 1 plus final post-append verification.
+No new scenarios, review window, repair allowance, or budget was created.
+Prior spending remains counted; token billing is unavailable and no new fixed
+cap was supplied. Final B round 2/2 is next. No product/config/tool/instruction
+edits, environment installation, coverage, other tests, broad/platform
+verification, commits, push, PR, merge, release, lessons, memory, Superpowers,
+or delegation were performed. This remains post-implementation correction
+evidence, not original test-first evidence or delivery acceptance.

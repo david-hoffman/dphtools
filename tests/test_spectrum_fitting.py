@@ -1504,3 +1504,152 @@ def test_s29_large_origin_narrow_width_point_boundary(fit, family, optimizer_mod
     if np.any(~np.isfinite(covariance)):
         assert diagnostics
     print(f"Large-origin {family}/{optimizer_mode} returned a verified sampled-model fit")
+
+
+def _gaussian_background_physical_jacobian(x, parameters):
+    """R3 analytic model derivatives in physical (height, center, sigma, b0)."""
+    amplitude, center, sigma, _ = parameters
+    z = (x - center) / sigma
+    profile = np.exp(-0.5 * z * z)
+    return np.column_stack(
+        (
+            profile,
+            amplitude * profile * z / sigma,
+            amplitude * profile * z * z / sigma,
+            np.ones_like(x),
+        )
+    )
+
+
+def _gaussian_large_background_fixture():
+    """Represented O(0.01) noise remains resolved above a 1e12 constant."""
+    x = np.linspace(-4, 4, 201)
+    physical = np.array([3.0, 0.0, 1.0, 1e12])
+    jacobian = _gaussian_background_physical_jacobian(x, physical)
+    norms = np.linalg.norm(jacobian, axis=0)
+    assert np.linalg.cond(jacobian / norms) < 4
+    q, _ = np.linalg.qr(jacobian, mode="reduced")
+    i = np.arange(len(x))
+    raw = 0.01 * (np.sin(1.73 * i) + 0.4 * np.cos(0.61 * i))
+    noise = raw - q @ (q.T @ raw)
+    model = physical[-1] + 3 * np.exp(-0.5 * x * x)
+    data = model + noise
+    represented_noise = data - model
+    assert np.all(np.isfinite(data))
+    assert np.spacing(physical[-1]) < 0.01 * np.max(np.abs(noise))
+    assert 0.005 < represented_noise @ represented_noise < 0.02
+    assert 0.01 < np.max(np.abs(represented_noise)) < 0.02
+    return x, data, np.array([[2.8, 0.08, 1.06]])
+
+
+@pytest.mark.parametrize("optimizer_mode", ["default_lm", "analytic_custom_trf"])
+def test_s06_s09_s31_large_constant_background_full_physical_covariance(fit, optimizer_mode):
+    # Post-implementation covariance-gap regression. Expectations were fixed
+    # using independent representability/conditioning proofs before product calls.
+    x, data, guesses = _gaussian_large_background_fixture()
+    snapshots = [value.copy() for value in (x, data, guesses)]
+    calls = []
+    protocol_failures = []
+
+    def real_physical_optimizer(residual, initial, *, bounds, max_nfev):
+        # Retain protocol failures even if the fitter wraps an adapter assertion
+        # as RuntimeError. Only an actual numerical fit failure is allowed.
+        try:
+            assert initial.shape == (4,) and np.all(np.isfinite(initial))
+            assert_array_equal(initial[:3], guesses.ravel())
+            assert_array_equal(bounds[0], [0, -np.inf, 0, -np.inf])
+            assert_array_equal(bounds[1], [np.inf, np.inf, np.inf, np.inf])
+            assert max_nfev == 2000
+            for trial in (initial, np.array([2.75, -0.05, 0.93, initial[-1]])):
+                supplied = residual(trial)
+                expected = data - _model(x, trial[:3].reshape(1, 3), "gauss", trial[3:])
+                assert np.asarray(supplied).shape == data.shape
+                assert_allclose(supplied, expected, rtol=0, atol=2 * np.spacing(1e12))
+        except AssertionError as failure:
+            protocol_failures.append(failure)
+            raise
+
+        # Optimize the supplied physical residuals with a real bounded solver.
+        # Translate b0 only inside this adapter so a huge parameter norm cannot
+        # make its step stopping criterion fire before resolving the small peak.
+        origin = np.zeros(4)
+        origin[-1] = initial[-1]
+        solution = least_squares(
+            lambda local: residual(local + origin),
+            initial - origin,
+            jac=lambda local: -_gaussian_background_physical_jacobian(x, local + origin),
+            bounds=(bounds[0] - origin, bounds[1] - origin),
+            method="trf",
+            x_scale=[3, 1, 1, 1],
+            ftol=1e-10,
+            xtol=1e-10,
+            gtol=1e-10,
+            max_nfev=max_nfev,
+        )
+        calls.append(bool(solution.success))
+        # No optimizer Jacobian/covariance is supplied to the production fitter.
+        return SimpleNamespace(
+            x=solution.x + origin, success=bool(solution.success), message=str(solution.message)
+        )
+
+    options = {} if optimizer_mode == "default_lm" else {"optimizer": real_physical_optimizer}
+    result, _ = _numerical_failure_outcome(
+        fit, data, x, guesses=guesses, background="constant", max_nfev=2000, **options
+    )
+    assert not protocol_failures, "A RuntimeError must not hide a custom protocol assertion"
+    if result is None:
+        print(f"{optimizer_mode}: R3 permits the reported RuntimeError numerical fit failure")
+        return
+    if optimizer_mode == "analytic_custom_trf":
+        assert calls and all(calls)
+
+    peaks = np.asarray(result.peak_parameters)
+    background = np.asarray(result.background_parameters)
+    fitted = np.asarray(result.fitted)
+    residuals = np.asarray(result.residuals)
+    covariance = np.asarray(result.covariance)
+    assert peaks.shape == (1, 3) and background.shape == (1,)
+    assert fitted.shape == residuals.shape == data.shape
+    assert covariance.shape == (4, 4)
+    for values in (peaks, background, fitted, residuals, covariance):
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    assert np.all(peaks[:, [0, 2]] > 0)
+    # A relative tolerance on a 1e12 background would hide a wrong peak/residual.
+    # Two binary64 spacings allow alternative summation order without doing so.
+    assert_allclose(
+        fitted, _model(x, peaks, "gauss", background), rtol=0, atol=2 * np.spacing(1e12)
+    )
+    assert_allclose(residuals, data - fitted, rtol=0, atol=8 * np.finfo(float).eps)
+
+    physical = np.concatenate((peaks.ravel(), background))
+    jacobian = _gaussian_background_physical_jacobian(x, physical)
+    norms = np.linalg.norm(jacobian, axis=0)
+    condition = np.linalg.cond(jacobian / norms)
+    # This guards the independent inverse oracle's numerical applicability;
+    # it does not compare fitted parameters with generating truth.
+    assert condition < 1e4
+    rss = residuals @ residuals
+    assert np.isfinite(rss) and rss > 0
+    expected = np.linalg.inv(jacobian.T @ jacobian) * rss / (len(x) - 4)
+    scales = np.sqrt(np.diag(expected))
+    assert np.all(np.isfinite(expected)) and np.all(scales > 0)
+    units = np.outer(scales, scales)
+    normalized = covariance / units
+    expected_normalized = expected / units
+    error = np.max(np.abs(normalized - expected_normalized))
+    print(
+        f"{optimizer_mode}: RSS={rss:.9g}; normalized condition={condition:.9g}; covariance error={error:.9g}"
+    )
+    # Every variance and correlation is measured in sigma_i*sigma_j units.
+    # An independent full-model finite-difference error bound is below 2.5%;
+    # 3% allows that variation while rejecting overconfident uncertainty.
+    assert_allclose(normalized, normalized.T, rtol=0, atol=1e-10)
+    assert np.min(np.linalg.eigvalsh(normalized)) >= -1e-10
+    assert_allclose(normalized, expected_normalized, rtol=0, atol=0.03)
+
+    # Check result storage as well as the fit/optimizer's input preservation.
+    for values in (peaks, background, fitted, residuals, covariance):
+        if values.flags.writeable:
+            values.flat[0] += 1
+        for value, snapshot in zip((x, data, guesses), snapshots):
+            assert_array_equal(value, snapshot)
