@@ -53,6 +53,6 @@ logic, input validation discrimination, and real public-call coverage. Do not fi
 or edit tests or product files. Reject accidental extra requirements, unrelated
 error-path successes, source-derived oracles, and nondiscriminating assertions.
 Return ACCEPT with identified test hashes and valid baseline evidence, or concrete
-REJECT findings/contract gaps. This is review round 1 of 2. After the second
+REJECT findings/contract gaps. This is review round 2 of 2 after correction of B1's S10/S13/S23 defects. After the second
 nonacceptance, diagnose before another rewrite. Completion: acceptance or specific
 evidenced defects/blocker with classification and source-exposure disclosure.

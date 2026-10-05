@@ -1,0 +1,806 @@
+"""Independent public-entry-point tests for SPECTRUM-FITTING-001 contract R3.
+
+Expected spectra use the contract's unit-height definitions, not product helpers.
+See docs/tasks/SPECTRUM-FITTING-001-tests.md for mapping and tolerances.
+Run with the source-free launcher in the A packet during blind A/B work.
+"""
+
+import json
+import os
+import subprocess
+import sys
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose, assert_array_equal
+from scipy.optimize import least_squares
+from scipy.signal import find_peaks
+from scipy.special import voigt_profile
+
+FAMILIES = ("gauss", "lorentz", "voigt")
+ROW_SIZE = {"gauss": 3, "lorentz": 3, "voigt": 4}
+PARAM_RTOL = 3e-5
+PARAM_ATOL = 2e-5
+MODEL_ATOL = 2e-7
+
+
+@pytest.fixture(scope="session")
+def fit():
+    # Importing the approved public module is allowed; never inspect its source.
+    from dphtools.utils.fitfuncs import spectrum_fit
+
+    return spectrum_fit
+
+
+def _model(x, rows, family, background=()):
+    """Contract equations: point samples, individual component peak heights."""
+    x = np.asarray(x, dtype=float)
+    y = np.zeros_like(x)
+    for row in rows:
+        amplitude, center, width = row[:3]
+        d = x - center
+        if family == "gauss":
+            profile = np.exp(-0.5 * (d / width) ** 2)
+        elif family == "lorentz":
+            profile = width**2 / (d**2 + width**2)
+        else:
+            gamma = row[3]
+            profile = voigt_profile(d, width, gamma) / voigt_profile(0, width, gamma)
+        y += amplitude * profile
+    if len(background):
+        y += background[0]
+    if len(background) == 2:
+        y += background[1] * (x - x[0])
+    return y
+
+
+def _rows(family):
+    rows = np.array([[4.2, 14.3, 1.1], [2.7, 18.2, 1.5]])
+    if family == "voigt":
+        rows[:, 2] = [0.9, 1.2]
+        rows = np.column_stack((rows, [0.5, 0.7]))
+    return rows
+
+
+def _starts(rows):
+    starts = rows.copy()
+    starts[:, 0] *= 0.88
+    starts[:, 1] += np.array([0.12, -0.16])[: len(rows)]
+    starts[:, 2:] *= 1.15
+    return starts
+
+
+def _noise(n):
+    i = np.arange(n, dtype=float)
+    return 0.018 * (np.sin(1.63 * i) + 0.6 * np.cos(0.71 * i))
+
+
+def _jacobian(x, parameters, family, npeak):
+    """Independent five-point differences of the stated physical model."""
+    size = ROW_SIZE[family] * npeak
+
+    def model_at(p):
+        return _model(x, p[:size].reshape(npeak, -1), family, p[size:])
+
+    columns = []
+    for j, value in enumerate(parameters):
+        h = np.finfo(float).eps ** 0.2 * max(1.0, abs(value))
+        step = np.zeros_like(parameters)
+        step[j] = h
+        columns.append(
+            (
+                model_at(parameters - 2 * step)
+                - 8 * model_at(parameters - step)
+                + 8 * model_at(parameters + step)
+                - model_at(parameters + 2 * step)
+            )
+            / (12 * h)
+        )
+    return np.column_stack(columns)
+
+
+def _check_result(result, x, data, family, npeak, nbackground):
+    peaks = np.asarray(result.peak_parameters)
+    background = np.asarray(result.background_parameters)
+    fitted = np.asarray(result.fitted)
+    residuals = np.asarray(result.residuals)
+    covariance = np.asarray(result.covariance)
+    nparameter = npeak * ROW_SIZE[family] + nbackground
+    assert peaks.shape == (npeak, ROW_SIZE[family])
+    assert background.shape == (nbackground,)
+    assert fitted.shape == residuals.shape == np.asarray(data).shape
+    assert covariance.shape == (nparameter, nparameter)
+    for array in (peaks, background, fitted, residuals, covariance):
+        assert np.isrealobj(array)
+        assert np.all(np.isfinite(array))
+    assert np.all(peaks[:, 0] > 0)
+    assert np.all(peaks[:, 2:] > 0)
+    assert np.all(np.diff(peaks[:, 1]) >= 0)
+    assert_allclose(fitted, _model(x, peaks, family, background), rtol=2e-10, atol=2e-10)
+    assert_allclose(residuals, np.asarray(data) - fitted, rtol=2e-12, atol=2e-12)
+    assert_allclose(covariance, covariance.T, rtol=2e-10, atol=2e-12)
+
+
+def _check_covariance_and_objective(result, x, data, family):
+    """RSS/(n-p) (J.T J)^-1 in sorted physical coordinates; unweighted optimum."""
+    peaks = np.asarray(result.peak_parameters)
+    p = np.concatenate((peaks.ravel(), result.background_parameters))
+    j = _jacobian(x, p, family, len(peaks))
+    residual = np.asarray(data) - _model(x, peaks, family, result.background_parameters)
+    norms = np.linalg.norm(j, axis=0)
+    # The test fixtures must be locally identifiable in dimensionless coordinates.
+    assert np.linalg.cond(j / norms) < 1e4
+    rss = residual @ residual
+    assert rss > 1e-8  # Nonzero noise makes covariance scale discriminating.
+    expected = np.linalg.inv(j.T @ j) * rss / (len(x) - len(p))
+    scales = np.sqrt(np.diag(expected))
+    assert np.all(scales > 0)
+    # Normalization measures every entry in its natural uncertainty units.
+    assert_allclose(
+        np.asarray(result.covariance) / np.outer(scales, scales),
+        expected / np.outer(scales, scales),
+        rtol=0.01,
+        atol=2e-4,
+    )
+    assert np.min(np.linalg.eigvalsh(np.asarray(result.covariance))) >= -1e-12
+    # J.T residual == 0 at an unconstrained, unweighted least-squares optimum.
+    assert np.max(np.abs(j.T @ residual) / (norms * np.linalg.norm(residual))) < 3e-4
+
+
+def _preserving_call(fit, data, xdata=None, **kwargs):
+    inputs = [value for value in (data, xdata, kwargs.get("guesses")) if value is not None]
+    snapshots = [np.array(value, copy=True) for value in inputs]
+    try:
+        result = fit(data, xdata, **kwargs)
+    finally:
+        for value, snapshot in zip(inputs, snapshots):
+            assert_array_equal(value, snapshot)
+    return result
+
+
+@pytest.mark.parametrize("name", ["gauss", "Gaussian", "GAUSS", "gAuSsIaN"])
+@pytest.mark.parametrize("as_list", [False, True])
+def test_s01_full_gaussian_guesses_and_schema(fit, name, as_list):
+    x = np.linspace(-6, 8, 281)
+    truth = np.array([[4.7, 0.65, 0.83]])
+    guesses = np.array([[3.9, 0.82, 1.0]])
+    y = _model(x, truth, "gauss")
+    if as_list:
+        x, y, guesses = x.tolist(), y.tolist(), guesses.tolist()
+    result = _preserving_call(fit, y, x, peak_type=name, guesses=guesses, background="none")
+    _check_result(result, x, y, "gauss", 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("name", ["lorentz", "Lorentzian", "LORENTZ", "lOrEnTzIaN"])
+def test_s02_full_lorentzian_guesses(fit, name):
+    x = np.linspace(-8, 9, 341)
+    truth = np.array([[3.4, -0.9, 1.27]])
+    y = _model(x, truth, "lorentz")
+    result = _preserving_call(
+        fit, y, x, peak_type=name, guesses=[[2.9, -0.7, 1.5]], background="none"
+    )
+    _check_result(result, x, y, "lorentz", 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("name", ["voigt", "VoIgT"])
+def test_s03_full_voigt_guesses_independent_widths(fit, name):
+    x = np.linspace(-9, 11, 401)
+    truth = np.array([[5.3, 0.35, 0.72, 0.46]])
+    y = _model(x, truth, "voigt")
+    result = _preserving_call(
+        fit, y, x, peak_type=name, guesses=[[4.6, 0.5, 0.85, 0.38]], background="none"
+    )
+    _check_result(result, x, y, "voigt", 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s04_center_guesses_joint_components(fit, family):
+    x = np.linspace(7, 31, 481)
+    truth = _rows(family)
+    y = _model(x, truth, family, [0.7])
+    centers = np.array([18.35, 14.15])
+    result = _preserving_call(fit, y, x, peak_type=family, guesses=centers)
+    _check_result(result, x, y, family, 2, 1)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.background_parameters, [0.7], rtol=PARAM_RTOL, atol=PARAM_ATOL)
+
+
+def test_s04_center_guesses_identifiable_overlap_with_one_maximum(fit):
+    x = np.linspace(-7, 8, 601)
+    truth = np.array([[3.3, -0.6, 0.8], [2.1, 0.8, 1.0]])
+    y = _model(x, truth, "gauss", [0.4])
+    assert len(find_peaks(y)[0]) == 1  # Fixture property, not a discovery promise.
+    result = _preserving_call(fit, y, x, guesses=[-0.65, 0.9])
+    _check_result(result, x, y, "gauss", 2, 1)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize(
+    "controls,count",
+    [
+        ({}, 3),
+        ({"prominence": 0.5}, 2),
+        ({"distance": 60}, 2),
+        ({"prominence": 0.1, "distance": 1.5}, 3),
+    ],
+)
+@pytest.mark.parametrize("coordinate_scale", [None, 0.01])
+def test_s05_automatic_discovery_controls_and_index_default(
+    fit, controls, count, coordinate_scale
+):
+    indices = np.arange(201, dtype=float)
+    truth = np.array([[3.5, 45, 5], [0.25, 90, 4], [2.6, 145, 6]])
+    y = _model(indices, truth, "gauss", [0.4])
+    x = indices if coordinate_scale is None else coordinate_scale * indices
+    kwargs = dict(controls)
+    if coordinate_scale is not None:
+        kwargs["xdata"] = x
+    result = _preserving_call(fit, y, **kwargs)
+    _check_result(result, x, y, "gauss", count, 1)
+    expected = truth.copy() if count == 3 else truth[[0, 2]].copy()
+    expected[:, 1:] *= 1.0 if coordinate_scale is None else coordinate_scale
+    if count == 3:
+        assert_allclose(result.peak_parameters, expected, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+        assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    else:
+        # The omitted weak component changes the optimum; only candidate count,
+        # location, reconstruction, and unweighted stationarity are promised.
+        assert_allclose(result.peak_parameters[:, 1], expected[:, 1], rtol=0, atol=0.003)
+        _check_covariance_and_objective(result, x, y, "gauss")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s06_constant_background_and_covariance(fit, family):
+    x = np.linspace(7, 31, 81)
+    truth = _rows(family)[:1]
+    y = _model(x, truth, family, [1.25]) + _noise(len(x))
+    result = _preserving_call(fit, y, x, peak_type=family, guesses=_starts(truth))
+    _check_result(result, x, y, family, 1, 1)
+    assert_allclose(result.peak_parameters, truth, rtol=0, atol=0.04)
+    assert_allclose(result.background_parameters, [1.25], rtol=0, atol=0.01)
+    _check_covariance_and_objective(result, x, y, family)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s07_linear_background_first_coordinate_origin(fit, family):
+    x = np.linspace(7, 31, 241)
+    truth = _rows(family)
+    coefficients = np.array([1.1, -0.025])
+    y = _model(x, truth, family, coefficients)
+    result = _preserving_call(
+        fit, y, x, peak_type=family, guesses=_starts(truth), background="linear"
+    )
+    _check_result(result, x, y, family, 2, 2)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.background_parameters, coefficients, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s08_no_background_multicomponent_sum(fit, family):
+    x = np.linspace(7, 31, 241)
+    truth = _rows(family)
+    y = _model(x, truth, family)
+    result = _preserving_call(
+        fit, y, x, peak_type=family, guesses=_starts(truth), background="none"
+    )
+    _check_result(result, x, y, family, 2, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_s09_nonuniform_units_full_sorted_covariance_and_storage(fit, family):
+    x = 7 + 24 * np.linspace(0, 1, 181) ** 1.8
+    truth = _rows(family)
+    y = _model(x, truth, family, [1.1, -0.025]) + _noise(len(x))
+    guesses = _starts(truth)[::-1].copy()
+    result = _preserving_call(fit, y, x, peak_type=family, guesses=guesses, background="linear")
+    _check_result(result, x, y, family, 2, 2)
+    assert_allclose(result.peak_parameters, truth, rtol=0, atol=0.05)
+    assert_allclose(result.background_parameters, [1.1, -0.025], rtol=0, atol=0.01)
+    _check_covariance_and_objective(result, x, y, family)
+    snapshots = [a.copy() for a in (x, y, guesses)]
+    for name in ("peak_parameters", "background_parameters", "covariance", "fitted", "residuals"):
+        array = np.asarray(getattr(result, name))
+        if array.size and array.flags.writeable:
+            array.flat[0] += 1
+        for original, snapshot in zip((x, y, guesses), snapshots):
+            assert_array_equal(original, snapshot)
+
+
+@pytest.fixture
+def valid_data():
+    x = np.linspace(-4, 4, 41)
+    return x, _model(x, [[3, 0.2, 0.9]], "gauss")
+
+
+@pytest.mark.parametrize("shape", [(), (41, 1), (1, 41, 1)])
+def test_s10_non_1d_data(fit, valid_data, shape):
+    x, y = valid_data
+    if shape == ():
+        # Scalar rejection also follows from too few observations; only the
+        # matrix/3-D cases independently discriminate dimension validation.
+        data, x = y[0], x[:1]
+    else:
+        data = y.reshape(shape)
+    with pytest.raises(ValueError):
+        fit(data, x, guesses=[[3, 0.2, 0.9]], background="none")
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+def test_s11_nonfinite_data(fit, valid_data, value):
+    x, y = valid_data
+    y[10] = value
+    with pytest.raises(ValueError):
+        fit(y, x, guesses=[0.2])
+
+
+@pytest.mark.parametrize("imaginary", [0, 0.1])
+def test_s12_complex_data(fit, valid_data, imaginary):
+    x, y = valid_data
+    y = y.astype(complex)
+    y[10] += imaginary * 1j
+    with pytest.raises(ValueError):
+        fit(y, x, guesses=[0.2])
+
+
+@pytest.mark.parametrize("shape", ["scalar", "matrix", "short", "long"])
+def test_s13_coordinate_shape_length(fit, valid_data, shape):
+    x, y = valid_data
+    coordinates = {
+        "scalar": x[0],
+        "matrix": x.reshape(41, 1),
+        "short": x[:-1],
+        "long": np.append(x, x[-1] + (x[-1] - x[-2])),
+    }[shape]
+    with pytest.raises(ValueError):
+        fit(y, coordinates, guesses=[[3, 0.2, 0.9]], background="none")
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf, 1j, 0j])
+def test_s14_coordinate_real_finite_domain(fit, valid_data, value):
+    x, y = valid_data
+    if isinstance(value, complex):
+        x = x.astype(complex)
+        x[10] += value
+    else:
+        x[10] = value
+    with pytest.raises(ValueError):
+        fit(y, x, guesses=[0.2])
+
+
+@pytest.mark.parametrize("change", ["duplicate", "descending", "one_reversal"])
+def test_s15_strict_coordinate_order(fit, valid_data, change):
+    x, y = valid_data
+    if change == "duplicate":
+        x[10] = x[9]
+    elif change == "descending":
+        x = x[::-1]
+    else:
+        x[[10, 11]] = x[[11, 10]]
+    with pytest.raises(ValueError):
+        fit(y, x, guesses=[0.2])
+
+
+@pytest.mark.parametrize(
+    "guesses",
+    [[], np.empty((0, 3)), np.empty((1, 0)), 0.2, np.ones((1, 1, 3)), [[1, 0, 1], [2, 0]]],
+)
+def test_s16_empty_or_malformed_guesses(fit, valid_data, guesses):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=guesses)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("delta", [-1, 1])
+def test_s16_wrong_full_guess_row_width(fit, valid_data, family, delta):
+    guesses = np.ones((1, ROW_SIZE[family] + delta))
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], peak_type=family, guesses=guesses)
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf, 1j, 0j])
+@pytest.mark.parametrize("centers_only", [False, True])
+def test_s17_guess_real_finite_domain(fit, valid_data, value, centers_only):
+    guesses = [value] if centers_only else [[3, value, 0.9]]
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=guesses)
+
+
+@pytest.mark.parametrize(
+    "family,field",
+    [
+        ("gauss", 0),
+        ("gauss", 2),
+        ("lorentz", 0),
+        ("lorentz", 2),
+        ("voigt", 0),
+        ("voigt", 2),
+        ("voigt", 3),
+    ],
+)
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf, 1j, 0j])
+def test_s17_nonfinite_amplitude_or_width(fit, valid_data, family, field, value):
+    guesses = np.ones(
+        (1, ROW_SIZE[family]), dtype=complex if isinstance(value, complex) else float
+    )
+    guesses[0, field] = value
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], peak_type=family, guesses=guesses)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("value", [0, -1])
+def test_s18_nonpositive_initial_amplitude(fit, valid_data, family, value):
+    guesses = np.ones((1, ROW_SIZE[family]))
+    guesses[0, 0] = value
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], peak_type=family, guesses=guesses)
+
+
+@pytest.mark.parametrize(
+    "family,field", [("gauss", 2), ("lorentz", 2), ("voigt", 2), ("voigt", 3)]
+)
+@pytest.mark.parametrize("value", [0, -0.5])
+def test_s19_nonpositive_initial_width(fit, valid_data, family, field, value):
+    guesses = np.ones((1, ROW_SIZE[family]))
+    guesses[0, field] = value
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], peak_type=family, guesses=guesses)
+
+
+@pytest.mark.parametrize("family", ["gauss", "lorentz"])
+@pytest.mark.parametrize("side", ["left", "right"])
+@pytest.mark.parametrize("initial_outside", [False, True])
+def test_s20_free_initial_and_fitted_edge_tail_centers(fit, family, side, initial_outside):
+    x = np.linspace(0, 6, 241)
+    center = -0.4 if side == "left" else 6.4
+    start = (
+        (-0.65 if initial_outside else 0.15)
+        if side == "left"
+        else (6.65 if initial_outside else 5.85)
+    )
+    truth = np.array([[3.5, center, 1.1]])
+    y = _model(x, truth, family)
+    result = _preserving_call(
+        fit, y, x, peak_type=family, guesses=[[3.1, start, 0.95]], background="none"
+    )
+    _check_result(result, x, y, family, 1, 0)
+    assert_allclose(result.peak_parameters, truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(result.fitted, y, rtol=0, atol=MODEL_ATOL)
+    assert result.peak_parameters[0, 1] < x[0] or result.peak_parameters[0, 1] > x[-1]
+
+
+@pytest.mark.parametrize("value", ["voight", "mixed", "", None, 3, ["gauss"]])
+def test_s21_invalid_profile(fit, valid_data, value):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=[0.2], peak_type=value)
+
+
+@pytest.mark.parametrize("value", ["quadratic", "", None, 3, ["constant"]])
+def test_s22_invalid_background(fit, valid_data, value):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=[0.2], background=value)
+
+
+@pytest.mark.parametrize("value", [-1, np.nan, np.inf, -np.inf, 1j, "high", [0, 10]])
+def test_s23_invalid_prominence(fit, valid_data, value):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], prominence=value)
+
+
+@pytest.mark.parametrize("value", [0, 0.5, np.nan, np.inf, -np.inf, 1j, "far", [2, 3]])
+def test_s24_invalid_distance(fit, valid_data, value):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], distance=value)
+
+
+@pytest.mark.parametrize("guesses", [[0.2], [[3, 0.2, 0.9]]])
+@pytest.mark.parametrize(
+    "control", [{"prominence": 0}, {"distance": 1}, {"prominence": 0.1, "distance": 2}]
+)
+def test_s25_explicit_guesses_reject_discovery_controls(fit, valid_data, guesses, control):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=guesses, **control)
+
+
+@pytest.mark.parametrize("data", [np.zeros(41), np.arange(41), -np.arange(41)])
+def test_s26_no_local_maxima(fit, data):
+    with pytest.raises(ValueError):
+        fit(data)
+
+
+def test_s26_no_peaks_meet_prominence(fit, valid_data):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], prominence=10)
+
+
+def test_s27_empty_data(fit):
+    with pytest.raises(ValueError):
+        fit([])
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize("background,nbackground", [("none", 0), ("constant", 1), ("linear", 2)])
+@pytest.mark.parametrize("sample_delta", [-1, 0])
+@pytest.mark.parametrize("npeak", [1, 2])
+def test_s27_positive_residual_degrees_of_freedom(
+    fit, family, background, nbackground, sample_delta, npeak
+):
+    n = npeak * ROW_SIZE[family] + nbackground + sample_delta
+    x = np.linspace(-2, 2, n)
+    guesses = [[3, 0.2, 0.9]] if family != "voigt" else [[3, 0.2, 0.9, 0.4]]
+    if npeak == 2:
+        guesses.append([2, -0.7, 0.6] if family != "voigt" else [2, -0.7, 0.6, 0.3])
+    y = _model(x, guesses, family)
+    with pytest.raises(ValueError):
+        fit(y, x, peak_type=family, guesses=guesses, background=background)
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, np.nan, np.inf, "10", None, [10]])
+def test_s28_invalid_evaluation_limit(fit, valid_data, value):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=[0.2], max_nfev=value)
+
+
+def test_s29_exhausted_default_optimizer_preserves_inputs(fit):
+    x = np.linspace(-6, 6, 121)
+    y = _model(x, [[4, 0.4, 0.9]], "gauss")
+    guesses = np.array([[1.0, 2.0, 3.0]])
+    with pytest.raises(RuntimeError):
+        _preserving_call(fit, y, x, guesses=guesses, background="none", max_nfev=1)
+
+
+def test_s29_failed_custom_status_preserves_inputs(fit, valid_data):
+    def nonconvergent(residual, initial, *, bounds, max_nfev):
+        return SimpleNamespace(
+            x=np.asarray(initial).copy(), success=False, message="evaluation limit reached"
+        )
+
+    with pytest.raises(RuntimeError):
+        _preserving_call(
+            fit,
+            valid_data[1],
+            valid_data[0],
+            guesses=np.array([[3, 0.2, 0.9]]),
+            optimizer=nonconvergent,
+        )
+
+
+def test_s30_default_is_real_lm_with_positive_domain_and_free_centers():
+    # A fresh process observes the public SciPy dependency before product import,
+    # including implementations using a direct imported solver binding.
+    script = r"""
+import warnings
+warnings.formatwarning = lambda message, category, filename, lineno, line=None: (
+    f"{category.__name__}: {message} ({filename}:{lineno})\n"
+)
+import sys
+import traceback
+sys.excepthook = lambda kind, value, tb: traceback.print_exception(kind, value, None, limit=0)
+import json
+import numpy as np
+import scipy.optimize as optimize
+real_solver = optimize.least_squares
+calls = []
+def observed_solver(*args, **kwargs):
+    calls.append(kwargs.get("method", "trf"))
+    return real_solver(*args, **kwargs)
+optimize.least_squares = observed_solver
+from dphtools.utils.fitfuncs import spectrum_fit
+x = np.linspace(0, 6, 241)
+y = 3.5 * np.exp(-0.5 * ((x + 0.4) / 1.1)**2)
+a = spectrum_fit(y, x, guesses=[[3.1, 0.15, 0.95]], background="none")
+b = spectrum_fit(y, x, guesses=[[3.1, 0.15, 0.95]], background="none", optimizer="lm")
+print("SPECTRUM_LM_EVIDENCE=" + json.dumps({
+    "methods": calls, "default": np.asarray(a.peak_parameters).tolist(),
+    "explicit": np.asarray(b.peak_parameters).tolist(),
+    "fitted": np.asarray(a.fitted).tolist(),
+}))
+"""
+    child = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, env=os.environ.copy()
+    )
+    # Retain all warnings, messages, and the child exit status, without source.
+    print("LM probe exit status:", child.returncode)
+    if child.stderr:
+        print(child.stderr, end="")
+    records = []
+    for line in child.stdout.splitlines():
+        if line.startswith("SPECTRUM_LM_EVIDENCE="):
+            records.append(json.loads(line.split("=", 1)[1]))
+        else:
+            print(line)
+    assert child.returncode == 0
+    assert len(records) == 1
+    evidence = records[0]
+    assert len(evidence["methods"]) >= 2
+    assert set(evidence["methods"]) == {"lm"}
+    truth = [[3.5, -0.4, 1.1]]
+    assert_allclose(evidence["default"], truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(evidence["explicit"], truth, rtol=PARAM_RTOL, atol=PARAM_ATOL)
+    assert_allclose(evidence["default"], evidence["explicit"], rtol=2e-8, atol=2e-8)
+    x = np.linspace(0, 6, 241)
+    assert_allclose(evidence["fitted"], _model(x, truth, "gauss"), rtol=0, atol=MODEL_ATOL)
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+@pytest.mark.parametrize(
+    "background,coefficients", [("none", ()), ("constant", (1.1,)), ("linear", (1.1, -0.025))]
+)
+def test_s31_custom_optimizer_physical_protocol_and_covariance(
+    fit, family, background, coefficients
+):
+    x = 7 + 24 * np.linspace(0, 1, 161) ** 1.8
+    truth = _rows(family)
+    y = _model(x, truth, family, coefficients) + _noise(len(x))
+    guesses = _starts(truth)[::-1].copy()
+    size = guesses.size
+    n = size + len(coefficients)
+    calls = []
+
+    def adapter(residual, initial, *, bounds, max_nfev):
+        initial = np.asarray(initial)
+        assert initial.shape == (n,)
+        assert np.isrealobj(initial) and np.all(np.isfinite(initial))
+        assert_allclose(initial[:size], guesses.ravel(), rtol=0, atol=0)
+        lower, upper = map(np.asarray, bounds)
+        expected_lower = np.full(n, -np.inf)
+        for i in range(len(guesses)):
+            base = i * ROW_SIZE[family]
+            expected_lower[base] = 0
+            expected_lower[base + 2 : base + ROW_SIZE[family]] = 0
+        assert_array_equal(lower, expected_lower)
+        assert_array_equal(upper, np.full(n, np.inf))
+        assert max_nfev == 2345
+        # Physical parameter ordering stays fixed even though centers are unsorted.
+        for shift in (0.0, 0.17):
+            trial = initial.copy()
+            trial[0] += shift
+            trial[1] -= shift
+            trial[2] += shift
+            if family == "voigt":
+                trial[3] += 0.5 * shift
+            if len(coefficients):
+                trial[size] -= shift
+            if len(coefficients) == 2:
+                trial[-1] += 0.1 * shift
+            values = residual(trial)
+            assert np.asarray(values).shape == y.shape
+            assert_allclose(
+                values,
+                y - _model(x, trial[:size].reshape(guesses.shape), family, trial[size:]),
+                rtol=2e-10,
+                atol=2e-10,
+            )
+        solution = least_squares(residual, initial, bounds=bounds, max_nfev=max_nfev, method="trf")
+        calls.append(solution.success)
+        # Deliberately supply no Jacobian or covariance: the fitter owns them.
+        return SimpleNamespace(
+            x=solution.x, success=bool(solution.success), message=solution.message
+        )
+
+    result = _preserving_call(
+        fit,
+        y,
+        x,
+        peak_type=family,
+        guesses=guesses,
+        background=background,
+        optimizer=adapter,
+        max_nfev=2345,
+    )
+    assert calls and all(calls)
+    _check_result(result, x, y, family, 2, len(coefficients))
+    assert_allclose(result.peak_parameters, truth, rtol=0, atol=0.05)
+    if len(coefficients):
+        assert_allclose(result.background_parameters, coefficients, rtol=0, atol=0.01)
+    _check_covariance_and_objective(result, x, y, family)
+
+
+@pytest.mark.parametrize("optimizer", ["trf", "dogbox", "LM", None, 42, ["lm"]])
+def test_s32_invalid_optimizer_selection(fit, valid_data, optimizer):
+    with pytest.raises(ValueError):
+        fit(valid_data[1], valid_data[0], guesses=[0.2], optimizer=optimizer)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "none",
+        "missing_x",
+        "missing_success",
+        "matrix",
+        "scalar",
+        "short",
+        "long",
+        "nan",
+        "inf",
+        "complex",
+        "success_string",
+        "success_integer",
+        "background_nan",
+    ],
+)
+def test_s33_malformed_custom_optimizer_output(fit, valid_data, defect):
+    def malformed(residual, initial, *, bounds, max_nfev):
+        p = np.asarray(initial).copy()
+        if defect == "none":
+            return None
+        if defect == "missing_x":
+            return SimpleNamespace(success=True)
+        if defect == "missing_success":
+            return SimpleNamespace(x=p)
+        if defect == "matrix":
+            p = p.reshape(1, -1)
+        elif defect == "scalar":
+            p = 1.0
+        elif defect == "short":
+            p = p[:-1]
+        elif defect == "long":
+            p = np.append(p, 0.0)
+        elif defect == "nan":
+            p[0] = np.nan
+        elif defect == "inf":
+            p[1] = np.inf
+        elif defect == "complex":
+            p = p.astype(complex)
+            p[0] += 1j
+        elif defect == "background_nan":
+            p[-1] = np.nan
+        success = (
+            "True" if defect == "success_string" else 1 if defect == "success_integer" else True
+        )
+        return SimpleNamespace(x=p, success=success)
+
+    with pytest.raises(RuntimeError):
+        _preserving_call(
+            fit,
+            valid_data[1],
+            valid_data[0],
+            guesses=np.array([[3, 0.2, 0.9]]),
+            optimizer=malformed,
+        )
+
+
+@pytest.mark.parametrize(
+    "family,field",
+    [
+        ("gauss", 0),
+        ("gauss", 2),
+        ("lorentz", 0),
+        ("lorentz", 2),
+        ("voigt", 0),
+        ("voigt", 2),
+        ("voigt", 3),
+    ],
+)
+@pytest.mark.parametrize("value", [0, -0.1])
+def test_s33_invalid_final_positive_domain_and_input_storage(
+    fit, valid_data, family, field, value
+):
+    guesses = np.array([[3, 0.2, 0.9]]) if family != "voigt" else np.array([[3, 0.2, 0.9, 0.4]])
+
+    def invalid(residual, initial, *, bounds, max_nfev):
+        p = np.asarray(initial).copy()
+        p[field] = value
+        # Writable working storage must not alias caller guesses. R3 does not
+        # require the supplied initial array itself to be writable.
+        working = np.asarray(initial)
+        if working.flags.writeable:
+            working[: len(guesses.ravel())] = 9.0
+        return SimpleNamespace(x=p, success=True)
+
+    with pytest.raises(RuntimeError):
+        _preserving_call(
+            fit, valid_data[1], valid_data[0], peak_type=family, guesses=guesses, optimizer=invalid
+        )
