@@ -58,24 +58,39 @@ def _estimate_rows(data, x, centers, baseline, family):
     return np.array(rows)
 
 
-def _covariance(residual, parameters, positive, dof):
+def _covariance(residual, parameters, scales, data_scale, dof):
     """Calculate residual-scaled covariance in physical parameter coordinates."""
-    steps = np.cbrt(np.finfo(float).eps) * np.maximum(1, np.abs(parameters))
-    steps[positive] = np.minimum(steps[positive], parameters[positive] / 2)
+    # Differentiate on local parameter scales, rather than an absolute x-unit
+    # floor. Work in dimensionless columns until restoring physical covariance.
+    steps = np.cbrt(np.finfo(float).eps) * scales
+    if not np.isfinite(steps).all() or np.any(steps <= 0):
+        raise RuntimeError("Spectrum covariance differences are not representable")
     jacobian = []
     for index, step in enumerate(steps):
         delta = np.zeros_like(parameters)
         delta[index] = step
-        jacobian.append((residual(parameters + delta) - residual(parameters - delta)) / (2 * step))
+        upper, lower = parameters + delta, parameters - delta
+        span = (upper[index] - lower[index]) / scales[index]
+        jacobian.append((residual(upper) / data_scale - residual(lower) / data_scale) / span)
     jacobian = np.column_stack(jacobian)
-    _, singular, vectors = np.linalg.svd(jacobian, full_matrices=False)
+    if not np.isfinite(jacobian).all():
+        raise RuntimeError("Spectrum covariance Jacobian is not finite")
+    norms = np.max(np.abs(jacobian), axis=0)
+    jacobian /= np.where(norms > 0, norms, 1)
+    try:
+        _, singular, vectors = np.linalg.svd(jacobian, full_matrices=False)
+    except np.linalg.LinAlgError as error:
+        raise RuntimeError("Spectrum covariance decomposition failed") from error
     threshold = np.finfo(float).eps * max(jacobian.shape) * singular[0]
     if np.any(singular <= threshold):
         warnings.warn("Spectrum parameter covariance could not be estimated", OptimizeWarning)
         return np.full((parameters.size, parameters.size), np.inf)
-    covariance = (vectors.T / singular**2) @ vectors
-    errors = residual(parameters)
-    return covariance * (errors @ errors) / dof
+    error_scale = np.linalg.norm(residual(parameters) / data_scale) / np.sqrt(dof)
+    factor = (vectors.T / singular) * (error_scale / norms)[:, None] * scales[:, None]
+    covariance = factor @ factor.T
+    if not np.isfinite(covariance).all():
+        raise RuntimeError("Spectrum covariance is not representable")
+    return covariance
 
 
 def spectrum_fit(
@@ -237,7 +252,10 @@ def spectrum_fit(
             model += parameters[size]
         if nbackground == 2:
             model += parameters[size + 1] * elapsed
-        return data - model
+        errors = data - model
+        if not np.isfinite(errors).all():
+            raise RuntimeError("Spectrum residual is not finite")
+        return errors
 
     if default_optimizer:
 
@@ -281,7 +299,17 @@ def spectrum_fit(
         raise RuntimeError("Malformed optimizer parameters") from error
     if parameters.shape != (nparameter,) or np.any(parameters[positive] <= 0):
         raise RuntimeError("Optimizer returned parameters outside the physical domain")
-    covariance = _covariance(residual, parameters, positive, data.size - nparameter)
+    scales = np.abs(parameters)
+    peak_scales = scales[:size].reshape(npeak, row_size)
+    # A center perturbation follows its component's width, even at center zero
+    # or after translating the coordinate origin.
+    peak_scales[:, 1] = np.max(peak_scales[:, 2:], axis=1)
+    data_scale = max(np.max(np.abs(data)), np.max(peak_scales[:, 0]))
+    if nbackground:
+        scales[size] = data_scale
+    if nbackground == 2:
+        scales[size + 1] = data_scale / elapsed[-1]
+    covariance = _covariance(residual, parameters, scales, data_scale, data.size - nparameter)
     order = np.argsort(parameters[:size].reshape(npeak, row_size)[:, 1], kind="stable")
     permutation = np.r_[
         np.arange(size).reshape(npeak, row_size)[order].ravel(), np.arange(size, nparameter)
