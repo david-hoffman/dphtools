@@ -1,0 +1,58 @@
+# SPECTRUM-FITTING-001 — B packet
+
+Role: fresh root B, using .agents/skills/review-work/SKILL.md in tests mode only.
+
+Approved slice: SPECTRUM-FITTING-001, public contract R3, scenarios S01-S33.
+Owner explicitly approved R3 and the 33-scenario exception on 2026-10-05.
+One checkpoint lineage. Approved runtime baseline: a835a490373835fa01e4460ce2159365150d1946.
+Behavior and expectation sources: docs/tasks/SPECTRUM-FITTING-001-contract.md only.
+No fixed owner execution time/token cap was supplied; report usage if available.
+Default A/B window: at most two review rounds. Initial C plus one C repair; A/B
+cannot replenish that allowance. No scope expansion, PR, push, merge, or release.
+
+Permitted inputs: this packet; the approved public contract; root AGENTS.md;
+selected role skill; setup.cfg sections giving test/check conventions; approved
+primary references linked by the contract. Use the existing NumPy/SciPy stack,
+pytest-compatible tests, synthetic data, and the real public function.
+Forbidden reads: dphtools product source, product history/diffs, existing product
+tests/oracles, docs/PROJECT.md, the task execution record, other role transcripts,
+and existing LESSONS entries. Reading LESSONS/README.md only is allowed if needed.
+Do not use Superpowers, optional memory, delegation, or implementation helpers.
+A/B restrictions are procedural, not engineered filesystem isolation.
+
+Before any public-API probe/test, configure source-free warnings and tracebacks.
+Use a Python launcher that sets warnings.formatwarning to category/message and
+filename/line only, then invokes pytest with -p no:warnings --tb=no. Do not hide
+warnings, diagnostic messages, failure counts, or the exit status. A useful
+launcher is:
+
+```python
+import warnings
+warnings.formatwarning = lambda message, category, filename, lineno, line=None: (
+    f"{category.__name__}: {message} ({filename}:{lineno})\n"
+)
+import pytest
+raise SystemExit(pytest.main([
+    "tests/test_spectrum_fitting.py", "-p", "no:warnings", "--tb=no", "-q", "-ra"
+]))
+```
+
+Interpreter: /Users/davidhoffman/Documents/GitHub/dphtools/.venv/bin/python.
+Set MPLBACKEND=Agg and MPLCONFIGDIR to a writable temporary directory. Importing
+the existing public module is permitted without reading its source. Do not add
+product stubs or weaken checks. Disclose any accidental source exposure; a later
+clean run does not restore that session's blindness. Classify observed failures:
+environment/tooling, test defect, product defect, or unresolved requirement.
+
+Additional permitted inputs: A's proposed tests/test_spectrum_fitting.py and
+public mapping/tolerance report docs/tasks/SPECTRUM-FITTING-001-tests.md, identified
+by the coordinator's checkpoint hashes. Do not read A's conversation/logs.
+Requested output: a read-only independent review of all S01-S33 mappings,
+expectation sources, conditioning, tolerances in both directions, custom oracle
+logic, input validation discrimination, and real public-call coverage. Do not fix
+or edit tests or product files. Reject accidental extra requirements, unrelated
+error-path successes, source-derived oracles, and nondiscriminating assertions.
+Return ACCEPT with identified test hashes and valid baseline evidence, or concrete
+REJECT findings/contract gaps. This is review round 1 of 2. After the second
+nonacceptance, diagnose before another rewrite. Completion: acceptance or specific
+evidenced defects/blocker with classification and source-exposure disclosure.

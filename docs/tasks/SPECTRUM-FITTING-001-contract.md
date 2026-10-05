@@ -1,6 +1,6 @@
 # SPECTRUM-FITTING-001 public contract
 
-**Version 1.0. Contract revision R3 — draft pending owner approval.**
+**Version 1.0. Contract revision R3 — approved by owner on 2026-10-05.**
 This is the public behavior packet. It contains no implementation or task status.
 
 ## Purpose and scope
@@ -170,9 +170,9 @@ silently drop nonfinite samples or return a baseline-only fit for no peaks.
   Levenberg-Marquardt optimizer and allow a custom optimizer.
 - Owner constraint choice on 2026-10-05: positive amplitudes/widths, with freely
   moving centers; retain positivity through internal transforms for default LM.
-- Proposed width conventions, schema, custom-optimizer protocol, and failure
-  choices above need owner approval of this R3 before test authoring or
-  implementation.
+- Owner approval on 2026-10-05: "Approve R3 and the 33-scenario exception."
+  This approves the complete contract, including width conventions, schema,
+  custom-optimizer protocol, failures, and one coherent 33-scenario slice.
 - [SciPy 1.15.3 Voigt definition](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.special.voigt_profile.html)
   gives the normalized Gaussian/Cauchy convolution and sigma/gamma convention.
 - [SciPy peak discovery](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.signal.find_peaks.html)
@@ -190,8 +190,9 @@ silently drop nonfinite samples or return a baseline-only fit for no peaks.
 ## Contract scenarios
 
 This is one coherent fitting slice with 33 explicit scenarios, exceeding the
-five-scenario default. Owner approval of the size exception is pending. Profile
-and data variants within a row may exercise that same approved behavior. A must
+five-scenario default. The owner explicitly approved the 33-scenario exception
+on 2026-10-05. Profile and data variants within a row may exercise that same
+approved behavior. A must
 supply public-entry-point mappings and justified tolerances; B reviews both.
 
 | ID | Input/context and observable outcome | Expectation source |
