@@ -7,7 +7,7 @@ from pathlib import Path
 import site
 import sys
 
-from verification_inputs import CHECK_VERSION, digest, file_hash
+from verification_inputs import CHECK_VERSION, coverage_startup_identity, digest, file_hash
 
 # Audited startup hooks from the unchanged setuptools/coverage verification lock.
 KNOWN_STARTUP_HOOKS = {
@@ -23,6 +23,9 @@ KNOWN_STARTUP_HOOKS = {
 
 def runtime_identity(root):
     """Recheck exact interpreter/dependency bytes; decline uncontrolled imports."""
+    startup = coverage_startup_identity(root)
+    if startup is not None and startup["sha256"] is None:
+        return None
     if os.environ.get("PYTHONPATH") or os.environ.get("PYTHONHOME"):
         return None
     if Path(site.getusersitepackages()).exists():

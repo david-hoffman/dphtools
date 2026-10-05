@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import hashlib
+import tempfile
 import venv
 from numpy._core import _multiarray_umath as native_module
 from importlib.machinery import EXTENSION_SUFFIXES
@@ -751,3 +752,158 @@ def test_real_venv_reuses_exact_windows_hook_and_rechecks_changed_bytes(reuse_co
     assert unknown["steps"][-1]["input_identity"]["runtime"] is None
     assert unknown["steps"][-1]["reuse_rejection"]
     assert installed.read_bytes() == original_installed
+
+
+@pytest.fixture
+def startup_command(reuse_command, tmp_path):
+    """Run unchanged owned startup code from a genuinely private interpreter."""
+    root, env, _ = reuse_command
+    prefix = tmp_path / "startup-environment"
+    venv.EnvBuilder(with_pip=False, system_site_packages=True).create(prefix)
+    executable = prefix / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    site = subprocess.run(
+        [str(executable), "-c", "import site; print(site.getsitepackages()[0])"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    (root / "tools/__init__.py").write_text('"""Owned startup instrumentation."""\n')
+    (root / "tools/audit_probe.py").write_text(
+        '"""An immutable plugin controlled by the active coverage configuration."""\n\n'
+        "import sys\n\n\n"
+        "def coverage_init(reg, options):\n"
+        '    """Apply configuration only to the actual docstring check child."""\n'
+        '    if "pydocstyle" in sys.orig_argv and options.get("fail_doc") == "yes":\n'
+        "        raise SystemExit(7)\n"
+    )
+    shutil.copytree(root / "tools", Path(site.stdout.strip()) / "tools")
+    env.pop("COVERAGE_PROCESS_CONFIG", None)
+
+    def run(receipt=None, expected=0):
+        previous = set((root / "reports/verification").glob("*/checks.json"))
+        args = [str(executable), str(root / "tools/verification.py"), "fast"]
+        if receipt is not None:
+            args.extend(["--reuse", str(receipt)])
+        # The verifier's checks use root even when its caller uses another directory.
+        result = subprocess.run(
+            args, cwd=ROOT, env=env, text=True, capture_output=True, timeout=60
+        )
+        assert result.returncode == expected, result.stdout + result.stderr
+        paths = set((root / "reports/verification").glob("*/checks.json")) - previous
+        assert len(paths) == 1, result.stdout + result.stderr
+        path = paths.pop()
+        return path, json.loads(path.read_text())
+
+    return root, env, run
+
+
+@pytest.mark.parametrize("location", ["absolute", "relative", "create"])
+def test_active_coverage_configuration_change_executes_new_failure(startup_command, location):
+    """External startup options must invalidate an otherwise identical passing check."""
+    root, env, run = startup_command
+    with tempfile.TemporaryDirectory(prefix="reuse-startup-config-") as directory:
+        config = (
+            root.parent / "startup.coveragerc"
+            if location == "relative"
+            else Path(directory) / "startup.coveragerc"
+        )
+        env["COVERAGE_PROCESS_START"] = (
+            "../startup.coveragerc" if location == "relative" else str(config)
+        )
+        options = (
+            "[run]\nbranch = True\nparallel = True\ninclude = */tools/*.py\n"
+            "plugins = tools.audit_probe\n\n[tools.audit_probe]\nfail_doc = "
+        )
+        if location != "create":
+            config.write_text(options + "no\n")
+        original, before = run()
+        if location != "create":
+            _, reused = run(original)
+            assert reused["steps"][-1]["state"] == "reused"
+        config.write_text(options + "yes\n")
+        current, after = run(original, expected=1)
+        step = after["steps"][-1]
+        assert step["state"] == "failed" and step["returncode"] == 1
+        assert step["command"] == before["steps"][-1]["command"]
+        assert "inputs changed" in step["reuse_rejection"]
+        assert "SystemExit: 7" in (current.parent / step["log"]["path"]).read_text()
+        assert after["identity"]["coverage_startup"] == {
+            "path": str(config.resolve()),
+            "sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        }
+        if location == "create":
+            assert before["steps"][-1]["input_identity"]["runtime"] is None
+
+
+def test_startup_configuration_identity_handles_presence_paths_and_unknown_bytes(
+    reuse_command, tmp_path
+):
+    """Use the same public identity functions as the verifier without runtime seams."""
+    root, env, _ = reuse_command
+    configuration = root.parent / "external.coveragerc"
+    caller = tmp_path / "different-caller"
+    caller.mkdir()
+    script = r"""
+import hashlib, os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from verification_inputs import input_identity
+from verification_reuse import runtime_identity
+root, config = map(Path, sys.argv[2:])
+def identity():
+    return input_identity(root, [])['coverage_startup']
+os.environ.pop('COVERAGE_PROCESS_START', None)
+os.environ.pop('COVERAGE_PROCESS_CONFIG', None)
+assert identity() is None
+os.environ['COVERAGE_PROCESS_START'] = ''
+assert identity() is None
+os.environ['COVERAGE_PROCESS_START'] = '../external.coveragerc'
+assert identity() == {'path': str(config.resolve()), 'sha256': None}
+assert runtime_identity(root) is None, 'Missing configuration cannot provide reusable evidence'
+config.write_text('[run]\nbranch = True\n')
+first = identity()
+assert first == {'path': str(config.resolve()), 'sha256': hashlib.sha256(config.read_bytes()).hexdigest()}
+config.write_text('[run]\nbranch = False\n')
+assert identity() != first
+os.environ['COVERAGE_PROCESS_START'] = str(config)
+assert identity()['path'] == str(config.resolve())
+config.unlink()
+assert identity()['sha256'] is None
+assert runtime_identity(root) is None
+config.mkdir()
+assert identity()['sha256'] is None, 'An unreadable configuration is unidentified'
+assert runtime_identity(root) is None
+for inline in ('', 'inline takes priority even when the file is unreadable'):
+    os.environ['COVERAGE_PROCESS_CONFIG'] = inline
+    assert identity() is None, 'Inline presence, not truthiness, selects the active input'
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(root / "tools"), str(root), str(configuration)],
+        cwd=caller,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_inline_coverage_configuration_preserves_reuse_with_inactive_file(reuse_command):
+    """The pinned hook prioritizes serialized options over the external file."""
+    from coverage.config import CoverageConfig
+
+    root, env, run = reuse_command
+    configuration = root.parent / "inactive.coveragerc"
+    env["COVERAGE_PROCESS_START"] = str(configuration)
+    options = CoverageConfig()
+    options.branch = options.parallel = True
+    options.include = ["*/tools/*.py"]
+    options.data_file = env.get("COVERAGE_FILE", str(root.parent / "inline.coverage"))
+    env["COVERAGE_PROCESS_CONFIG"] = options.serialize()
+    original, before = run()
+    assert before["identity"]["coverage_startup"] is None
+    configuration.write_text("An unreadable coverage configuration.\n")
+    _, after = run(original)
+    assert after["steps"][-1]["state"] == "reused"
+    assert after["identity"]["coverage_startup"] is None

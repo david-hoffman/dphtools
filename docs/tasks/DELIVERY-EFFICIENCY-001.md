@@ -78,6 +78,13 @@ and Linux/macOS/Windows verification.
   SHA is in the unchanged lock. Accept only both audited exact hook hashes;
   keep runtime byte identities and unknown-hook rejection. Private-environment
   regression proof and complete Windows CI remain required for this correction.
+  Fresh review then reproduced a false cache hit after an external active
+  COVERAGE_PROCESS_START configuration changed. The path value was bound but its
+  bytes were not. Approval was withdrawn. Inputs now bind the active file's
+  resolved path and exact bytes, respect inline configuration precedence, and
+  decline reuse when the file is unidentified, preserving subprocess measurement.
+  The preceding passing full reference
+  and platform run are superseded trials, never approval of the repaired source.
   Re-review and a fresh full reference on the final repaired candidate remain
   required. An initial full run stopped at a read-only audit cache; a
   writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for

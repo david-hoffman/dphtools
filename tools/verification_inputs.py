@@ -22,6 +22,19 @@ def file_hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def coverage_startup_identity(root):
+    """Bind the active file consumed by the audited coverage startup hook."""
+    configuration = os.environ.get("COVERAGE_PROCESS_START")
+    if not configuration or os.environ.get("COVERAGE_PROCESS_CONFIG") is not None:
+        return None
+    path = (root / configuration).resolve()
+    try:
+        hashed = file_hash(path)
+    except OSError:
+        hashed = None
+    return {"path": str(path), "sha256": hashed}
+
+
 def input_identity(root, sources):
     """Bind source, tests, configuration, tools, lock, and installed environment."""
     paths = {root / source for source in sources}
@@ -102,6 +115,7 @@ def input_identity(root, sources):
         "inputs": inputs,
         "environment": environment,
         "coverage_settings": inputs.get("setup.cfg"),
+        "coverage_startup": coverage_startup_identity(root),
     }
 
 
