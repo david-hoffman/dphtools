@@ -21,10 +21,33 @@ KNOWN_STARTUP_HOOKS = {
 }
 
 
+def startup_configuration_is_closed(root):
+    """Decline custom startup plugins and configurations that cannot be identified."""
+    inline = os.environ.get("COVERAGE_PROCESS_CONFIG")
+    filename = os.environ.get("COVERAGE_PROCESS_START")
+    if inline is None and not filename:
+        return True
+    try:
+        from coverage.config import CoverageConfig, read_coverage_config
+
+        if inline is not None:
+            configuration = CoverageConfig.deserialize(inline)
+        else:
+            if filename == ".coveragerc" or os.environ.get("COVERAGE_FORCE_CONFIG"):
+                return False
+            configuration = read_coverage_config(str(root / filename), warn=lambda message: None)
+        return configuration.plugins == []
+    except Exception:
+        # Any import/read/parse failure leaves the startup configuration unidentified.
+        return False
+
+
 def runtime_identity(root):
     """Recheck exact interpreter/dependency bytes; decline uncontrolled imports."""
     startup = coverage_startup_identity(root)
     if startup is not None and startup["sha256"] is None:
+        return None
+    if not startup_configuration_is_closed(root):
         return None
     if os.environ.get("PYTHONPATH") or os.environ.get("PYTHONHOME"):
         return None

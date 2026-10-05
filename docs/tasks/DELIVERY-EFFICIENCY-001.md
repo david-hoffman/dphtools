@@ -19,80 +19,47 @@ and Linux/macOS/Windows verification.
 
 ## Current state
 
-- Owner authorized all four implementation phases, delivery instructions, tests,
-  tooling, CI, codex-main protection, commit/push/PR, and merge after fresh
-  independent review and complete platform CI. No release is authorized.
+- Owner authorized all four phases, delivery instructions, tests, tooling, CI,
+  codex-main protection, commit/push/PR, and merge after independent review and
+  complete platform CI. No release is authorized. This is routine maintenance;
+  numerical behavior, public APIs, locked dependencies, and release controls stay
+  unchanged. Specialist independence remains required for scientific/safety risk.
 - Fresh worktree `/workspace/dphtools-delivery-implementation`, branch
   `codex/delivery-efficiency-implementation`, preserves planning commit
   `5b82cddc24bed7aa4aa7c853c333d0fcd369ce3e`. Fetched codex-main remains
   `4e00fe4e466d58beabf97e4d360947437e9fd895`; integration was already current.
   Existing worktrees and their changes are untouched.
-- Host is Linux with an isolated copied Python 3.10.21 distribution at
-  `.python/verification310`, installed from unchanged hashed requirements-dev.lock.
-  The first standalone-interpreter venv failed a real copied-venv installation
-  observer. The isolated full prefix repairs that environment defect without
-  changing tests, dependencies, or the system interpreter. Locked offline wheels
-  are retained outside Git; pip check and the real observer passed.
-- All four implementation phases are integrated: proportional instructions,
-  preflight/dependency receipts, immutable artifacts/two isolated CI shards per
-  platform, and narrow explicit evidence reuse plus deterministic metrics.
-  Focused verifier/shard/reuse/metrics checks precede the final full reference.
-  Final candidate, independent review, full/CI receipts, and PR belong in the
-  conversation/PR outside the tracked candidate. This record is the task pointer.
-- Release pilot: 97 real cases passed in 651.34 seconds with one immutable
-  wheel/sdist build shared across four modules. The prior 850.77-second run had
-  an environment failure and different provisioning, so its elapsed difference
-  is not a controlled speedup. Every installation and injected failure still runs.
-- Genuine merge blocker: codex-main branch readback reports protected=false and
-  no required check; repository rulesets returned none. The GitHub integration
-  cannot read or change administration settings (403); host API access is
-  forbidden. Administration-capable access/configuration was requested. Never
-  merge or infer protection from workflow text while this remains unresolved.
-- Metrics tooling records latency, repeated inputs/checks, author/reviewer
-  launches, runner seconds, available model tokens, and defects. Historical full
-  platform CI took 2,680 seconds wall and 5,067 seconds summed runner time;
-  compare revised CI only after it completes, labeling uncontrolled differences.
-  Three implementation authors, two read-only support agents, and one fresh
-  independent reviewer launched.
-  The reviewer reproduced false cache hits through external .pth providers,
-  startup packages, and native import providers; repaired runtime identities
-  reject these unbound inputs. Independent source review accepted the repairs.
-  PR [17](https://github.com/david-hoffman/dphtools/pull/17) retains candidate
-  hashes and current verification evidence. CI exposed a stale hook expectation
-  and inherited pytest roots; focused regressions now cover both repairs.
-  Reuse fixtures also keep cold bytecode caches stable and identify each new
-  receipt separately from the original receipt linked by provenance. CI retains
-  required proof files without uploading disposable installations and temp trees.
-  The macOS framework's stock Headers directory alias exposed an overly strict
-  eligibility rule. Runtime identities now bind internal directory aliases and
-  their fully hashed canonical targets, while rejecting external targets. Real
-  venv and alias-change regressions cover this repair; final review and all gates
-  still apply to the final candidate linked from the PR.
-  Independent review also reproduced stale reuse after supported root and
-  inherited pydocstyle configuration changed. Bind the complete configuration
-  chain and reject unknown import providers with case-insensitive suffix checks.
-  The earlier full reference passed at exact 100% owned coverage, but approval
-  was withdrawn for these observed defects; repaired source requires new gates.
-  Windows CI then declined valid reuse because the pinned coverage wheel's stock
-  startup hook has CRLF bytes rather than the audited Linux LF bytes. The wheel
-  SHA is in the unchanged lock. Accept only both audited exact hook hashes;
-  keep runtime byte identities and unknown-hook rejection. Private-environment
-  regression proof and complete Windows CI remain required for this correction.
-  Fresh review then reproduced a false cache hit after an external active
-  COVERAGE_PROCESS_START configuration changed. The path value was bound but its
-  bytes were not. Approval was withdrawn. Inputs now bind the active file's
-  resolved path and exact bytes, respect inline configuration precedence, and
-  decline reuse when the file is unidentified, preserving subprocess measurement.
-  The preceding passing full reference
-  and platform run are superseded trials, never approval of the repaired source.
-  Re-review and a fresh full reference on the final repaired candidate remain
-  required. An initial full run stopped at a read-only audit cache; a
-  writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for
-  the evidenced source repair and remains incomplete, never passing evidence. Token/billing data is unavailable. Ten comparable completed tasks do
-  not yet exist; the pilot remains incomplete rather than inventing observations.
-- Next: finish focused integration checks, full reference gate, fresh independent
-  final review, update the PR, complete Linux/macOS/Windows aggregation, and merge
-  only after actual ci-required protection is verified. No publication.
+- Host: Linux, isolated copied Python 3.10.21 at `.python/verification310`,
+  unchanged hashed development lock, retained offline wheels, writable report
+  caches. Real installation/subprocess checks passed after repairing the private
+  interpreter layout; neither dependency pins nor the system interpreter changed.
+- All four phases are integrated: proportional delivery, real cheap preflight,
+  dependency-aware immediate receipts/live logs, immutable release artifacts,
+  two isolated CI workers per platform, complete assignment/coverage aggregation,
+  conservative explicit docstring reuse, and deterministic metrics.
+- Independent review found unbound startup/import/configuration inputs that could
+  cause stale cache passes. Runtime identities now bind known inputs and decline
+  unknown providers, custom coverage plugins, forced configuration selection,
+  and coverage's implicit `.coveragerc` selector. Ordinary file/inline subprocess
+  coverage remains active. Retained regression probes and lessons record the
+  findings. Earlier full/CI successes are superseded trials; final source needs
+  fresh independent review, a full reference, and complete platform CI.
+- Candidate hash, review, current receipts, and measured CI results belong in
+  [PR 17](https://github.com/david-hoffman/dphtools/pull/17) and the conversation,
+  outside this tracked candidate. This section is the sole task pointer.
+- Merge blocker: actual codex-main readback reports unprotected with no required
+  checks or rulesets. The GitHub connection lacks administration access (403).
+  Administration-capable configuration was requested; merge requires verified
+  actual strict required `ci-required` protection, never workflow text alone.
+- Metrics: 3 implementation authors, 2 read-only support agents, 1 fresh reviewer;
+  no specialist rounds. A real 97-case release pilot used one master build across
+  four modules (75% fewer). Historical CI used 2,680 seconds wall/5,067 runner
+  seconds; retain all new trial costs and label uncontrolled comparisons. Token
+  billing and ten comparable completed maintenance tasks are unavailable, so the
+  ten-task pilot remains incomplete. No invented gains or passing partial proof.
+- Next: close focused regression/review, freeze and push the candidate, run the
+  full reference and all platform gates, report complete measurements, and merge
+  only after protection is configured and verified. No publication.
 
 ## Requirements and review focus
 

@@ -771,11 +771,13 @@ def startup_command(reuse_command, tmp_path):
     (root / "tools/__init__.py").write_text('"""Owned startup instrumentation."""\n')
     (root / "tools/audit_probe.py").write_text(
         '"""An immutable plugin controlled by the active coverage configuration."""\n\n'
-        "import sys\n\n\n"
+        "import sys\nfrom pathlib import Path\n\n\n"
         "def coverage_init(reg, options):\n"
         '    """Apply configuration only to the actual docstring check child."""\n'
-        '    if "pydocstyle" in sys.orig_argv and options.get("fail_doc") == "yes":\n'
-        "        raise SystemExit(7)\n"
+        '    if "pydocstyle" in sys.orig_argv:\n'
+        '        flag = options.get("flag_file")\n'
+        '        if options.get("fail_doc") == "yes" or (flag and Path(flag).read_text().strip() == "yes"):\n'
+        "            raise SystemExit(7)\n"
     )
     shutil.copytree(root / "tools", Path(site.stdout.strip()) / "tools")
     env.pop("COVERAGE_PROCESS_CONFIG", None)
@@ -818,9 +820,11 @@ def test_active_coverage_configuration_change_executes_new_failure(startup_comma
         if location != "create":
             config.write_text(options + "no\n")
         original, before = run()
+        assert before["steps"][-1]["input_identity"]["runtime"] is None
         if location != "create":
-            _, reused = run(original)
-            assert reused["steps"][-1]["state"] == "reused"
+            _, unchanged = run(original)
+            assert unchanged["steps"][-1]["state"] == "passed"
+            assert "cannot be completely identified" in unchanged["steps"][-1]["reuse_rejection"]
         config.write_text(options + "yes\n")
         current, after = run(original, expected=1)
         step = after["steps"][-1]
@@ -832,8 +836,6 @@ def test_active_coverage_configuration_change_executes_new_failure(startup_comma
             "path": str(config.resolve()),
             "sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
         }
-        if location == "create":
-            assert before["steps"][-1]["input_identity"]["runtime"] is None
 
 
 def test_startup_configuration_identity_handles_presence_paths_and_unknown_bytes(
@@ -907,3 +909,161 @@ def test_inline_coverage_configuration_preserves_reuse_with_inactive_file(reuse_
     _, after = run(original)
     assert after["steps"][-1]["state"] == "reused"
     assert after["identity"]["coverage_startup"] is None
+
+
+@pytest.mark.parametrize("form", ["file", "inline"])
+def test_custom_startup_plugin_external_input_always_executes_check(startup_command, form):
+    """An immutable plugin can read external inputs beyond its configuration bytes."""
+    from coverage.config import read_coverage_config
+
+    root, env, run = startup_command
+    flag = root.parent / "external-flag"
+    flag.write_text("no\n")
+    config = root.parent / "plugin.coveragerc"
+    config.write_text(
+        "[run]\nbranch = True\nparallel = True\ninclude = */tools/*.py\n"
+        "plugins = tools.audit_probe\n\n[tools.audit_probe]\nflag_file = " + str(flag) + "\n"
+    )
+    env["COVERAGE_PROCESS_START"] = str(config)
+    if form == "inline":
+        env["COVERAGE_PROCESS_CONFIG"] = read_coverage_config(
+            str(config), warn=lambda message: None
+        ).serialize()
+    original, before = run()
+    frozen_config = config.read_bytes()
+    frozen_plugin = (root / "tools/audit_probe.py").read_bytes()
+    flag.write_text("yes\n")
+    current, after = run(original, expected=1)
+    step = after["steps"][-1]
+    assert step["state"] == "failed" and step["returncode"] == 1
+    assert step["input_identity"] == before["steps"][-1]["input_identity"]
+    assert step["input_identity"]["runtime"] is None
+    assert "cannot be completely identified" in step["reuse_rejection"]
+    assert "SystemExit: 7" in (current.parent / step["log"]["path"]).read_text()
+    assert config.read_bytes() == frozen_config
+    assert (root / "tools/audit_probe.py").read_bytes() == frozen_plugin
+
+
+def test_plain_file_coverage_configuration_allows_unchanged_reuse(reuse_command):
+    """Ordinary startup measurement has no custom plugin inputs and remains eligible."""
+    root, env, run = reuse_command
+    config = root.parent / "plain.coveragerc"
+    config.write_text(
+        "[run]\nbranch = True\nparallel = True\ninclude = */tools/*.py\ndata_file = "
+        + str(root.parent / "plain-coverage-data")
+        + "\n"
+    )
+    env.pop("COVERAGE_PROCESS_CONFIG", None)
+    env["COVERAGE_PROCESS_START"] = str(config)
+    original, before = run()
+    assert before["steps"][-1]["input_identity"]["runtime"] is not None
+    _, after = run(original)
+    assert after["steps"][-1]["state"] == "reused"
+
+
+def test_implicit_coverage_sentinel_declines_plugin_inputs_selected_by_rcfile(startup_command):
+    """Literal .coveragerc can select a different configuration through COVERAGE_RCFILE."""
+    import configparser
+
+    root, env, run = startup_command
+    flag = root.parent / "sentinel-external-flag"
+    flag.write_text("no\n")
+    sentinel = root / ".coveragerc"
+    sentinel.write_text("[run]\nbranch = True\nparallel = True\ninclude = */tools/*.py\n")
+    configuration = root / "setup.cfg"
+    parser = configparser.ConfigParser()
+    parser.read(configuration)
+    # Legacy file startup keeps the sentinel active instead of emitting inline options.
+    parser.remove_option("coverage:run", "patch")
+    parser.set("coverage:run", "plugins", "tools.audit_probe")
+    parser.add_section("tools.audit_probe")
+    parser.set("tools.audit_probe", "flag_file", str(flag))
+    with configuration.open("w") as stream:
+        parser.write(stream)
+    env["COVERAGE_PROCESS_START"] = ".coveragerc"
+    env["COVERAGE_RCFILE"] = str(configuration)
+    original, before = run()
+    frozen = [
+        path.read_bytes() for path in (sentinel, configuration, root / "tools/audit_probe.py")
+    ]
+    flag.write_text("yes\n")
+    current, after = run(original, expected=1)
+    step = after["steps"][-1]
+    assert step["state"] == "failed" and step["returncode"] == 1
+    assert step["input_identity"] == before["steps"][-1]["input_identity"]
+    assert step["input_identity"]["runtime"] is None
+    assert "cannot be completely identified" in step["reuse_rejection"]
+    assert "SystemExit: 7" in (current.parent / step["log"]["path"]).read_text()
+    assert frozen == [
+        path.read_bytes() for path in (sentinel, configuration, root / "tools/audit_probe.py")
+    ]
+
+
+def test_unknown_startup_configuration_declines_without_disabling_active_measurement(
+    reuse_command,
+):
+    """Pure parsing rejects unknown startup inputs and preserves the active collector."""
+    root, env, _ = reuse_command
+    script = r"""
+import os, sys
+from pathlib import Path
+from coverage.config import CoverageConfig
+from coverage.control import process_startup
+sys.path.insert(0, sys.argv[1])
+from verification_reuse import startup_configuration_is_closed
+root = Path(sys.argv[2])
+collector = getattr(process_startup, 'coverage', None)
+auto_save = getattr(collector, '_auto_save', None)
+os.environ.pop('COVERAGE_PROCESS_START', None)
+os.environ.pop('COVERAGE_PROCESS_CONFIG', None)
+sentinel = root / '.coveragerc'
+sentinel.write_text('[run]\nbranch = True\n')
+os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
+assert not startup_configuration_is_closed(root), 'The literal implicit-discovery sentinel is unknown'
+os.environ['COVERAGE_PROCESS_START'] = str(sentinel)
+assert startup_configuration_is_closed(root), 'An absolute file path is not the implicit sentinel'
+os.environ['COVERAGE_PROCESS_START'] = './.coveragerc'
+assert startup_configuration_is_closed(root), 'A qualified relative path is an explicit file'
+os.environ.pop('COVERAGE_PROCESS_START')
+os.environ['COVERAGE_FORCE_CONFIG'] = str(root.parent / 'unidentified-force-config')
+assert startup_configuration_is_closed(root), 'Inactive startup ignores the override'
+options = CoverageConfig()
+os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
+os.environ['COVERAGE_PROCESS_CONFIG'] = options.serialize()
+assert startup_configuration_is_closed(root), 'Inline options take precedence over the file sentinel'
+os.environ.pop('COVERAGE_PROCESS_START')
+os.environ['COVERAGE_PROCESS_CONFIG'] = ''
+assert not startup_configuration_is_closed(root), 'Empty inline presence is unidentified'
+os.environ['COVERAGE_PROCESS_CONFIG'] = options.serialize()
+assert startup_configuration_is_closed(root), 'Inline configuration ignores the file override'
+for malformed in (False, None, '', {}):
+    options.plugins = malformed
+    os.environ['COVERAGE_PROCESS_CONFIG'] = options.serialize()
+    assert not startup_configuration_is_closed(root), 'Only a known empty plugin list is eligible'
+os.environ['COVERAGE_PROCESS_START'] = 'missing.coveragerc'
+os.environ['COVERAGE_PROCESS_CONFIG'] = ''
+assert not startup_configuration_is_closed(root), 'Present empty inline options are malformed'
+os.environ['COVERAGE_PROCESS_CONFIG'] = 'not valid serialized options!'
+assert not startup_configuration_is_closed(root)
+os.environ.pop('COVERAGE_PROCESS_CONFIG')
+assert not startup_configuration_is_closed(root), 'The active supplemental file is unidentified'
+os.environ.pop('COVERAGE_FORCE_CONFIG')
+assert not startup_configuration_is_closed(root), 'Missing startup files are unidentified'
+configuration = root / 'malformed.coveragerc'
+os.environ['COVERAGE_PROCESS_START'] = configuration.name
+configuration.write_text('[run]\nbranch = not-a-boolean\n')
+assert not startup_configuration_is_closed(root)
+configuration.unlink()
+configuration.mkdir()
+assert not startup_configuration_is_closed(root), 'Unreadable startup files are unidentified'
+assert getattr(collector, '_auto_save', None) == auto_save, 'Parsing must preserve subprocess data'
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(root / "tools"), str(root)],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
