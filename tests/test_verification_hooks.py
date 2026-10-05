@@ -310,8 +310,40 @@ def test_pre_push_full_only_failure_allows_real_local_backup(hook_repo):
     _assert_clean_head(hook_repo)
     full = hook_repo.run("full")
     assert full.returncode == 1, _detail(full)
-    _assert_check_operations(hook_repo.calls(), "full")
+    # The former all-later-tools expectation is replaced by the authorized DAG:
+    # audit failure preserves independent cheap results and blocks costly dependents.
+    assert _sequence(hook_repo.calls()) == ["black", "flake8", "pydocstyle", "mypy", "pip_audit"]
     full_report = _check_manifest(hook_repo, full, "full", "pip_audit")
+    receipt = json.loads((full_report / "checks.json").read_text(encoding="utf-8"))
+    assert receipt["complete"] is True and receipt["outcome"] == "failed"
+    steps = {step["name"]: step for step in receipt["steps"]}
+    assert steps["audit"]["state"] == "failed" and steps["audit"]["returncode"] == 23
+    assert all(
+        steps[name]["state"] == "passed"
+        for name in ("preflight", "format", "lint", "docstrings", "types")
+    )
+    blocked = {
+        "build",
+        "wheel-artifacts",
+        "install",
+        "coverage-erase",
+        "tests",
+        "coverage-data",
+        "coverage-combine",
+        "coverage-json",
+        "coverage-xml",
+        "coverage-report",
+        "report-validation",
+    }
+    assert {name for name, step in steps.items() if step["state"] == "blocked"} == blocked
+    assert all(
+        steps[name]["returncode"] is None and steps[name]["blocking_reasons"] for name in blocked
+    )
+    assert "audit" in steps["build"]["dependencies"]
+    assert "audit: failed" in steps["build"]["blocking_reasons"]
+    assert "build: blocked" in steps["wheel-artifacts"]["blocking_reasons"]
+    assert "wheel-artifacts: blocked" in steps["install"]["blocking_reasons"]
+    assert "coverage-erase: blocked" in steps["tests"]["blocking_reasons"]
     assert hook_repo.remote_refs() == ""
     assert hook_repo.python_calls() == [], "The full demonstration is separate from the hook"
     _assert_clean_head(hook_repo)

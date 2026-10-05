@@ -2,7 +2,7 @@
 
 **Version 1.0** This package specifies a delivery process. It does not install tooling, configure GitHub, or certify repository readiness.
 
-> You decide what to build. Separate agents write tests, implement, and review. GitHub runs the checks. Lessons improve the next task.
+> You decide what to build. An author and a fresh independent reviewer handle routine work; specialists handle scientific or safety risk. GitHub runs the required checks. Lessons improve the next task.
 
 ## The whole scheme
 
@@ -10,25 +10,29 @@
 
 First, inventory existing failures, measured coverage, environment problems, and unresolved behavior. Separate installing delivery tooling from repairing the product, including their cost and required decisions. Reuse approved architecture or clarify the missing decisions with the owner. Keep the 100% statement and branch coverage requirement; installation alone does not make the product ready.
 
-For a large request, intake proposes small end-to-end slices; the owner approves the plan and all contracts in one read-back. A request that fits one slice needs only its task document. Each task has one checkpoint lineage and, by default, at most five distinct contract scenarios. Independent tasks may run in separate worktrees; dependent slices wait for completed, integrated prerequisites. A legacy baseline that makes a slice unable to reach full verification and global 100% coverage is an adoption decision to expose up front, not an exception to the gate.
+Routine maintenance reuses established contracts and its existing task/PR record; no new document or specialist is required for every assertion. For new behavior or a large request, intake records necessary contracts/slices and obtains approval only for material decisions not already authorized. New contracts default to at most five distinct scenarios. Independent tasks may use separate worktrees; dependent slices wait for integrated prerequisites. A baseline preventing complete verification and exact 100% coverage is an adoption decision to expose up front, not an exception to the merge gate.
 
 For each approved slice:
 
 ```text
-Approved task or slice
-    → A writes tests → B reviews tests and their decision logic
-    → establish valid baseline evidence; save the test checkpoint
-    → C implements or confirms no product change is needed
-    → full local verification passes on the exact candidate
-    → open/update the PR and run CI; D reviews the passing candidate
-    → normal GitHub merge after green CI and D's review
+Authorized routine task under established contracts
+    → author changes code/tests/docs within scope
+    → meaningful focused checks and cheap verification pass
+    → open/update PR; one fresh independent reviewer checks the candidate
+    → full required platform CI, exact owned coverage, verified protection
+    → normal owner-authorized merge of the unchanged reviewed candidate
+
+Genuine scientific or safety risk
+    → A writes tests → B reviews the contract/oracle and checkpoint
+    → C implements → approved risk checks, normally full local reference
+    → fresh D review + the same complete protected platform merge gate
 ```
 
-A–D are fresh root sessions with narrow packets and concrete completion conditions. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, applicable primary references, or mathematical invariants. Existing-code tests may pass initially; no artificial red result or product mutation is required. A claimed bug still needs the intended failure.
+Classify by changed behavior and lost proof, not patch size. New scientific contracts/custom correctness oracles, release/publication safety, or other material behavior/security risk use fresh specialist A–D sessions. All roles receive narrow packets and concrete completion conditions; reviewers never inherit the author's conversation or approve their own repair. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, primary references, or invariants. Existing-code tests may pass initially; no artificial red result or product mutation is required. A claimed bug still needs the intended failure.
 
-Full verification gates opening or reopening a PR, including a draft, and pushes updating an open PR. Before a PR exists, pushes may back up failing checkpoints. Backup is not submission or readiness; closing a PR or moving a branch does not bypass the submission gate.
+Routine PR opening/reopening (drafts included) and updates require focused and cheap checks. Full local verification remains useful as a reference, for diagnosis, and when the risk/check plan requires it. Known failures remain blockers; pending CI is not success. Merge needs complete Linux/macOS/Windows verification and exact 100% owned statement/branch coverage. Rely on `ci-required` as authoritative only after actual native protection on `codex-main` is read back and verified; missing protection is a reported blocker. Preserve production `main` and separate frozen-bundle publication approval. Before a PR exists, pushes may back up incomplete checkpoints without establishing readiness. Preserve fast generic hooks.
 
-Classify failures before repair. After two B reviews without acceptance, B diagnoses contract ambiguity or an oversized slice before another rewrite. Keep A/B rounds separate from C repairs and total budget. One compact line in Current state records scenario count, A/B rounds, C repair use, and spend when known; renaming or splitting work does not erase history or consumed resources.
+Classify failures before repair. On the specialist route, after two B nonacceptances, B diagnoses ambiguity or excessive scope before another rewrite. Keep specialist A/B rounds separate from C repairs and total budget. One Current state section records route, approvals, candidate, checks/review, blockers, and next action, with concise scenario/launch/round/repair/spend metrics. Renaming/splitting never resets used resources. Keep full logs outside Git; host-required progress updates remain mandatory and unavailable event-wait tools remain unavailable.
 
 ## What you do
 

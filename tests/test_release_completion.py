@@ -9,7 +9,7 @@ import pytest
 
 from .release_workflow_support import BOOTSTRAP, Workflow
 from .test_release_reconcile import Registry
-from .test_release_smoke import PROCESS_DRIVER, Smoke, clean_env, real_bundle, real_package
+from .test_release_smoke import PROCESS_DRIVER, Smoke, clean_env, real_bundle
 from .test_release_support import Bundle, SOURCE_SHA, snapshot, write_json
 from .test_release_version import diagnostic, invoke, worker
 

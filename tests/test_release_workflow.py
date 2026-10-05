@@ -8,6 +8,7 @@ import base64
 import json
 from pathlib import Path
 import shutil
+import stat
 
 import pytest
 
@@ -18,7 +19,6 @@ from .test_release_smoke import (
     Smoke,
     clean_env,
     real_bundle,
-    real_package,
 )
 from .test_release_support import (
     Bundle,
@@ -568,6 +568,8 @@ def test_recovery_downloaded_installs_precede_retained_file_finalization(
     original_wheel, original_sdist = real_package
     shutil.copy2(original_wheel, bundle.wheel)
     shutil.copy2(original_sdist, bundle.sdist)
+    for path in (bundle.wheel, bundle.sdist):
+        path.chmod(path.stat().st_mode | stat.S_IWUSR)
     workflow.payload = bundle.expected()
     workflow.payload["workflow_sha"] = SOURCE_SHA
     write_json(bundle.manifest, workflow.payload)

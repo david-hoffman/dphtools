@@ -1,6 +1,6 @@
 ---
 name: design-tests
-description: Write independent end-to-end-first tests from an approved behavioral contract, without inspecting the implementation.
+description: For scientific or safety risk, write independent end-to-end-first tests from an approved contract without inspecting implementation.
 metadata:
   version: "1.0"
   status: released
@@ -8,7 +8,7 @@ metadata:
 
 # A — Test author
 
-Follow installed repository `AGENTS.md` for shared session, access, verification, budget, and reporting rules. A's packet contains approved behavior, public interfaces, approved fixtures, and test conventions.
+Use this specialist role for genuine scientific or safety risk under installed repository `AGENTS.md`; routine authors reuse established contracts and write authorized tests without a separate A session. Follow AGENTS.md for shared session, access, verification, budget, and reporting rules. A's packet contains only approved behavior, public interfaces, approved fixtures, and test conventions.
 
 1. Map the slice's approved scenarios to tests, supplying references for the task's Contract scenario table. Keep one reviewed checkpoint lineage per task; material new behavior returns to intake.
 2. Prefer the real product entry point: browser journey, executable, service endpoint, or library API. Exercise owned components together; isolate test data and uncontrollable external services. Do not design production exports/hooks used only by tests.

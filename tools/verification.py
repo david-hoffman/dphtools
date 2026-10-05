@@ -9,6 +9,12 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
+import zipfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from verification_inputs import CHECK_VERSION, digest, file_hash, git_identity, input_identity
 from xml.etree import ElementTree
 
 
@@ -112,114 +118,443 @@ def validate_reports(directory, sources):
     return 0
 
 
-def main():
-    """Run fast checks or the complete host gate, returning failure for any failed step."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("fast", "full"))
-    mode = parser.parse_args().mode
-    root = Path(__file__).resolve().parents[1]
-    reports = root / "reports/verification"
-    reports.mkdir(parents=True, exist_ok=True)
-    directory = Path(tempfile.mkdtemp(prefix=f"{mode}-", dir=reports))
-    distributions = directory / "dist"
-    env = dict(os.environ, MPLBACKEND="Agg", PYTHONHASHSEED="0")
-    env["COVERAGE_FILE"] = str(directory / ".coverage")
-    env["COVERAGE_RCFILE"] = str(root / "setup.cfg")
-    sources = owned_sources(root)
-    runtime_tools = [source for source in sources if source.startswith("tools/")]
-    lint_paths = ["dphtools", "tests", *runtime_tools, "setup.py", "versioneer.py"]
-    commands = [
-        ("format", ["black", "--check", "--line-length", "99", *lint_paths, "notebooks"]),
-        ("lint", ["flake8", *lint_paths]),
-        ("docstrings", ["pydocstyle", "--count", "dphtools"]),
-    ]
-    if mode == "full":
-        commands += [
-            ("types", ["mypy", "--follow-untyped-imports", "dphtools", *runtime_tools]),
-            ("audit", ["pip_audit", "--require-hashes", "-r", "requirements-dev.lock"]),
-            ("build", ["build", "--no-isolation", "--outdir", str(distributions)]),
-            (
-                "install",
-                ["pip", "install", "--no-deps", "--no-build-isolation", "--force-reinstall"],
+# Dependencies identify successful prerequisites; fresh coverage is a separate
+# prerequisite so failed tests retain diagnostics without authorizing old data.
+DEPENDENCIES = {
+    "build": ("preflight", "format", "lint", "docstrings", "types", "audit"),
+    "wheel-artifacts": ("build",),
+    "install": ("wheel-artifacts",),
+    "coverage-erase": ("install",),
+    "tests": ("coverage-erase",),
+    "coverage-combine": ("coverage-data",),
+    "coverage-json": ("coverage-combine",),
+    "coverage-xml": ("coverage-combine",),
+    "coverage-report": ("coverage-combine",),
+    "report-validation": ("coverage-json", "coverage-xml", "coverage-report"),
+}
+
+
+class VerificationRun:
+    """Execute dependency-aware steps and persist each completed receipt atomically."""
+
+    def __init__(self, root, mode, directory=None):
+        self.started = time.monotonic()
+        self.root = Path(root)
+        self.mode = mode
+        reports = self.root / "reports/verification"
+        reports.mkdir(parents=True, exist_ok=True)
+        self.directory = Path(directory or tempfile.mkdtemp(prefix=f"{mode}-", dir=reports))
+        self.directory.mkdir(parents=True, exist_ok=True)
+        require(not any(self.directory.iterdir()), "Report directory must be empty")
+        self.sources = owned_sources(self.root)
+        self.identity = input_identity(self.root, self.sources)
+        self.env = dict(os.environ, MPLBACKEND="Agg", PYTHONHASHSEED="0")
+        self.env["COVERAGE_FILE"] = str(self.directory / ".coverage")
+        self.env["COVERAGE_RCFILE"] = str(self.root / "setup.cfg")
+        self.steps = []
+        self.complete = False
+        self.save()
+        print(
+            f"verification: mode={mode} python={sys.executable} "
+            f"platform={platform.platform()} reports: {self.directory}",
+            flush=True,
+        )
+
+    def save(self):
+        """Replace the receipt only after its complete new JSON has been written."""
+        record = {
+            "document_version": CHECK_VERSION,
+            "mode": self.mode,
+            "complete": self.complete,
+            "duration_seconds": time.monotonic() - self.started,
+            "outcome": (
+                (
+                    "passed"
+                    if all(step["state"] in ("passed", "reused") for step in self.steps)
+                    else "failed"
+                )
+                if self.complete
+                else "incomplete"
             ),
-            ("coverage-erase", ["coverage", "erase"]),
-            (
-                "tests",
-                [
-                    "coverage",
-                    "run",
-                    "-m",
-                    "pytest",
-                    "--doctest-modules",
-                    "dphtools",
-                    "tests",
-                    "-ra",
-                    f"--junitxml={directory / 'pytest.xml'}",
-                ],
-            ),
-            ("coverage-combine", ["coverage", "combine"]),
-            (
-                "coverage-json",
-                ["coverage", "json", "-o", str(directory / "coverage.json"), *sources],
-            ),
-            ("coverage-xml", ["coverage", "xml", "-o", str(directory / "coverage.xml"), *sources]),
-            ("coverage-report", ["coverage", "report", "--fail-under=100", *sources]),
+            "python": sys.executable,
+            "platform": platform.platform(),
+            "identity": self.identity,
+            "identity_digest": digest(self.identity),
+            "steps": self.steps,
+            "failed": [
+                step["name"] for step in self.steps if step["state"] not in ("passed", "reused")
+            ],
+            "measurement_limits": [
+                "Git shell-hook statement/branch coverage is unsupported by coverage.py."
+            ],
+        }
+        record["receipt_digest"] = digest(record)
+        temporary = self.directory / "checks.json.tmp"
+        temporary.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(self.directory / "checks.json")
+
+    def run_step(
+        self,
+        name,
+        command=None,
+        dependencies=None,
+        action=None,
+        reason=None,
+        identity=None,
+        env=None,
+    ):
+        """Run an authorized step, or record which prerequisites blocked its execution."""
+        self.complete = False
+        self.save()
+        dependencies = tuple(DEPENDENCIES.get(name, ()) if dependencies is None else dependencies)
+        states = {step["name"]: step["state"] for step in self.steps}
+        blocked = [
+            f"{dependency}: {states.get(dependency, 'absent')}"
+            for dependency in dependencies
+            if states.get(dependency) not in ("passed", "reused")
         ]
-    print(
-        f"verification: mode={mode} python={sys.executable} platform={platform.platform()}",
-        flush=True,
+        if reason:
+            blocked.append(reason)
+        started = time.monotonic()
+        step = {
+            "name": name,
+            "command": command,
+            "dependencies": list(dependencies),
+            "blocking_reasons": blocked,
+            "input_identity": identity or self.identity,
+            "input_digest": digest(identity or self.identity),
+        }
+        print(f"\n== {name} ==", flush=True)
+        with (self.directory / f"{name}.log").open("w", encoding="utf-8") as log:
+            if blocked:
+                print("Blocked: " + "; ".join(blocked), file=log, flush=True)
+                print("Blocked: " + "; ".join(blocked), flush=True)
+                status = None
+            else:
+                try:
+                    if command is None:
+                        status = action()
+                    else:
+                        with subprocess.Popen(
+                            command,
+                            cwd=self.root,
+                            env=env or self.env,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            encoding="utf-8",
+                            errors="backslashreplace",
+                            bufsize=1,
+                        ) as child:
+                            for output in child.stdout:
+                                log.write(output)
+                                log.flush()
+                                print(output, end="", flush=True)
+                            status = child.wait()
+                except (OSError, ValueError) as error:
+                    print(str(error), file=log, flush=True)
+                    print(str(error), flush=True)
+                    status = 1
+            step.update(
+                returncode=status,
+                duration_seconds=time.monotonic() - started,
+                state="blocked" if blocked else ("passed" if status == 0 else "failed"),
+            )
+        step["log"] = {"path": f"{name}.log", "sha256": file_hash(self.directory / f"{name}.log")}
+        self.steps.append(step)
+        self.save()
+        return step
+
+    def module(self, name, arguments, **kwargs):
+        """Run a module with the verifier's selected interpreter."""
+        return self.run_step(name, [sys.executable, "-m", *arguments], **kwargs)
+
+    def finish(self):
+        """Return a failing status whenever any step failed or was blocked."""
+        failed = [step["name"] for step in self.steps if step["state"] not in ("passed", "reused")]
+        self.complete = True
+        self.save()
+        print(
+            f"\nverification: {'FAIL' if failed else 'PASS'}; "
+            f"failed steps: {', '.join(failed) or 'none'}; reports: {self.directory}",
+            flush=True,
+        )
+        return int(bool(failed))
+
+
+LOCK_PROBE = r"""
+from importlib import metadata
+import importlib
+from pathlib import Path
+import sys
+from packaging.requirements import Requirement
+modules = {"black": "black", "flake8": "flake8", "pydocstyle": "pydocstyle",
+           "pytest": "pytest", "coverage": "coverage", "mypy": "mypy",
+           "pip-audit": "pip_audit", "build": "build", "numpy": "numpy",
+           "scipy": "scipy", "matplotlib": "matplotlib", "scikit-image": "skimage"}
+checked = 0
+for line in Path(sys.argv[1]).read_text().splitlines():
+    if not line or line[0].isspace() or line.startswith("#"):
+        continue
+    requirement = Requirement(line.rstrip("\\ "))
+    if requirement.marker is not None and not requirement.marker.evaluate():
+        continue
+    checked += 1
+    if sys.argv[2] == "imports":
+        if requirement.name in modules:
+            importlib.import_module(modules[requirement.name])
+    else:
+        observed = metadata.version(requirement.name)
+        if str(requirement.specifier) != "==" + observed:
+            raise ValueError(f"locked dependency {requirement.name}: expected "
+                             f"{requirement.specifier}, installed {observed}")
+if checked == 0:
+    raise ValueError("No applicable locked dependencies")
+print("locked " + sys.argv[2] + " checked")
+"""
+
+
+def preflight(run):
+    """Probe locked imports and real nested venv/pip behavior in disposable paths."""
+    run.run_step(
+        "interpreter",
+        [
+            sys.executable,
+            "-c",
+            "import sys; print(sys.version); assert sys.version_info >= (3, 10)",
+        ],
     )
+    lock = str(run.root / "requirements-dev.lock")
+    for name, probe in (("locked-dependencies", "dependencies"), ("imports", "imports")):
+        run.run_step(
+            name, [sys.executable, "-c", LOCK_PROBE, lock, probe], dependencies=("interpreter",)
+        )
+    with tempfile.TemporaryDirectory(prefix="nested-", dir=run.directory) as temporary:
+        nested = Path(temporary) / "nested"
+        executable = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+        clean = dict(run.env)
+        clean.pop("PYTHONPATH", None)
+        # Installing a tiny local wheel exercises pip without network or system writes.
+        wheel = Path(temporary) / "verification_probe-1.0-py3-none-any.whl"
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr("verification_probe.py", "VALUE = 42\n")
+            archive.writestr(
+                "verification_probe-1.0.dist-info/METADATA",
+                "Metadata-Version: 2.1\nName: verification-probe\nVersion: 1.0\n",
+            )
+            archive.writestr(
+                "verification_probe-1.0.dist-info/WHEEL",
+                "Wheel-Version: 1.0\nGenerator: verification\n"
+                "Root-Is-Purelib: true\nTag: py3-none-any\n",
+            )
+            archive.writestr("verification_probe-1.0.dist-info/RECORD", "")
+        builder = "import sys, venv; venv.EnvBuilder(with_pip=True).create(sys.argv[1])"
+        run.run_step(
+            "venv",
+            [sys.executable, "-c", builder, str(nested)],
+            dependencies=("interpreter",),
+            env=clean,
+        )
+        run.run_step(
+            "nested-venv",
+            [
+                str(nested / executable),
+                "-c",
+                "import sys; assert sys.prefix != sys.base_prefix; print(sys.prefix)",
+            ],
+            dependencies=("venv",),
+            env=clean,
+        )
+        run.run_step(
+            "nested-pip",
+            [
+                str(nested / executable),
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "--no-index",
+                "--no-deps",
+                str(wheel),
+            ],
+            dependencies=("nested-venv",),
+            env=clean,
+        )
+        run.run_step(
+            "nested-import",
+            [
+                str(nested / executable),
+                "-c",
+                "import verification_probe; assert verification_probe.VALUE == 42",
+            ],
+            dependencies=("nested-pip",),
+            env=clean,
+        )
+    run.run_step(
+        "preflight",
+        action=lambda: 0,
+        dependencies=("interpreter", "locked-dependencies", "imports", "nested-import"),
+    )
+
+
+def prepare_checks(run):
+    """Run quality gates and retain exactly one freshly built wheel."""
+    distributions = run.directory / "dist"
+    runtime_tools = [source for source in run.sources if source.startswith("tools/")]
+    run.module("types", ["mypy", "--follow-untyped-imports", "dphtools", *runtime_tools])
+    run.module("audit", ["pip_audit", "--require-hashes", "-r", "requirements-dev.lock"])
+    build_identity = dict(run.identity, git=git_identity(run.root))
+    run.module(
+        "build",
+        ["build", "--no-isolation", "--outdir", str(distributions)],
+        identity=build_identity,
+    )
+    wheels = sorted(distributions.glob("*.whl"))
+    artifacts = {path.name: file_hash(path) for path in distributions.glob("*") if path.is_file()}
+
+    def check_wheel():
+        require(len(wheels) == 1, f"Expected exactly one built wheel; found {len(wheels)}")
+        return 0
+
+    run.run_step(
+        "wheel-artifacts", action=check_wheel, identity=dict(build_identity, artifacts=artifacts)
+    )
+    return wheels, artifacts
+
+
+def full_checks(run):
+    """Build one wheel, install it, and test with fresh complete owned measurement."""
+    wheels, artifacts = prepare_checks(run)
+    run.module(
+        "install",
+        [
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-build-isolation",
+            "--force-reinstall",
+            *map(str, wheels),
+        ],
+        identity=dict(run.identity, git=git_identity(run.root), artifacts=artifacts),
+    )
+    run.module("coverage-erase", ["coverage", "erase"])
+    from verification_shards import test_step
+
+    test_step(run, "tests", {}, dependencies=("coverage-erase",))
+    fresh = any(path.is_file() for path in run.directory.glob(".coverage*"))
+    run.run_step(
+        "coverage-data",
+        action=lambda: 0,
+        dependencies=("coverage-erase",),
+        reason=None if fresh else "No fresh coverage data produced by this run",
+    )
+    process_coverage(run)
+
+
+def process_coverage(run):
+    """Combine fresh parent/child data and enforce the exact owned-source gate."""
+    run.module("coverage-combine", ["coverage", "combine"])
+    run.module(
+        "coverage-json",
+        ["coverage", "json", "-o", str(run.directory / "coverage.json"), *run.sources],
+    )
+    run.module(
+        "coverage-xml",
+        ["coverage", "xml", "-o", str(run.directory / "coverage.xml"), *run.sources],
+    )
+    run.module("coverage-report", ["coverage", "report", "--fail-under=100", *run.sources])
+    run.run_step("report-validation", action=lambda: validate_reports(run.directory, run.sources))
+
+
+def fast_checks(run, reuse=None):
+    """Run independent cheap tools even if another cheap check fails."""
+    runtime_tools = [source for source in run.sources if source.startswith("tools/")]
+    lint_paths = ["dphtools", "tests", *runtime_tools, "setup.py", "versioneer.py"]
+    run.module("format", ["black", "--check", "--line-length", "99", *lint_paths, "notebooks"])
+    run.module("lint", ["flake8", *lint_paths])
+    if run.mode != "fast":
+        run.module("docstrings", ["pydocstyle", "--count", "dphtools"])
+        return
+    from verification_reuse import reusable, runtime_identity
+
+    command = [sys.executable, "-m", "pydocstyle", "--count", "dphtools"]
+    started = time.monotonic()
+    identity = dict(run.identity, runtime=runtime_identity(run.root))
+    provenance, rejection = reusable(reuse, identity, command) if reuse else (None, None)
+    if provenance:
+        log = run.directory / "docstrings.log"
+        log.write_text(
+            "Reused original docstrings evidence: " + provenance["receipt"] + "\n",
+            encoding="utf-8",
+        )
+        run.steps.append(
+            {
+                "name": "docstrings",
+                "command": command,
+                "state": "reused",
+                "returncode": None,
+                "duration_seconds": time.monotonic() - started,
+                "dependencies": [],
+                "blocking_reasons": [],
+                "input_identity": identity,
+                "input_digest": digest(identity),
+                "provenance": provenance,
+                "log": {"path": log.name, "sha256": file_hash(log)},
+            }
+        )
+        run.save()
+        print("docstrings: reused original receipt " + provenance["receipt"], flush=True)
+    else:
+        identity_seconds = time.monotonic() - started
+        step = run.run_step("docstrings", command, identity=identity)
+        step["duration_seconds"] += identity_seconds
+        if rejection:
+            step["reuse_rejection"] = rejection
+        run.save()
+
+
+def main():
+    """Run host checks or collect, execute, and aggregate isolated CI shards."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "mode", choices=("preflight", "fast", "full", "collect", "shard", "aggregate")
+    )
+    parser.add_argument("--report-dir", type=Path)
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--shard-index", type=int)
+    parser.add_argument("--shard-count", type=int, choices=(2,), default=2)
+    parser.add_argument("--shards", nargs="+", type=Path)
+    parser.add_argument("--durations", nargs="+", type=Path, default=[])
+    parser.add_argument("--reuse", type=Path)
+    arguments = parser.parse_args()
+    mode = arguments.mode
+    if arguments.reuse is not None and mode != "fast":
+        parser.error("--reuse is allowed only for fast; full CI and release evidence run fresh")
+    if mode in ("shard", "aggregate") and arguments.manifest is None:
+        parser.error("--manifest is required")
+    if mode == "shard" and arguments.shard_index not in (0, 1):
+        parser.error("--shard-index must be 0 or 1")
+    if mode == "aggregate" and arguments.shards is None:
+        parser.error("--shards is required")
+    run = VerificationRun(Path(__file__).resolve().parents[1], mode, arguments.report_dir)
     print(
         "Host verification only; CI verifies its operating-system matrix separately.", flush=True
     )
     print(
-        "Measurement limit: coverage.py cannot measure the Git shell hooks' statements/branches.",
+        "Measurement limit: coverage.py cannot measure Git shell-hook statements/branches.",
         flush=True,
     )
-    steps = []
-    for name, arguments in commands:
-        if name == "install":
-            arguments = [*arguments, *map(str, sorted(distributions.glob("*.whl")))]
-        command = [sys.executable, "-m", *arguments]
-        print(f"\n== {name} ==", flush=True)
-        try:
-            result = subprocess.run(
-                command,
-                cwd=root,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                errors="backslashreplace",
-            )
-            output, status = result.stdout, result.returncode
-        except OSError as error:
-            output, status = str(error), 1
-        (directory / f"{name}.log").write_text(output, encoding="utf-8")
-        print(output, end="" if output.endswith("\n") else "\n", flush=True)
-        steps.append({"name": name, "command": command, "returncode": status})
+    if mode in ("preflight", "full"):
+        preflight(run)
+    if mode in ("fast", "full"):
+        fast_checks(run, arguments.reuse)
     if mode == "full":
-        status = validate_reports(directory, sources)
-        steps.append({"name": "report-validation", "command": None, "returncode": status})
-    failed = [step["name"] for step in steps if step["returncode"] != 0]
-    record = {
-        "document_version": "1.0",
-        "mode": mode,
-        "python": sys.executable,
-        "platform": platform.platform(),
-        "steps": steps,
-        "failed": failed,
-        "measurement_limits": [
-            "Git shell-hook statement/branch coverage is unsupported by coverage.py."
-        ],
-    }
-    (directory / "checks.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    outcome = "FAIL" if failed else "PASS"
-    print(
-        f"\nverification: {outcome}; failed steps: {', '.join(failed) or 'none'}; reports: {directory}",
-        flush=True,
-    )
-    return int(bool(failed))
+        full_checks(run)
+    if mode in ("collect", "shard", "aggregate"):
+        from verification_shards import run_sharded
+
+        run_sharded(run, arguments)
+    return run.finish()
 
 
 if __name__ == "__main__":

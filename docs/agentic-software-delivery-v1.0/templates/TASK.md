@@ -12,16 +12,17 @@
 - Inputs, outputs, errors, and permissions:
 - Expected-result sources: approved behavior, applicable primary references, or mathematical invariants; units, conventions, estimators, and any unresolved limits.
 - Allowed scope and applicable checks:
+- Route: routine author/fresh independent reviewer, or specialist A/B/C/D; justify genuine scientific/safety risk by changed behavior and lost proof. Reuse established contracts where applicable:
 - Release impact and draft release notes, including compatibility/migration needs; record none when applicable:
 - Preparation/execution budget within the plan, risk, and inherited review/repair allowances:
 
-| Scenario ID | Approved input/context and observable success, error, or boundary outcome | Expectation source | Test mapping supplied by A and checked by B |
+| Scenario ID | Approved input/context and observable success, error, or boundary outcome | Expectation source | Test mapping supplied by author and independently reviewed (A/B for specialists) |
 |---|---|---|---|
 | S1 | <one distinct contract example> | <approved behavior/reference/invariant> | <test references after authoring> |
 
 Default: at most five scenarios; record an explicit size exception if approved. Count these cases, not test functions/assertions. For a large request, the slice plan at `docs/tasks/<plan-id>.md` links every slice contract, dependencies, outcomes, budgets, and completion conditions for one approval read-back. Do not invent a separately unapproved contract in a role packet.
 
-A's handoff supplies the mapping and numerical tolerance rationale; the coordinator records them here without changing approved behavior. B verifies that each case is exercised and that tolerances accept legitimate variation while rejecting plausible errors.
+The author supplies mapping/expectation evidence; the independent reviewer checks it. Specialist A supplies the mapping and numerical tolerance rationale, recorded without changing approved behavior; B verifies cases and that tolerances accept legitimate variation while rejecting plausible errors. Routine maintenance may link the established contract instead of creating a new table/document for each assertion.
 
 For a bug: observed versus expected behavior, environment, reproduction evidence, and hypotheses. Unknown causes do not authorize a speculative fix.
 
@@ -31,16 +32,16 @@ Use this section or a pointer to one current-state section in the linked PR/disc
 
 - Status: draft / approved / blocked / done.
 - Actual owner approval references and identified contract revision; affected changes needing renewed approval:
-- Approved slice/scenarios and reviewed test checkpoint, including parent/replaced task or checkpoint:
-- A/B/C/D session/review references and completion outcomes:
+- Approved scope/scenarios, route and rationale; specialist test checkpoint where applicable, including parent/replaced task or checkpoint:
+- Author/independent-reviewer references and outcomes; specialist A/B/C/D references when applicable:
 - Exact candidate commit:
 - Latest applicable checks: command, candidate, environment, result, exact coverage, evidence/CI/PR links:
 - Baseline evidence: intended failure for a claimed bug/missing feature, or initially passing approved existing behavior; classified failures and observing role:
-- Metrics: scenarios=<count>; A/B rounds=<used in current two-round window, prior windows linked>; C repairs=<used/remaining>; task/plan budget=<used/remaining or unavailable>.
+- Metrics: scenarios=<count>; author/reviewer launches=<count>; specialist A/B rounds=<current/prior or not applicable>; C repairs=<used/remaining or not applicable>; task/plan budget=<used/remaining or unavailable>.
 - If review rounds restart, an accepted checkpoint reopens, or a slice splits: evidence and authorized reason, B's diagnosis/resolution where required, approval if behavior changed, prior rounds, scenario redistribution, and remaining budget/C repair allocation:
 - Blockers and pending owner decisions:
 - Next action, responsible role, narrow packet, and completion condition:
 
-Replace superseded status here; Git preserves its history. Link reports instead of repeating them. A material contract change needs actual approval; unchanged-scenario subdivision follows the plan's approval. Revised checkpoints or renamed work do not erase attempts, spent budget, or C repair use. Acceptance closes an A/B review window; later authorized corrections and restarts after two nonacceptances follow specification section 9's distinct routes.
+Replace superseded status here; Git preserves history. Link reports instead of repeating them. Material contract changes need approval; unchanged-scenario subdivision follows the plan's approval. Renamed work or revised checkpoints never erase attempts or spent budget. Specialist C repair use carries over; acceptance closes its A/B review window, and later authorized corrections/restarts follow specification section 9.
 
-Supply A/B only their approved behavior/public-interface packet and necessary revision identifiers, not implementation details from this section or full conversations. Only lesson entries in `LESSONS/` are append-only; record each reusable discovery in a new timestamped file there, not in a duplicate task log.
+Supply narrow packets to all roles; specialist A/B receive only approved behavior/public interfaces and necessary revision identifiers, not implementation details from this section or full conversations. Routine PRs require meaningful focused/cheap checks; full local verification follows the risk/check plan. Merge requires full required platform/coverage evidence, fresh independent review of an unchanged candidate, verified native required-check protection, and owner authorization. Keep logs outside Git and report host limitations honestly. Only lesson entries in `LESSONS/` are append-only; record discoveries there, not in a duplicate task log.
