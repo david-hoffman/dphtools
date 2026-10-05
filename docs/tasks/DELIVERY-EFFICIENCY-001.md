@@ -73,6 +73,11 @@ and Linux/macOS/Windows verification.
   chain and reject unknown import providers with case-insensitive suffix checks.
   The earlier full reference passed at exact 100% owned coverage, but approval
   was withdrawn for these observed defects; repaired source requires new gates.
+  Windows CI then declined valid reuse because the pinned coverage wheel's stock
+  startup hook has CRLF bytes rather than the audited Linux LF bytes. The wheel
+  SHA is in the unchanged lock. Accept only both audited exact hook hashes;
+  keep runtime byte identities and unknown-hook rejection. Private-environment
+  regression proof and complete Windows CI remain required for this correction.
   Re-review and a fresh full reference on the final repaired candidate remain
   required. An initial full run stopped at a read-only audit cache; a
   writable XDG_CACHE_HOME passed the real audit. The next run was interrupted for

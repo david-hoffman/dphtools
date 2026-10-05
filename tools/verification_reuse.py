@@ -11,8 +11,13 @@ from verification_inputs import CHECK_VERSION, digest, file_hash
 
 # Audited startup hooks from the unchanged setuptools/coverage verification lock.
 KNOWN_STARTUP_HOOKS = {
-    "distutils-precedence.pth": "2638ce9e2500e572a5e0de7faed6661eb569d1b696fcba07b0dd223da5f5d224",
-    "a1_coverage.pth": "ef2ed06d19867ec669c09a804060666a9cd5e383af0a9d11aa2de79b77d448e8",
+    "distutils-precedence.pth": (
+        "2638ce9e2500e572a5e0de7faed6661eb569d1b696fcba07b0dd223da5f5d224",
+    ),
+    "a1_coverage.pth": (
+        "ef2ed06d19867ec669c09a804060666a9cd5e383af0a9d11aa2de79b77d448e8",
+        "f1498191b7f52180654ccdb6195233612805e26344100c093058343ea04afd36",
+    ),
 }
 
 
@@ -61,7 +66,7 @@ def runtime_identity(root):
             if path.is_file():
                 hashed = file_hash(path)
                 if (
-                    path.suffix == ".pth" and KNOWN_STARTUP_HOOKS.get(path.name) != hashed
+                    path.suffix == ".pth" and hashed not in KNOWN_STARTUP_HOOKS.get(path.name, ())
                 ) or path.name.startswith(("sitecustomize.", "usercustomize.")):
                     return None
                 entries.append((str(path), hashed))

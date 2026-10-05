@@ -67,10 +67,10 @@ def test_unchanged_check_reuses_original_command_and_retained_log(reuse_command)
     reused_path, reused = run(original)
     step = next(step for step in reused["steps"] if step["name"] == "docstrings")
     assert reused_path != original
-    assert step["state"] == "reused", (
-        step.get("reuse_rejection"),
-        runtime_diagnostics(root, env),
-    )
+    if step["state"] != "reused":
+        fail_with_runtime_diagnostics(
+            root, env, f"Docstrings state: {step['state']}; {step.get('reuse_rejection')}"
+        )
     assert step["provenance"]["receipt"] == str(original)
     assert step["provenance"]["command"] == source["steps"][-1]["command"]
     assert step["provenance"]["receipt_sha256"]
@@ -82,7 +82,7 @@ def test_unchanged_check_reuses_original_command_and_retained_log(reuse_command)
     assert next_run["steps"][-1]["state"] == "passed"
 
 
-def runtime_diagnostics(root, env):
+def runtime_diagnostics(root, env, executable=None):
     """Show import and alias facts if a host cannot satisfy the reuse contract."""
     script = r"""
 import hashlib, json, site, sys
@@ -92,6 +92,7 @@ prefixes = sorted({Path(sys.prefix).resolve(), Path(sys.base_prefix).resolve()})
 paths = [path for prefix in prefixes for path in prefix.rglob('*')]
 user_site = Path(site.getusersitepackages())
 print(json.dumps({
+    'executable': sys.executable,
     'prefixes': [str(path) for path in prefixes],
     'sys_path': sys.path,
     'user_site': {'path': str(user_site), 'exists': user_site.exists()},
@@ -103,7 +104,7 @@ print(json.dumps({
 }, sort_keys=True))
 """
     result = subprocess.run(
-        [sys.executable, "-c", script, str(root / "tools")],
+        [str(executable or sys.executable), "-c", script, str(root / "tools")],
         cwd=root,
         env=env,
         capture_output=True,
@@ -111,6 +112,13 @@ print(json.dumps({
         timeout=60,
     )
     return result.stdout + result.stderr
+
+
+def fail_with_runtime_diagnostics(root, env, reason, executable=None):
+    """Retain full facts in the failure XML and print them only on failure."""
+    diagnostics = runtime_diagnostics(root, env, executable)
+    print(diagnostics, flush=True)
+    pytest.fail(f"{reason}\n{diagnostics}", pytrace=False)
 
 
 @pytest.mark.parametrize(
@@ -381,7 +389,8 @@ def test_real_venv_directory_aliases_allow_unchanged_command_reuse(reuse_command
     assert first.returncode == 0, first.stdout + first.stderr
     original = next((root / "reports/verification").glob("*/checks.json"))
     source = json.loads(original.read_text())
-    assert source["steps"][-1]["input_identity"]["runtime"] is not None
+    if source["steps"][-1]["input_identity"]["runtime"] is None:
+        fail_with_runtime_diagnostics(root, env, "Venv runtime is unidentified", executable)
     result = subprocess.run(
         [*args, "--reuse", str(original)],
         cwd=root,
@@ -394,7 +403,8 @@ def test_real_venv_directory_aliases_allow_unchanged_command_reuse(reuse_command
     paths = set((root / "reports/verification").glob("*/checks.json")) - {original}
     assert len(paths) == 1, result.stdout + result.stderr
     step = json.loads(paths.pop().read_text())["steps"][-1]
-    assert step["state"] == "reused", step.get("reuse_rejection")
+    if step["state"] != "reused":
+        fail_with_runtime_diagnostics(root, env, step.get("reuse_rejection"), executable)
     assert step["provenance"]["receipt"] == str(original)
     if original_lib64 is not None:
         assert lib64.readlink() == original_lib64
@@ -619,3 +629,125 @@ def test_uppercase_windows_check_provider_runs_again_after_change(reuse_command)
     assert step["state"] == ("failed" if os.name == "nt" else "passed")
     assert step["returncode"] == (7 if os.name == "nt" else 0)
     assert "cannot be completely identified" in step["reuse_rejection"]
+
+
+def locked_coverage_hook_variants():
+    """Return the verified platform bytes without changing the installed hook."""
+    from importlib.metadata import distribution
+
+    installed = Path(distribution("coverage").locate_file("a1_coverage.pth"))
+    lf = installed.read_bytes().replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    assert hashlib.sha256(lf).hexdigest() == (
+        "ef2ed06d19867ec669c09a804060666a9cd5e383af0a9d11aa2de79b77d448e8"
+    )
+    assert hashlib.sha256(crlf).hexdigest() == (
+        "f1498191b7f52180654ccdb6195233612805e26344100c093058343ea04afd36"
+    )
+    return installed, lf, crlf
+
+
+def test_runtime_identity_accepts_exact_locked_coverage_platform_hooks(reuse_command, tmp_path):
+    """Both audited hooks bind distinct identities; any unknown bytes decline."""
+    root, env, _ = reuse_command
+    _, lf, crlf = locked_coverage_hook_variants()
+    prefix = tmp_path / "private-hook-prefix"
+    prefix.mkdir()
+    hook = prefix / "a1_coverage.pth"
+    hook.write_bytes(lf)
+    crlf_file = tmp_path / "windows-hook"
+    crlf_file.write_bytes(crlf)
+    script = r"""
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from verification_reuse import runtime_identity
+root, prefix, windows = map(Path, sys.argv[2:])
+sys.prefix = sys.base_prefix = str(prefix)
+sys.path = [str(root), str(root / 'tools'), str(prefix)]
+hook = prefix / 'a1_coverage.pth'
+original = hook.read_bytes()
+lf = runtime_identity(root)
+assert lf is not None
+hook.write_bytes(windows.read_bytes())
+crlf = runtime_identity(root)
+assert crlf is not None, 'The exact locked Windows coverage hook must be eligible'
+assert crlf != lf, 'Known byte variants must retain distinct fingerprints'
+hook.write_bytes(original + b'# Unknown startup bytes\n')
+assert runtime_identity(root) is None
+hook.write_bytes(original)
+assert runtime_identity(root) == lf
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            script,
+            str(root / "tools"),
+            str(root),
+            str(prefix),
+            str(crlf_file),
+        ],
+        env=env,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_real_venv_reuses_exact_windows_hook_and_rechecks_changed_bytes(reuse_command, tmp_path):
+    """The real command accepts CRLF but executes fresh checks on byte changes."""
+    root, env, _ = reuse_command
+    installed, lf, crlf = locked_coverage_hook_variants()
+    original_installed = installed.read_bytes()
+    prefix = tmp_path / "windows-hook-environment"
+    venv.EnvBuilder(system_site_packages=True).create(prefix)
+    executable = prefix / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    site = subprocess.run(
+        [str(executable), "-c", "import site; print(site.getsitepackages()[0])"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    site_directory = Path(site.stdout.strip())
+    site_directory.mkdir(parents=True, exist_ok=True)
+    hook = site_directory / "a1_coverage.pth"
+    hook.write_bytes(crlf)
+
+    def run(receipt=None):
+        previous = set((root / "reports/verification").glob("*/checks.json"))
+        args = [str(executable), str(root / "tools/verification.py"), "fast"]
+        if receipt is not None:
+            args.extend(["--reuse", str(receipt)])
+        result = subprocess.run(
+            args, cwd=root, env=env, text=True, capture_output=True, timeout=60
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        paths = set((root / "reports/verification").glob("*/checks.json")) - previous
+        assert len(paths) == 1, result.stdout + result.stderr
+        path = paths.pop()
+        return path, json.loads(path.read_text())
+
+    original, source = run()
+    if source["steps"][-1]["input_identity"]["runtime"] is None:
+        fail_with_runtime_diagnostics(
+            root, env, "Windows hook runtime is unidentified", executable
+        )
+    _, reused = run(original)
+    assert reused["steps"][-1]["state"] == "reused"
+    assert reused["steps"][-1]["provenance"]["receipt"] == str(original)
+    hook.write_bytes(lf)
+    _, changed = run(original)
+    assert changed["steps"][-1]["state"] == "passed"
+    assert "inputs changed" in changed["steps"][-1]["reuse_rejection"]
+    assert changed["steps"][-1]["input_identity"]["runtime"] is not None
+    assert changed["steps"][-1]["input_identity"] != source["steps"][-1]["input_identity"]
+    hook.write_bytes(lf + b"# Unknown startup bytes\n")
+    _, unknown = run(original)
+    assert unknown["steps"][-1]["state"] == "passed"
+    assert unknown["steps"][-1]["input_identity"]["runtime"] is None
+    assert unknown["steps"][-1]["reuse_rejection"]
+    assert installed.read_bytes() == original_installed
