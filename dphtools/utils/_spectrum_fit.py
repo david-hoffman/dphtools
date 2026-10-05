@@ -158,7 +158,7 @@ def spectrum_fit(
         For invalid inputs/options, no eligible peaks, or samples not exceeding
         the number of fitted parameters.
     RuntimeError
-        For optimizer failure/exhaustion or malformed/nonphysical output.
+        For numerical optimizer failure/exhaustion or malformed/nonphysical output.
 
     Notes
     -----
@@ -257,17 +257,23 @@ def spectrum_fit(
             raise RuntimeError("Spectrum residual is not finite")
         return errors
 
-    if default_optimizer:
+    # SciPy also uses ValueError for numerical residual failures. A custom
+    # callable's ordinary ValueError may instead indicate a programming error.
+    optimization_errors = (
+        ArithmeticError,
+        ValueError if default_optimizer else np.linalg.LinAlgError,
+    )
+    try:
+        if default_optimizer:
 
-        def physical(parameters):
-            """Convert private log coordinates into the positive physical domain."""
-            values = parameters.copy()
-            values[positive] = np.exp(values[positive])
-            return values
+            def physical(parameters):
+                """Convert private log coordinates into the positive physical domain."""
+                values = parameters.copy()
+                values[positive] = np.exp(values[positive])
+                return values
 
-        transformed = initial.copy()
-        transformed[positive] = np.log(transformed[positive])
-        try:
+            transformed = initial.copy()
+            transformed[positive] = np.log(transformed[positive])
             solution = least_squares(
                 lambda values: residual(physical(values)),
                 transformed,
@@ -275,19 +281,19 @@ def spectrum_fit(
                 x_scale="jac",
                 max_nfev=max_nfev,
             )
-        except (ValueError, ArithmeticError) as error:
-            raise RuntimeError("Spectrum optimization failed") from error
-        parameters = physical(solution.x)
-    else:
-        lower = np.full(nparameter, -np.inf)
-        lower[positive] = 0
-        solution = optimizer(
-            residual,
-            initial.copy(),
-            bounds=(lower, np.full(nparameter, np.inf)),
-            max_nfev=max_nfev,
-        )
-        parameters = getattr(solution, "x", None)
+            parameters = physical(solution.x)
+        else:
+            lower = np.full(nparameter, -np.inf)
+            lower[positive] = 0
+            solution = optimizer(
+                residual,
+                initial.copy(),
+                bounds=(lower, np.full(nparameter, np.inf)),
+                max_nfev=max_nfev,
+            )
+            parameters = getattr(solution, "x", None)
+    except optimization_errors as error:
+        raise RuntimeError("Spectrum optimization failed") from error
     success = getattr(solution, "success", None)
     if not isinstance(success, (bool, np.bool_)) or not success:
         raise RuntimeError(
