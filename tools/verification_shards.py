@@ -247,6 +247,8 @@ def test_step(run, name, settings, dependencies=(), temporary=None):
         "dphtools",
         "tests",
         "-ra",
+        "-o",
+        f"cache_dir={run.directory.resolve() / 'pytest-cache'}",
     ]
     if name == "collection":
         arguments.append("--collect-only")
@@ -292,7 +294,7 @@ def load_manifest(run, path, count=SHARD_COUNT):
         "Manifest inputs/platform/current run differ",
     )
     actual_count = manifest.get("count")
-    require(type(actual_count) is int and actual_count in (2, 4, 8), "Invalid shard count")
+    require(type(actual_count) is int and actual_count in (2, 4, 5, 7, 8), "Invalid shard count")
     require(actual_count == count, "Manifest shard count differs from requested count")
     assignments = manifest["assignments"]
     require(len(assignments) == actual_count and all(assignments), "Invalid shard count")
@@ -333,7 +335,7 @@ def collect(run, arguments):
         record = read_json(run.directory / "collection.json")
         require(record["exitstatus"] == 0, "Collection failed")
         count = getattr(arguments, "shard_count", SHARD_COUNT)
-        require(type(count) is int and count in (2, 4, 8), "Invalid shard count")
+        require(type(count) is int and count in (2, 4, 5, 7, 8), "Invalid shard count")
         durations = {}
         groups = []
         for path in arguments.durations:
