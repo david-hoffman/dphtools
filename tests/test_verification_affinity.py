@@ -9,14 +9,15 @@ from .test_verification_parallel import ParallelCommand
 from .test_verification_shards import shards_runtime
 
 FIXTURE_TESTS = """
-import os, subprocess, sys
+import json, os, subprocess, sys
 from pathlib import Path
 import pytest
 import dphtools
 
 @pytest.fixture(scope='module')
 def shared():
-    (Path(os.environ['AFFINITY_SETUP_RECORDS']) / str(os.getpid())).write_text('setup')
+    (Path(os.environ['AFFINITY_SETUP_RECORDS']) / str(os.getpid())).write_text(json.dumps({
+        name: os.environ.get(name) for name in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS')}))
     return dphtools.VALUE
 
 def test_parent(shared):
@@ -36,6 +37,7 @@ def test_real_fixture_affinity_keeps_one_setup_and_all_execution(tmp_path, mode)
     records = tmp_path / "setups"
     records.mkdir()
     command.env["AFFINITY_SETUP_RECORDS"] = str(records)
+    command.env.update(OPENBLAS_NUM_THREADS="8", OMP_NUM_THREADS="8")
     (command.root / "tests/test_real.py").write_text(FIXTURE_TESTS)
     group = ["tests/test_real.py::test_child", "tests/test_real.py::test_parent"]
     seed = command.root / "tools/verification-durations.json"
@@ -71,7 +73,13 @@ def test_real_fixture_affinity_keeps_one_setup_and_all_execution(tmp_path, mode)
                 for entry in json.loads((directory / "execution.json").read_text())["executions"]
             ],
         }
-    assert len(list(records.iterdir())) == 1
+    setup_records = list(records.iterdir())
+    assert len(setup_records) == 1
+    thread_settings = json.loads(setup_records[0].read_text())
+    assert thread_settings == {
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+    }
     assert len(execution["nodes"]) == 3
     assert len(execution["executions"]) == 9
     assert len({entry["node"] for entry in execution["executions"]}) == 3

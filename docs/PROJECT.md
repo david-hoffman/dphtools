@@ -14,7 +14,7 @@ Setup adds delivery instructions, verification infrastructure, and a thin doctor
 - `dphtools.utils` provides array/image operations. Its submodules provide fitting, histogram statistics, drift analysis, registration, signal analysis, and rolling-ball filtering. `dphtools.display` provides Matplotlib visualization. This describes observed responsibilities, not independently approved mathematical contracts.
 - Public boundaries are Python imports/functions/classes in those modules. Existing docstrings and tests supply evidence for task intake. Resolve any disagreement between a request, documentation, and implementation before product changes.
 - NumPy, pandas, SciPy, Matplotlib, and scikit-image are declared dependencies in `requirements.txt`. No external service or persistent database is required by the library.
-- Packaging declares Python >=3.8. Existing CI targets exact Python 3.10.21 on Linux, macOS, and Windows; collection, shards and aggregation must use that same patch version. Setup does not silently narrow compatibility; untested interpreter versions remain an explicit verification gap.
+- Packaging declares Python >=3.8. Existing CI targets exact Python 3.10.21 on Linux and 3.10.11 on macOS and Windows; collection, shards and aggregation must use the same patch version within each platform. Setup does not silently narrow compatibility; untested interpreter versions remain an explicit verification gap.
 - Use synthetic data and Matplotlib's noninteractive `Agg` backend in tests. No production secrets belong in test runs.
 
 ## Verify and operate
