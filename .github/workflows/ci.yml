@@ -17,7 +17,7 @@ env:
   CI_PYTHON_MACOS_WINDOWS: '3.10.11'
 
 # Five Linux, five macOS and ten Windows machines fit twenty concurrent jobs.
-# Local workers are four on Linux, three on macOS/Windows.
+# Local workers are four on Linux, three on macOS and two on Windows.
 # Each job has its own machine, checkout,
 # interpreter, locked environment, install destinations and temporary directories.
 # Collection and aggregation never pool coverage from different platforms.
@@ -170,7 +170,7 @@ jobs:
           python tools/verification.py shard
           --report-dir reports/verification/shard
           --manifest reports/incoming/collection/manifest.json
-          --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || 3 }}
+          --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || matrix.os == 'macos-15' && 3 || 2 }}
       - name: Retain raw parent and child coverage and execution proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
