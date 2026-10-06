@@ -7,21 +7,25 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
 ## Current state
 
 - Approval/scope: R3, the 33-scenario exception and R4 physical-plausibility
-  clarification remain approved. The owner requested more complicated examples
-  with more peaks. This update adds documentation figures/data using the existing
-  public fitter; it changes no product behavior, numerical contract or tests.
-  Existing authorization covers updating `codex/spectrum-fitting` and
-  [PR #18](https://github.com/david-hoffman/dphtools/pull/18) against `codex-main`.
-  Merge/release remains unauthorized.
-- Route: documentation author plus fresh independent visual/documentation review.
-  Reuse the accepted R4 numerical checkpoint and existing runtime. No new
-  specialist test window or product repair is opened; prior allowances stay spent.
-- Candidate pointer: base `576602a6497ce1b893c2adce61c8a0a56136a592` passed canonical
-  full verification, fresh D3 and the actual Linux/macOS/Windows PR matrix.
-  [PR #18](https://github.com/david-hoffman/dphtools/pull/18) retains its exact
-  candidate/results/accounting. Prepare this record before verifying the new
-  docs-only candidate; record that candidate's own hash and actual results outside
-  its tracked tree, in the conversation or linked PR.
+  clarification remain approved. The owner requested repair of failed CI for
+  [PR #18](https://github.com/david-hoffman/dphtools/pull/18). This update pins
+  interpreter patch versions consistently across collection, workers and
+  aggregation. It changes no numerical behavior, contract, tests or check gates.
+  Existing authorization covers updating `codex/spectrum-fitting`; merge/release
+  remains unauthorized.
+- Route: environment/tooling repair, with independent diagnosis and fresh
+  infrastructure diff review. Reuse the accepted R4 numerical checkpoint and
+  existing runtime. No test window or scientific product repair is opened;
+  prior allowances stay spent.
+- Candidate pointer: documentation candidate
+  `0634499296e143bab6a16daba3f504b5c6e4391d` passed exact canonical local full
+  verification. Its [hosted run](https://github.com/david-hoffman/dphtools/actions/runs/37483079692)
+  failed before worker 0 ran tests: Linux collection used Python 3.10.21, while
+  worker 0 and aggregation used 3.10.22. The interpreter patch was the only
+  differing portable manifest field, independently confirmed from artifacts.
+  Pin Linux to 3.10.22 and macOS ARM64/Windows to their supported 3.10.11 builds;
+  preserve exact identity checks. Prepare this record before verifying the repair;
+  record the new candidate's own hash/results outside its tracked tree in PR #18.
 - Runtime/checkpoint: C3 product commit
   `f3a655709920f6c7f13a392c5c6265ae8d2f045e` remains unchanged, including internal
   physical-unit conditioning. Accepted A18/B14 checkpoint: 297 cases across
@@ -37,23 +41,26 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   hashes. Three actual default-LM calls returned without warnings and preserved
   inputs. Residual RMS is 0.00965401–0.01041662 V for 0.01 V simulated read noise.
   These are human gut checks, not new numerical acceptance or uniqueness claims.
-- Review/check pointer: final visual-review and exact local verification results
-  belong in the conversation/PR. Validate all new asset hashes, data/table/curve
-  consistency and relative links. Product, tests, fixtures and delivery tooling
-  remain byte-identical to the passing base. Under the owner's supplied
-  instructions, run canonical full on the exact docs candidate before updating
-  the open PR. Hosted checks remain pending until their actual completion.
+- Review/check pointer: the multi-peak visual/documentation review accepted the
+  published plots/data. Runtime, tests, fixtures and verification programs remain
+  byte-identical to the accepted base. For this CI repair, retain the failed run's
+  diagnostics, verify the narrow workflow diff independently, and run canonical
+  full on the exact candidate before pushing under the owner's supplied rules.
+  A fresh complete hosted workflow must pass; its outcome remains pending until
+  actual completion. Failed-job-only retries cannot reuse the prior attempt's
+  sealed collection manifest.
 - History/limits: D1/D2 rejections, failed coverage receipt, all rejected test
   rounds, numerical failures, cancelled CI and previous spending remain retained.
   The artificial 1e12-offset accuracy example stays outside R4. Python 3.8 and
   native wider-than-float64 remain unverified; shell-hook coverage is unsupported.
   The ten-task maintenance pilot is separate and remains incomplete.
-- Next: complete documentation review and exact verification; push the unchanged
-  passing candidate to PR #18 and return with hosted CI explicitly pending.
+- Next: review and verify the interpreter pin; push the passing candidate to
+  PR #18, then confirm the complete Linux/macOS/Windows CI gate succeeds.
 - Metrics: 33 unchanged scenarios; 297 accepted spectrum cases. Historical
   specialist launches A/B 18/14, initial C one, repairs 3/3 spent, D1/D2
   rejected and D3 accepted; 39 completed formal roles. Current documentation
-  author one; fresh visual reviewer one; design helper one. Closed A/B windows
+  author one; fresh visual reviewer one; design helper one. Current CI repair:
+  author one, independent diagnosis one, fresh infrastructure reviewer one. Closed A/B windows
   2/2, 1/2, 1/2, 1/2, 2/2, 2/2, 1/2, 1/2, 3/3 remain counted. Historical formal
   usage: 50,825,949 input (47,700,736 cached subset), 765,941 output (290,725
   reasoning subset). Current parent/helper and exact billing metering unavailable.
