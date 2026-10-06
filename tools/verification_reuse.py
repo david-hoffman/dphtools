@@ -88,6 +88,7 @@ def runtime_identity(root):
         return None
     entries = []
     aliases = []
+    trees = []
     for prefix in prefixes:
         pending = [prefix] if prefix.is_dir() else []
         paths = []
@@ -111,6 +112,20 @@ def runtime_identity(root):
             for entry in paths
             if (Path(entry.path).is_file() if entry.is_symlink() else entry.is_file())
         }
+        trees.append((paths, files))
+        for entry in paths:
+            if entry.name in ("sitecustomize", "usercustomize"):
+                return None
+            if entry.is_symlink() and Path(entry.path).is_dir():
+                target = Path(entry.path).resolve()
+                if not any(target.is_relative_to(canonical) for canonical in prefixes):
+                    return None
+                # The canonical prefix traversal hashes the target's actual bytes.
+                aliases.append((entry.path, str(target)))
+            if entry.path in files and entry.name.startswith(("sitecustomize.", "usercustomize.")):
+                return None
+    # Reject unbound prefixes before reading otherwise reusable runtime bytes.
+    for paths, files in trees:
         # Outer test workers already provide concurrency; bound nested readers.
         with ThreadPoolExecutor(max_workers=1) as pool:
             # Parallelize substantial reads; tiny files avoid Future overhead.
@@ -120,16 +135,6 @@ def runtime_identity(root):
                 if entry.stat().st_size >= 65536
             }
             for entry in paths:
-                if entry.name in ("sitecustomize", "usercustomize"):
-                    pool.shutdown(cancel_futures=True)
-                    return None
-                if entry.is_symlink() and Path(entry.path).is_dir():
-                    target = Path(entry.path).resolve()
-                    if not any(target.is_relative_to(canonical) for canonical in prefixes):
-                        pool.shutdown(cancel_futures=True)
-                        return None
-                    # The canonical prefix traversal hashes the target's actual bytes.
-                    aliases.append((entry.path, str(target)))
                 if entry.path in files:
                     future = hashes.get(entry.path)
                     hashed = future.result() if future else _runtime_file_hash(entry.path)
@@ -137,7 +142,7 @@ def runtime_identity(root):
                         entry.name.endswith(".pth")
                         and entry.name != ".pth"
                         and hashed not in KNOWN_STARTUP_HOOKS.get(entry.name, ())
-                    ) or entry.name.startswith(("sitecustomize.", "usercustomize.")):
+                    ):
                         pool.shutdown(cancel_futures=True)
                         return None
                     entries.append((entry.path, hashed))

@@ -81,7 +81,7 @@ def duration_weights(record, system):
     return record.get("platform_durations", {}).get(system, record["durations"])
 
 
-def partition(nodes, durations, count=SHARD_COUNT):
+def partition(nodes, durations, count=SHARD_COUNT, groups=()):
     """Assign every real node once to deterministic duration-balanced workers."""
     require(bool(nodes) and nodes == sorted(set(nodes)), "Collection is empty or duplicate")
     require(type(count) is int and 1 <= count <= len(nodes), "Invalid worker count")
@@ -92,14 +92,26 @@ def partition(nodes, durations, count=SHARD_COUNT):
         ),
         "Invalid recorded durations",
     )
+    pending = set(nodes)
+    batches = []
+    for group in groups:
+        batch = sorted(pending.intersection(group))
+        if batch:
+            batches.append(batch)
+            pending.difference_update(batch)
+    batches.extend([node] for node in sorted(pending))
+    # Advisory affinity cannot prevent the required number of nonempty workers.
+    if len(batches) < count:
+        batches = [[node] for node in nodes]
+    costs = {tuple(batch): sum(durations.get(node, 1.0) for node in batch) for batch in batches}
     assignments = [[] for _ in range(count)]
     totals = [0.0 for _ in range(count)]
-    for node in sorted(nodes, key=lambda node: (-durations.get(node, 1.0), node)):
+    for batch in sorted(batches, key=lambda batch: (-costs[tuple(batch)], batch)):
         index = min(
             range(count), key=lambda index: (totals[index], len(assignments[index]), index)
         )
-        assignments[index].append(node)
-        totals[index] += durations.get(node, 1.0)
+        assignments[index].extend(batch)
+        totals[index] += costs[tuple(batch)]
     require(all(assignments), "Not enough collected nodes for nonempty workers")
     return [sorted(assignment) for assignment in assignments]
 
@@ -323,10 +335,12 @@ def collect(run, arguments):
         count = getattr(arguments, "shard_count", SHARD_COUNT)
         require(type(count) is int and count in (2, 4, 8), "Invalid shard count")
         durations = {}
+        groups = []
         for path in arguments.durations:
             previous = read_json(path)
             check_seal(previous)
             durations.update(duration_weights(previous, run.identity["environment"]["system"]))
+            groups.extend(previous.get("groups", []))
         identity = portable_identity(run)
         quality = sealed({"identity": identity, "steps": run.steps})
         write_json(run.directory / "quality.json", quality)
@@ -342,7 +356,7 @@ def collect(run, arguments):
                     "identity": identity,
                     "count": count,
                     "nodes": record["nodes"],
-                    "assignments": partition(record["nodes"], durations, count),
+                    "assignments": partition(record["nodes"], durations, count, groups),
                     "quality": file_record(run.directory, run.directory / "quality.json"),
                     "wheel": file_record(run.directory, wheels[0]),
                 }

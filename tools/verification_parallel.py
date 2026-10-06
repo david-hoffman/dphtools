@@ -125,11 +125,13 @@ def parallel_test_step(
             )
             previous = run.root / "tools/verification-durations.json"
             durations = {}
+            groups = []
             if previous.is_file():
                 record = read_json(previous)
                 check_seal(record)
                 durations = duration_weights(record, run.identity["environment"]["system"])
-            assignments = partition(selected, durations, min(workers, len(selected)))
+                groups = record.get("groups", [])
+            assignments = partition(selected, durations, min(workers, len(selected)), groups)
             with ExitStack() as stack:
                 children = []
                 temporaries = []
