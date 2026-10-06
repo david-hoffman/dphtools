@@ -71,9 +71,19 @@ uv pip compile --universal --python-version 3.10 --generate-hashes --no-strip-ex
 
 Tool choices were checked against primary [Black](https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html), [pytest](https://docs.pytest.org/en/stable/how-to/unittest.html), [coverage.py](https://coverage.readthedocs.io/en/latest/config.html), [mypy](https://mypy.readthedocs.io/en/stable/existing_code.html), [uv](https://docs.astral.sh/uv/pip/compile/), and [pip-audit](https://github.com/pypa/pip-audit) documentation. Candidate results and measurement limits belong in the active task's evidence, not in claims inferred from these commands.
 
-CI uses `collect`, `shard`, and `aggregate` in separate jobs, with two measured workers per platform and complete real pytest/doctest assignment. Each platform combines its actual parent and child coverage independently. The measured Linux duration seed is advisory; unknown tests receive equal default weight. Ordinary `full` remains unsharded and always fresh.
+CI uses `collect`, `shard`, and `aggregate` in separate jobs, with two measured workers per platform and complete real pytest/doctest assignment. Each platform combines its actual parent and child coverage independently. The measured Linux duration seed is advisory; unknown tests receive equal default weight. Ordinary `full` uses up to eight bounded local subprocess workers and always runs fresh. `full --workers 1` retains serial execution. Each local worker has private temporary paths, reports and parent/child coverage; the immutable checkout and locked interpreter are shared. CI retains two separately isolated machines per platform and can subdivide each assigned shard locally. [TEST-SUITE-PERFORMANCE-001](tasks/TEST-SUITE-PERFORMANCE-001.md) records this performance maintenance.
 
 Optional `fast --reuse /absolute/path/to/checks.json` can reuse only a closed successful docstring check with unchanged complete inputs, runtime bytes, command, and retained logs. Unknown imports, external import paths, unaudited site hooks/customizations, or invalid evidence rerun it. Only the byte-identified stock setuptools/coverage startup hooks in the unchanged lock are eligible. Reused steps retain their original command and receipt provenance, with no invented new return code. Audits, builds, installation, full tests, CI, and release evidence never use this cache. See [the verification contract](tasks/LOCAL-VERIFICATION-CONTRACT.md) for identities and limitations. `python tools/verification_metrics.py TASK_RECORDS.json` summarizes timings, repeated checks, agent launches, runner seconds, available tokens, and defects; missing data and uncontrolled comparisons stay labeled. Ten comparable tasks are required to complete the pilot.
+
+For repeatable clean-install tests, prepare an ordinary wheel directory once from the exact verification lock. CI already uses this setup. Installers still create private environments and perform real package and dependency installation; no installed environment or full-suite result is reused:
+
+```sh
+python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest reports/verification-wheels
+python -m pip install --no-index --find-links reports/verification-wheels --require-hashes -r requirements-dev.lock
+```
+
+Then set `PIP_NO_INDEX=1`, `PIP_FIND_LINKS` to that directory's absolute path, and `PIP_COMPILE=0` for verification. Keep audit networking available: offline package resolution does not replace the dependency audit. `PIP_COMPILE=0` suppresses installation-time bytecode compilation; ordinary imports still execute the installed sources. Select writable cache directories when the host's home directory is read-only. These settings and the invoking interpreter remain part of the measured environment.
+
 
 ## Approval and remaining decisions
 

@@ -1,6 +1,9 @@
 """Reuse only closed, unchanged deterministic docstring evidence with provenance."""
 
+import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from importlib.machinery import all_suffixes
 import os
 from pathlib import Path
@@ -42,6 +45,12 @@ def startup_configuration_is_closed(root):
         return False
 
 
+def _runtime_file_hash(path):
+    """Hash fresh runtime bytes without rebuilding a Path for each entry."""
+    with open(path, "rb") as stream:
+        return hashlib.sha256(stream.read()).hexdigest()
+
+
 def runtime_identity(root):
     """Recheck exact interpreter/dependency bytes; decline uncontrolled imports."""
     startup = coverage_startup_identity(root)
@@ -80,22 +89,54 @@ def runtime_identity(root):
     entries = []
     aliases = []
     for prefix in prefixes:
-        for path in sorted(prefix.rglob("*")):
-            if path.name in ("sitecustomize", "usercustomize"):
-                return None
-            if path.is_symlink() and path.is_dir():
-                target = path.resolve()
-                if not any(target.is_relative_to(canonical) for canonical in prefixes):
+        pending = [prefix] if prefix.is_dir() else []
+        paths = []
+        while pending:
+            descendants = []
+            try:
+                directory = os.scandir(pending.pop())
+            except OSError:
+                continue
+            with directory:
+                for entry in directory:
+                    paths.append(entry)
+                    with suppress(OSError):
+                        if entry.is_dir(follow_symlinks=False):
+                            descendants.append(entry.path)
+            pending.extend(reversed(descendants))
+        # Keep Path component ordering and use each entry's cached file type.
+        paths.sort(key=lambda entry: os.path.normcase(entry.path).split(os.sep))
+        files = {
+            entry.path: entry
+            for entry in paths
+            if (Path(entry.path).is_file() if entry.is_symlink() else entry.is_file())
+        }
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            # Parallelize substantial reads; tiny files avoid Future overhead.
+            hashes = {
+                path: pool.submit(_runtime_file_hash, path)
+                for path, entry in files.items()
+                if entry.stat().st_size >= 65536
+            }
+            for entry in paths:
+                if entry.name in ("sitecustomize", "usercustomize"):
                     return None
-                # The canonical prefix traversal hashes the target's actual bytes.
-                aliases.append((str(path), str(target)))
-            if path.is_file():
-                hashed = file_hash(path)
-                if (
-                    path.suffix == ".pth" and hashed not in KNOWN_STARTUP_HOOKS.get(path.name, ())
-                ) or path.name.startswith(("sitecustomize.", "usercustomize.")):
-                    return None
-                entries.append((str(path), hashed))
+                if entry.is_symlink() and Path(entry.path).is_dir():
+                    target = Path(entry.path).resolve()
+                    if not any(target.is_relative_to(canonical) for canonical in prefixes):
+                        return None
+                    # The canonical prefix traversal hashes the target's actual bytes.
+                    aliases.append((entry.path, str(target)))
+                if entry.path in files:
+                    future = hashes.get(entry.path)
+                    hashed = future.result() if future else _runtime_file_hash(entry.path)
+                    if (
+                        entry.name.endswith(".pth")
+                        and entry.name != ".pth"
+                        and hashed not in KNOWN_STARTUP_HOOKS.get(entry.name, ())
+                    ) or entry.name.startswith(("sitecustomize.", "usercustomize.")):
+                        return None
+                    entries.append((entry.path, hashed))
     return {
         "runtime_digest": digest({"files": entries, "directory_aliases": aliases}),
         "runtime_files": len(entries),

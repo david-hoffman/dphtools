@@ -76,9 +76,10 @@ def portable_identity(run):
     return identity
 
 
-def partition(nodes, durations):
-    """Assign every real node once to two deterministic duration-balanced shards."""
+def partition(nodes, durations, count=SHARD_COUNT):
+    """Assign every real node once to deterministic duration-balanced workers."""
     require(bool(nodes) and nodes == sorted(set(nodes)), "Collection is empty or duplicate")
+    require(type(count) is int and 1 <= count <= len(nodes), "Invalid worker count")
     require(
         all(
             type(value) in (int, float) and math.isfinite(value) and value >= 0
@@ -86,15 +87,15 @@ def partition(nodes, durations):
         ),
         "Invalid recorded durations",
     )
-    assignments = [[], []]
-    totals = [0.0, 0.0]
+    assignments = [[] for _ in range(count)]
+    totals = [0.0 for _ in range(count)]
     for node in sorted(nodes, key=lambda node: (-durations.get(node, 1.0), node)):
         index = min(
-            range(SHARD_COUNT), key=lambda index: (totals[index], len(assignments[index]), index)
+            range(count), key=lambda index: (totals[index], len(assignments[index]), index)
         )
         assignments[index].append(node)
         totals[index] += durations.get(node, 1.0)
-    require(all(assignments), "Not enough collected nodes for two nonempty shards")
+    require(all(assignments), "Not enough collected nodes for nonempty workers")
     return [sorted(assignment) for assignment in assignments]
 
 
@@ -342,6 +343,8 @@ def collect(run, arguments):
 
 def shard(run, arguments):
     """Verify full collection and execute only assigned nodes in private paths."""
+    from verification_parallel import parallel_test_step
+
     manifest = {}
 
     def inputs():
@@ -367,10 +370,11 @@ def shard(run, arguments):
         ],
         dependencies=("collection",),
     )
-    test_step(
+    parallel_test_step(
         run,
-        "execution",
-        {"expected": manifest.get("nodes", []), "assigned": assigned},
+        getattr(arguments, "workers", 1),
+        name="execution",
+        settings={"expected": manifest.get("nodes", []), "assigned": assigned},
         dependencies=("install",),
     )
 

@@ -321,6 +321,7 @@ class VerificationCommand:
         shutil.copy2(ROOT / "tools" / "verification.py", self.entry)
         shutil.copy2(ROOT / "tools" / "verification_inputs.py", self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_shards.py", self.entry.parent)
+        shutil.copy2(ROOT / "tools" / "verification_parallel.py", self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_reuse.py", self.entry.parent)
         self.outside = tmp_path / "unrelated working directory"
         self.outside.mkdir()
@@ -387,6 +388,8 @@ class VerificationCommand:
         )
 
     def run(self, *args):
+        if args and args[0] == "full":
+            args = (*args, "--workers", "1")
         if args and args[0] == "preflight":
             (self.repo / "venv.py").unlink(missing_ok=True)
         return subprocess.run(
