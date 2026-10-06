@@ -10,6 +10,7 @@ from xml.etree import ElementTree
 from verification_shards import (
     check_seal,
     completed_checks,
+    duration_weights,
     partition,
     portable_inputs,
     read_json,
@@ -127,7 +128,7 @@ def parallel_test_step(
             if previous.is_file():
                 record = read_json(previous)
                 check_seal(record)
-                durations = record["durations"]
+                durations = duration_weights(record, run.identity["environment"]["system"])
             assignments = partition(selected, durations, min(workers, len(selected)))
             with ExitStack() as stack:
                 children = []

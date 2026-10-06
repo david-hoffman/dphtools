@@ -76,6 +76,11 @@ def portable_identity(run):
     return identity
 
 
+def duration_weights(record, system):
+    """Select measured host costs, retaining universal duration records as fallback."""
+    return record.get("platform_durations", {}).get(system, record["durations"])
+
+
 def partition(nodes, durations, count=SHARD_COUNT):
     """Assign every real node once to deterministic duration-balanced workers."""
     require(bool(nodes) and nodes == sorted(set(nodes)), "Collection is empty or duplicate")
@@ -321,7 +326,7 @@ def collect(run, arguments):
         for path in arguments.durations:
             previous = read_json(path)
             check_seal(previous)
-            durations.update(previous["durations"])
+            durations.update(duration_weights(previous, run.identity["environment"]["system"]))
         identity = portable_identity(run)
         quality = sealed({"identity": identity, "steps": run.steps})
         write_json(run.directory / "quality.json", quality)

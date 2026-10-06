@@ -111,7 +111,8 @@ def runtime_identity(root):
             for entry in paths
             if (Path(entry.path).is_file() if entry.is_symlink() else entry.is_file())
         }
-        with ThreadPoolExecutor(max_workers=4) as pool:
+        # Outer test workers already provide concurrency; bound nested readers.
+        with ThreadPoolExecutor(max_workers=1) as pool:
             # Parallelize substantial reads; tiny files avoid Future overhead.
             hashes = {
                 path: pool.submit(_runtime_file_hash, path)
@@ -120,10 +121,12 @@ def runtime_identity(root):
             }
             for entry in paths:
                 if entry.name in ("sitecustomize", "usercustomize"):
+                    pool.shutdown(cancel_futures=True)
                     return None
                 if entry.is_symlink() and Path(entry.path).is_dir():
                     target = Path(entry.path).resolve()
                     if not any(target.is_relative_to(canonical) for canonical in prefixes):
+                        pool.shutdown(cancel_futures=True)
                         return None
                     # The canonical prefix traversal hashes the target's actual bytes.
                     aliases.append((entry.path, str(target)))
@@ -135,6 +138,7 @@ def runtime_identity(root):
                         and entry.name != ".pth"
                         and hashed not in KNOWN_STARTUP_HOOKS.get(entry.name, ())
                     ) or entry.name.startswith(("sitecustomize.", "usercustomize.")):
+                        pool.shutdown(cancel_futures=True)
                         return None
                     entries.append((entry.path, hashed))
     return {
