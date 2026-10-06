@@ -134,7 +134,8 @@ def spectrum_fit(
         Positive optimizer evaluation limit, counted by the selected solver.
     optimizer : {'lm'} or callable, optional
         Default SciPy Levenberg-Marquardt least squares uses internal log
-        transforms for positive parameters. A callable receives
+        transforms for positive parameters and coordinate-span conditioning.
+        Data and returned parameters retain physical units. A callable receives
         ``optimizer(residual, initial, bounds=(lower, upper), max_nfev=max_nfev)``.
         All callable parameters use physical units in fixed input row order,
         followed by background coefficients; residual is data minus model.
@@ -265,14 +266,22 @@ def spectrum_fit(
     )
     try:
         if default_optimizer:
+            # Make coordinate steps independent of x units and origin. A line's
+            # private slope is its physical change across the observed span.
+            parameter_scale = np.ones(nparameter)
+            parameter_scale[:size].reshape(npeak, row_size)[:, 1:] = elapsed[-1]
+            parameter_origin = np.zeros(nparameter)
+            parameter_origin[:size].reshape(npeak, row_size)[:, 1] = x[0]
+            if nbackground == 2:
+                parameter_scale[-1] = 1 / elapsed[-1]
 
             def physical(parameters):
-                """Convert private log coordinates into the positive physical domain."""
+                """Undo private conditioning and positive-parameter log transforms."""
                 values = parameters.copy()
                 values[positive] = np.exp(values[positive])
-                return values
+                return values * parameter_scale + parameter_origin
 
-            transformed = initial.copy()
+            transformed = (initial - parameter_origin) / parameter_scale
             transformed[positive] = np.log(transformed[positive])
             solution = least_squares(
                 lambda values: residual(physical(values)),
