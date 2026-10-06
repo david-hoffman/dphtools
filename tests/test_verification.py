@@ -410,9 +410,10 @@ class VerificationCommand:
         return sorted((self.repo / "reports" / "verification").glob("*/checks.json"))
 
 
-@pytest.fixture
-def verifier(tmp_path):
-    command = VerificationCommand(tmp_path)
+@pytest.fixture(scope="module")
+def _external_tool_preflight(tmp_path_factory):
+    """Probe the invariant stand-in once, separately from each test's private state."""
+    command = VerificationCommand(tmp_path_factory.mktemp("verification-tool-preflight"))
     probe = subprocess.run(
         [sys.executable, "-m", "black", "fixture-probe"],
         cwd=command.repo,
@@ -426,7 +427,11 @@ def verifier(tmp_path):
     assert probe.returncode == 0, f"External-tool fixture failed: {_detail(probe)}"
     assert command.calls()[0]["tool"] == "black"
     command.record.unlink()
-    return command
+
+
+@pytest.fixture
+def verifier(tmp_path, _external_tool_preflight):
+    return VerificationCommand(tmp_path)
 
 
 @pytest.mark.parametrize("args", [(), ("invalid",), ("fast", "unexpected")])
