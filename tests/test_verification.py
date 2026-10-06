@@ -404,7 +404,7 @@ class VerificationCommand:
             '#!/usr/bin/env python\n"""Owned delivery fixture."""\n', encoding="utf-8"
         )
 
-    def run(self, *args):
+    def run(self, *args, timeout=30):
         if args and args[0] == "full":
             args = (*args, "--workers", "1")
         if args and args[0] == "preflight":
@@ -417,7 +417,7 @@ class VerificationCommand:
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=30,
+            timeout=timeout,
             check=False,
         )
 
@@ -754,7 +754,9 @@ def test_real_coverage_reports_never_imported_owned_sources(verifier):
     _real_configuration(verifier)
     shutil.rmtree(verifier.modules / "coverage")
     verifier.env["VERIFICATION_TEST_REAL_COVERAGE"] = "1"
-    result = verifier.run("full")
+    # Real copied-venv provisioning and coverage reporting share the outer
+    # worker's CPU allocation; retain a finite integration-test deadline.
+    result = verifier.run("full", timeout=90)
     # Only the package initializer ran. Its unimported siblings must make this fail.
     assert result.returncode == 1, _detail(result)
     reports = verifier.reports()
