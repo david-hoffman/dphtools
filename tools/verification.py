@@ -533,7 +533,7 @@ def main():
     parser.add_argument("--report-dir", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--shard-index", type=int)
-    parser.add_argument("--shard-count", type=int, choices=(2, 4, 5, 7, 8), default=2)
+    parser.add_argument("--shard-count", type=int, choices=(2, 4, 5, 7, 8, 10), default=2)
     parser.add_argument("--shards", nargs="+", type=Path)
     parser.add_argument("--durations", nargs="+", type=Path, default=[])
     parser.add_argument("--reuse", type=Path)

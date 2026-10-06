@@ -69,7 +69,7 @@ def test_concurrent_pytest_caches_belong_to_each_invocation(tmp_path, mode):
     assert coverage["totals"]["missing_branches"] == 0
 
 
-@pytest.mark.parametrize("count", [5, 7])
+@pytest.mark.parametrize("count", [5, 7, 10])
 def test_real_new_machine_counts_execute_and_aggregate_exactly(tmp_path, count):
     """The public machine counts retain every node and strict sealed aggregation."""
     command = ParallelCommand(tmp_path)
