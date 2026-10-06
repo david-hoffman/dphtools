@@ -54,23 +54,27 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   documented. The owner excluded it from R4 acceptance; that repair request is
   superseded and no such repair occurred. Ordinary physical-unit behavior is
   still required. Neither scope correction erased attempts or spending.
-- Allowances: initial C and both authorized repairs are complete; repairs 2/2
-  used. One additional physical-coordinate-scaling repair is requested/pending.
-  No third C is authorized or performed. Prior B windows 2/2, 1/2, 1/2, 1/2,
-  2/2, 2/2, 1/2, 1/2 remain closed and counted. Changed tests need fresh B acceptance
-  and an immutable revised checkpoint before C.
-- Next: obtain the pending physical-unit repair extension; then fresh C against
-  this accepted checkpoint, exact unchanged canonical full, fresh D and complete
-  Linux/macOS/Windows
-  Python 3.10 verification. Require exact 100% owned statements/branches globally
-  and per file and zero failures/errors/skips/exclusions. The published branch
-  is incomplete despite its earlier passing suite. No PR is open.
+- Allowances: initial C and both earlier authorized repairs remain counted.
+  The owner's request to fix the demonstrated unit bug is accepted as the
+  previously requested one-repair extension: repairs 2/3 used, one C3 available.
+  The owner then asked about mean-zero/unit-variance preprocessing. The narrow
+  repair will condition coordinates and optimizer parameters internally while
+  preserving physical intensities, public outputs and the custom protocol.
+  R4 already delegates internal transforms. Prior B windows 2/2, 1/2, 1/2,
+  1/2, 2/2, 2/2, 1/2, 1/2 remain closed and counted. No tests change.
+- Next: fresh C3 against the accepted checkpoint, exact unchanged canonical
+  full, fresh D and complete Linux/macOS/Windows Python 3.10 verification.
+  Require exact 100% owned statements/branches globally and per file and zero
+  failures/errors/skips/exclusions. Prepare the task pointer before verification;
+  final candidate identity and actual final results belong in the conversation.
+  The published backup remains incomplete. No PR is open; merge/release remains
+  unauthorized. External human-review plots do not replace numerical acceptance.
 - Environment/limits: disposable non-Conda CPython 3.12.14 with applicable hashed
   pins and real nested tools/imports/child measurement. Python 3.8 and native
   wider-than-float64 remain unverified; shell-hook coverage is unsupported.
   Earlier failed/interrupted/rejected attempts and actual evidence are retained.
 - Metrics: 33 scenarios; 296 accepted test cases; baseline 290 pass / six product
   failures. A/B completed launches 15/11; physical-unit window accepted/closed
-  at 1/2; initial C one; repairs 2/2; D1/D2 rejected. No fixed execution budget
+  at 1/2; initial C one; repairs 2/3 used, C3 scheduled; D1/D2 rejected. No fixed execution budget
   cap. Start observation 2026-10-05 16:56:58 UTC. Actual role usage/logs remain
   outside Git; cached input is part of input and all prior spending is retained.
