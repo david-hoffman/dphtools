@@ -24,9 +24,23 @@ def test_repo_named_dphtools_does_not_instrument_environment_dependencies(tmp_pa
     installed = foreign.parent / "dphtools/utils/installed.py"
     installed.parent.mkdir(parents=True)
     installed.write_text("VALUE = 23\n", encoding="utf-8")
+    foreign_tool = foreign.parent / "pandas/core/tools/subpkg/probe.py"
+    foreign_tool.parent.mkdir(parents=True)
+    foreign_tool.write_text("VALUE = 19\n", encoding="utf-8")
+    installed_tool = foreign.parent / "dphtools/utils/tools/deep.py"
+    installed_tool.parent.mkdir(parents=True)
+    installed_tool.write_text("VALUE = 29\n", encoding="utf-8")
     copied = tmp_path / "private-cli/tools/subpkg/probe.py"
     copied.parent.mkdir(parents=True)
     copied.write_text("VALUE = 11\n", encoding="utf-8")
+    copied_runner = tmp_path / "private-cli/runner/subpkg/probe.py"
+    copied_runner.parent.mkdir(parents=True)
+    copied_runner.write_text("VALUE = 31\n", encoding="utf-8")
+    copied_delivery = tmp_path / "private-cli/tools/delivery"
+    copied_delivery.write_text("VALUE = 37\n", encoding="utf-8")
+    installed_helper = foreign.parent / "tools/subpkg/probe.py"
+    installed_helper.parent.mkdir(parents=True)
+    installed_helper.write_text("VALUE = 41\n", encoding="utf-8")
     driver = repository / "driver.py"
     driver.write_text(
         "import runpy, sys\nfor path in sys.argv[1:]:\n    runpy.run_path(path)\n",
@@ -38,6 +52,7 @@ def test_repo_named_dphtools_does_not_instrument_environment_dependencies(tmp_pa
         COVERAGE_RCFILE=str(repository / "setup.cfg"),
         COVERAGE_FILE=str(data_file),
         DPHTOOLS_COVERAGE_ROOT=str(repository),
+        DPHTOOLS_COVERAGE_TEMP=str(tmp_path.parent),
     )
     result = subprocess.run(
         [
@@ -50,6 +65,11 @@ def test_repo_named_dphtools_does_not_instrument_environment_dependencies(tmp_pa
             str(foreign),
             str(installed),
             str(copied),
+            str(foreign_tool),
+            str(installed_tool),
+            str(copied_runner),
+            str(copied_delivery),
+            str(installed_helper),
         ],
         cwd=tmp_path,
         env=env,
@@ -69,3 +89,8 @@ def test_repo_named_dphtools_does_not_instrument_environment_dependencies(tmp_pa
     assert installed in measured
     assert copied in measured
     assert foreign not in measured
+    assert installed_tool in measured
+    assert foreign_tool not in measured
+    assert copied_runner in measured
+    assert copied_delivery in measured
+    assert installed_helper in measured

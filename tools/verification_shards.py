@@ -255,6 +255,7 @@ def test_step(run, name, settings, dependencies=(), temporary=None):
     else:
         arguments.append(f"--junitxml={run.directory / 'pytest.xml'}")
         temporary = run.directory / "temporary" if temporary is None else temporary
+        env["DPHTOOLS_COVERAGE_TEMP"] = str(Path(temporary).resolve())
         arguments.append(f"--basetemp={temporary}")
         arguments = ["coverage", "run", "-m", *arguments]
     run.module(name, arguments, dependencies=dependencies, env=env)

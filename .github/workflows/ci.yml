@@ -166,11 +166,154 @@ jobs:
         env:
           PIP_NO_INDEX: '1'
           PIP_FIND_LINKS: ${{ runner.temp }}/verification-wheels
-        run: >-
-          python tools/verification.py shard
-          --report-dir reports/verification/shard
-          --manifest reports/incoming/collection/manifest.json
-          --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || matrix.os == 'macos-15' && 3 || 2 }}
+        run: |
+          cat > "$RUNNER_TEMP/observe-fast-checks.py" <<'PY_OBSERVER'
+          """Retain diagnostic snapshots without changing verifier files or commands.
+          
+          Run before the shard command; create --stop-marker after that command returns.
+          Place --output outside the verifier's empty-required shard report directory.
+          Fully written JSON receipts include complete:false: those locate stalled steps.
+          Snapshots are diagnostic observations, never replacement gate/reuse evidence.
+          """
+          
+          import argparse
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          import tempfile
+          import time
+          
+          
+          def main():
+              parser = argparse.ArgumentParser(description=__doc__)
+              parser.add_argument("--output", required=True, type=Path)
+              parser.add_argument("--stop-marker", required=True, type=Path)
+              args = parser.parse_args()
+              output = args.output.resolve()
+              stop_marker = args.stop_marker.resolve()
+              temporary_root = Path(tempfile.gettempdir()).resolve()
+              pattern = "dphtools-worker-*/pytest/test*/repository/reports/verification/fast-*"
+              started = time.monotonic()
+              cpu_started = time.process_time()
+              seen = {}
+              read_bytes = written_bytes = 0
+              try:
+                  snapshots = output / "snapshots"
+                  snapshots.mkdir(parents=True, exist_ok=True)
+                  events = (output / "events.jsonl").open("a", encoding="utf-8")
+              except OSError as error:
+                  print(json.dumps({"event": "io_error", "operation": "initialize",
+                                    "source_path": str(output), "error": str(error)}), file=sys.stderr)
+                  return 1
+          
+              def record(event, **details):
+                  item = dict(event=event, time_ns=time.time_ns(), monotonic_ns=time.monotonic_ns(),
+                              **details)
+                  line = json.dumps(item, sort_keys=True) + "\n"
+                  try:
+                      events.write(line)
+                      events.flush()
+                  except OSError as error:
+                      print(line.rstrip(), file=sys.stderr, flush=True)
+                      print(json.dumps({"event": "io_error", "operation": "record_event",
+                                        "error": str(error)}), file=sys.stderr, flush=True)
+          
+              def failure(operation, source, error):
+                  record("io_error", operation=operation, source_path=str(source),
+                         error_type=type(error).__name__, error=str(error))
+          
+              record("started", pid=os.getpid(), temporary_root=str(temporary_root), pattern=pattern,
+                     output=str(output), stop_marker=str(stop_marker), poll_interval_seconds=1)
+              try:
+                  while True:
+                      try:
+                          if stop_marker.exists():
+                              break
+                      except OSError as error:
+                          failure("check_stop_marker", stop_marker, error)
+                      next_poll = time.monotonic() + 1
+                      try:
+                          directories = sorted({path.resolve() for path in temporary_root.glob(pattern)})
+                      except OSError as error:
+                          failure("discover", temporary_root, error)
+                          directories = []
+                      for directory in directories:
+                          # Logs are checked independently, even when the receipt is unchanged.
+                          for name in ("checks.json", "format.log", "lint.log", "docstrings.log"):
+                              path = directory / name
+                              try:
+                                  if not path.is_file():
+                                      continue
+                                  raw = path.read_bytes()
+                                  read_bytes += len(raw)
+                              except OSError as error:
+                                  failure("read_snapshot", path, error)
+                                  continue
+                              hashed = hashlib.sha256(raw).hexdigest()
+                              if seen.get(str(path)) == hashed:
+                                  continue
+                              complete = None
+                              if name == "checks.json":
+                                  try:
+                                      receipt = json.loads(raw)
+                                      if isinstance(receipt, dict):
+                                          complete = receipt.get("complete")
+                                  except (ValueError, UnicodeError) as error:
+                                      record("receipt_not_complete_json", source_path=str(path),
+                                             sha256=hashed, byte_count=len(raw), error=str(error))
+                                      continue
+                              target = snapshots / (hashed + "-" + name)
+                              try:
+                                  if not target.is_file():
+                                      temporary = target.with_name(target.name + ".tmp")
+                                      temporary.write_bytes(raw)
+                                      temporary.replace(target)
+                                      written_bytes += len(raw)
+                              except OSError as error:
+                                  failure("write_snapshot", path, error)
+                                  continue
+                              seen[str(path)] = hashed
+                              record("snapshot", source_path=str(path), sha256=hashed,
+                                     snapshot_path=str(target.relative_to(output)), byte_count=len(raw),
+                                     receipt_complete=complete)
+                      time.sleep(max(0, next_poll - time.monotonic()))
+                  record("stopped", tracked_files=len(seen), read_bytes=read_bytes,
+                         written_bytes=written_bytes, wall_seconds=time.monotonic() - started,
+                         cpu_seconds=time.process_time() - cpu_started)
+              finally:
+                  events.close()
+              return 0
+          
+          
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY_OBSERVER
+          observer_stop="$RUNNER_TEMP/observe-fast-checks.stop"
+          python "$RUNNER_TEMP/observe-fast-checks.py" --output reports/diagnostics/fast-checks --stop-marker "$observer_stop" &
+          observer_pid=$!
+          set +e
+          python tools/verification.py shard \
+            --report-dir reports/verification/shard \
+            --manifest reports/incoming/collection/manifest.json \
+            --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || matrix.os == 'macos-15' && 3 || 2 }}
+          shard_status=$?
+          touch "$observer_stop"
+          wait "$observer_pid"
+          observer_status=$?
+          set -e
+          echo "Fast-check diagnostic observer exit: $observer_status; authoritative shard exit: $shard_status"
+          exit "$shard_status"
+      - name: Retain nested fast-check diagnostic observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fast-diagnostics-${{ matrix.os }}-${{ matrix.index }}
+          path: reports/diagnostics/fast-checks/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
       - name: Retain raw parent and child coverage and execution proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
