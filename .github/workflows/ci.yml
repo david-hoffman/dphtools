@@ -16,8 +16,8 @@ env:
   CI_PYTHON_LINUX: '3.10.22'
   CI_PYTHON_MACOS_WINDOWS: '3.10.11'
 
-# Five Linux, five macOS and ten Windows machines fit twenty concurrent jobs.
-# Local workers are four on Linux, three on macOS and two on Windows.
+# Seven Linux, five macOS and eight Windows machines fit twenty concurrent jobs.
+# Local workers are four on Linux and three on macOS/Windows.
 # Each job has its own machine, checkout,
 # interpreter, locked environment, install destinations and temporary directories.
 # Collection and aggregation never pool coverage from different platforms.
@@ -47,6 +47,21 @@ jobs:
           python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: |
           python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
@@ -60,7 +75,7 @@ jobs:
           --report-dir reports/verification/collect
           --manifest reports/verification/collect/manifest.json
           --durations tools/verification-durations.json
-          --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }}
+          --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }}
       - name: Retain collection proof and immutable build artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -102,13 +117,13 @@ jobs:
         index: [0, 1, 2, 3]
         include:
           - {os: ubuntu-24.04, index: 4}
+          - {os: ubuntu-24.04, index: 5}
+          - {os: ubuntu-24.04, index: 6}
           - {os: macos-15, index: 4}
           - {os: windows-2025, index: 4}
           - {os: windows-2025, index: 5}
           - {os: windows-2025, index: 6}
           - {os: windows-2025, index: 7}
-          - {os: windows-2025, index: 8}
-          - {os: windows-2025, index: 9}
     defaults:
       run:
         shell: bash
@@ -126,6 +141,21 @@ jobs:
           python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: |
           python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
@@ -134,18 +164,35 @@ jobs:
         with:
           name: collection-${{ matrix.os }}
           path: reports/incoming/collection
-      - name: Report runner CPU capacity
+      - name: Report runner CPU and numerical backend environment
         run: |
-          python - <<'PY'
+          mkdir -p reports/diagnostics
+          python - <<'PY' > reports/diagnostics/environment.log 2>&1
           import json
           import os
+          from pathlib import Path
+          import platform
+          import tempfile
+          import numpy as np
+          import scipy
 
           try:
               affinity_cpu_count = len(os.sched_getaffinity(0))
           except (AttributeError, OSError):
               affinity_cpu_count = None
-          print(json.dumps({"cpu_count": os.cpu_count(), "affinity_cpu_count": affinity_cpu_count}))
+          cpu_info = Path("/proc/cpuinfo")
+          cpu_models = sorted({line.split(":", 1)[1].strip()
+                               for line in cpu_info.read_text().splitlines()
+                               if line.startswith("model name")}) if cpu_info.is_file() else []
+          print(json.dumps({"cpu_count": os.cpu_count(), "affinity_cpu_count": affinity_cpu_count,
+                            "cpu_models": cpu_models, "processor": platform.processor(),
+                            "temporary_root": tempfile.gettempdir(),
+                            "runner_temporary_root": os.environ.get("RUNNER_TEMP"),
+                            "numpy_version": np.__version__, "scipy_version": scipy.__version__}))
+          np.show_config()
+          np.show_runtime()
           PY
+          cat reports/diagnostics/environment.log
       - name: Coordinate provisioned machines before timing complete test commands
         env:
           COMMON_START: ${{ needs.synchronize.outputs.start-at }}
@@ -194,7 +241,7 @@ jobs:
               output = args.output.resolve()
               stop_marker = args.stop_marker.resolve()
               temporary_root = Path(tempfile.gettempdir()).resolve()
-              pattern = "dphtools-worker-*/pytest/test*/repository/reports/verification/fast-*"
+              pattern = "dphtools-worker-*/pytest/*/*/reports/verification/*"
               started = time.monotonic()
               cpu_started = time.process_time()
               seen = {}
@@ -241,8 +288,13 @@ jobs:
                           directories = []
                       for directory in directories:
                           # Logs are checked independently, even when the receipt is unchanged.
-                          for name in ("checks.json", "format.log", "lint.log", "docstrings.log"):
-                              path = directory / name
+                          try:
+                              paths = sorted(directory.glob("*.log")) + [directory / "checks.json"]
+                          except OSError as error:
+                              failure("discover_logs", directory, error)
+                              continue
+                          for path in paths:
+                              name = path.name
                               try:
                                   if not path.is_file():
                                       continue
@@ -276,7 +328,7 @@ jobs:
                                   continue
                               seen[str(path)] = hashed
                               record("snapshot", source_path=str(path), sha256=hashed,
-                                     snapshot_path=str(target.relative_to(output)), byte_count=len(raw),
+                                     snapshot_path=target.relative_to(output).as_posix(), byte_count=len(raw),
                                      receipt_complete=complete)
                       time.sleep(max(0, next_poll - time.monotonic()))
                   record("stopped", tracked_files=len(seen), read_bytes=read_bytes,
@@ -297,20 +349,22 @@ jobs:
           python tools/verification.py shard \
             --report-dir reports/verification/shard \
             --manifest reports/incoming/collection/manifest.json \
-            --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || matrix.os == 'macos-15' && 3 || 2 }}
+            --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || 3 }}
           shard_status=$?
           touch "$observer_stop"
           wait "$observer_pid"
           observer_status=$?
           set -e
-          echo "Fast-check diagnostic observer exit: $observer_status; authoritative shard exit: $shard_status"
+          echo "Verification diagnostic observer exit: $observer_status; authoritative shard exit: $shard_status"
           exit "$shard_status"
-      - name: Retain nested fast-check diagnostic observations
+      - name: Retain nested verification diagnostic observations
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fast-diagnostics-${{ matrix.os }}-${{ matrix.index }}
-          path: reports/diagnostics/fast-checks/
+          path: |
+            reports/diagnostics/fast-checks/
+            reports/diagnostics/environment.log
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -359,6 +413,21 @@ jobs:
           python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: python -m pip install --require-hashes -r requirements-dev.lock
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -374,7 +443,7 @@ jobs:
           python tools/verification.py aggregate
           --report-dir reports/verification/aggregate
           --manifest reports/incoming/collection/manifest.json
-          --shard-count ${{ matrix.os == 'windows-2025' && 10 || 5 }}
+          --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }}
           --shards
           reports/incoming/shards/shard-${{ matrix.os }}-*
       - name: Retain platform coverage and validation diagnostics

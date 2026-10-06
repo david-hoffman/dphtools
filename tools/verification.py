@@ -481,8 +481,11 @@ def fast_checks(run, reuse=None):
     """Run independent cheap tools even if another cheap check fails."""
     runtime_tools = [source for source in run.sources if source.startswith("tools/")]
     lint_paths = ["dphtools", "tests", *runtime_tools, "setup.py", "versioneer.py"]
-    run.module("format", ["black", "--check", "--line-length", "99", *lint_paths, "notebooks"])
-    run.module("lint", ["flake8", *lint_paths])
+    run.module(
+        "format",
+        ["black", "--check", "--line-length", "99", "--workers", "1", *lint_paths, "notebooks"],
+    )
+    run.module("lint", ["flake8", "--jobs", "1", *lint_paths])
     if run.mode != "fast":
         run.module("docstrings", ["pydocstyle", "--count", "dphtools"])
         return
