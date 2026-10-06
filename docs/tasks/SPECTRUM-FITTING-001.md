@@ -6,82 +6,74 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
 
 ## Current state
 
-- Approval: owner approved R3 and the 33-scenario slice on 2026-10-05. R4 records
-  the instruction to ground numerical acceptance in physical plausibility.
-  Heights, positive amplitudes/widths, free centers, actual Levenberg–Marquardt
-  (LM) default and physical custom-optimizer protocol remain approved. Preserve
-  existing interfaces. Commit/publish `codex/spectrum-fitting` is authorized;
-  merge/release is not.
-- Route/pointer: specialist A/B/C/D; baseline
-  `a835a490373835fa01e4460ce2159365150d1946`. Prepare this task pointer before
-  final verification. The final candidate's own identity and actual local,
-  independent-review and platform results belong outside its tracked tree.
-- Earlier candidate: `f63ebf2de3fc65c047b00a3631f84b8bf0c68437`, with unchanged
-  C2 runtime `820e17dc31d9121b7b1ff2f5c839c0e77d8ad70f`. Normal commit/push fast
-  checks passed and GitHub readback matched. Its exact canonical full passed
-  2118 tests, 186 retained warnings, 3333/3333 statements and 856/856 branches
-  across 20 owned files, with zero failures/errors/skips/exclusions. Actual
-  receipt seals, reports, inputs, logs and unchanged candidate were checked.
-- D2 rejected that candidate. The same representative R4 voltage spectrum
-  expressed in metres makes default LM report success at unfinished parameters:
-  residual sum of squares is 1.19075 V² against the feasible generating model's
-  0.0172294 V². Nanometre/default and metre/real-custom fits reach 0.0170722 V².
-  The default centre derivative step is 14.9 nm, larger than the 0.85 nm initial
-  width. This is an in-scope physical-unit optimization defect, not a covariance
-  formula error. Lorentz/Voigt and modest linear backgrounds also fail in metres.
-  Existing interfaces and simplicity passed review.
-- Reviewed checkpoint: fresh A14/A15 and B11 accepted 296 cases across the
-  unchanged 33 scenarios, round 1/2; the physical-unit window is closed.
-  Tests SHA-256
-  `b3fe64dc5da2bdb40e4af19832f39684507b77957ac7361dc789431af09069d0`;
-  report SHA-256
-  `f345641c2d7697ff064ac73c59ec0478f216183b469243331e0791211db6ee0d`.
-  All 287 previously accepted cases and their report prefix remain byte-exact.
-  Nine new nm↔m cases cover the three profiles, actual default/real custom
-  optimizers, constant/linear backgrounds, independent physical fit quality,
-  full covariance and unit conversion. Baseline: 290 passed, six valid
-  default-metre product failures, exit 1, no skips/expected failures. Five fits
-  return unfinished parameters; Gaussian with a line raises RuntimeError.
-  Mathematical controls and Black 99 pass. This checkpoint was published as
-  incomplete backup `8351a7dddfa9e593a189de0ad251229de7655287`, with normal
-  fast hooks and exact GitHub readback. No PR was open.
-- C3 completed: product commit `f3a655709920f6c7f13a392c5c6265ae8d2f045e`.
-  Only the additive spectrum helper changed: private center/width coordinates
-  use the observed x span, with equivalent line-slope conditioning. Intensities,
-  physical outputs/covariance and custom callable parameters remain unchanged.
-  Frozen spectrum suite: 296 passed, zero failures/skips/expected failures;
-  fast and normal commit hooks passed. Tests/report hashes stayed exact.
-  Focused/fast success does not establish full or platform acceptance.
-- CI run 37381489582 attempt 1 for the published candidate completed/cancelled
-  after D2. Three collections succeeded; six shards cancelled. Aggregate and
-  `ci-required` failures followed cancellation. All 12 partial artifacts and
-  actual logs/metadata are retained. No platform success is claimed. Earlier
-  cancelled run 37370536644 remains historical evidence.
-- Historical scope: the artificial 1e12-offset covariance defect remains
-  documented. The owner excluded it from R4 acceptance; that repair request is
-  superseded and no such repair occurred. Ordinary physical-unit behavior is
-  still required. Neither scope correction erased attempts or spending.
-- Allowances: initial C and both earlier authorized repairs remain counted.
-  The owner's request to fix the demonstrated unit bug is accepted as the
-  previously requested one-repair extension: C3 completed, repairs 3/3 used.
-  The owner then asked about mean-zero/unit-variance preprocessing. The narrow
-  repair conditions coordinates and optimizer parameters internally while
-  preserving physical intensities, public outputs and the custom protocol.
-  R4 already delegates internal transforms. Prior B windows 2/2, 1/2, 1/2,
-  1/2, 2/2, 2/2, 1/2, 1/2 remain closed and counted. No tests change.
-- Next: exact unchanged canonical full, fresh D3 and complete
-  Linux/macOS/Windows Python 3.10 verification.
-  Require exact 100% owned statements/branches globally and per file and zero
-  failures/errors/skips/exclusions. Prepare the task pointer before verification;
-  final candidate identity and actual final results belong in the conversation.
-  The published backup remains incomplete. No PR is open; merge/release remains
-  unauthorized. External human-review plots do not replace numerical acceptance.
+- Approval: R3 and the 33-scenario exception remain approved. R4 records physical
+  plausibility: resolved spectra, plausible noise and reasonable backgrounds.
+  Peak heights, positive heights/widths, free centers, actual Levenberg–Marquardt
+  (LM) default, physical custom-optimizer protocol and preserved existing public
+  interfaces remain required. The owner requested saving plots in docs and then
+  opening a PR, following the pending one-additional-test-review-round request.
+  That authorizes the proposed one-round extension and PR work. Publish
+  `codex/spectrum-fitting` and open the PR against `codex-main` after required
+  checks pass. Merge/release remains unauthorized.
+- Candidate pointer: prepare this record before exact final verification. C3
+  runtime is `f3a655709920f6c7f13a392c5c6265ae8d2f045e`; only the additive
+  spectrum helper changed. Private center/width coordinates and line slope use
+  the observed x span. Intensities and physical outputs/covariance stay unchanged.
+  Final candidate identity and actual full/D/platform/PR results belong outside
+  its tracked tree, in the conversation or linked PR. No successful final full,
+  D3 or platform result is asserted by this preparation record.
+- Reviewed checkpoint: fresh A18/B14 accepted 297 cases across unchanged
+  33 scenarios, round 3/3 of the SAME owner-extended correction window; closed.
+  Tests SHA-256 `22083617a37363f398116749087c4b0a8f080cc3cb27e4ebcaaeb0093342bf35`;
+  report SHA-256 `b376f8eb13184564ec3836af0c818b65c011b3f5bf385a9f587cfa41f4d8e5ea`.
+  The entire accepted 296-case test prefix (84331 bytes, 91 AST nodes) and report
+  prefix (199983 bytes, hash-only) remain exact. A16/B12 and A17/B13 rejected
+  rounds remain retained. B14 accepted the corrected warning-preservation
+  checks and independently assessed the actual covariance-inability RuntimeError
+  as informative. Class/nonempty error text alone is not informative acceptance;
+  D must independently assess the actual numerical context too.
+- Checks: corrected case, all 297 spectrum cases, Black 99, 54 author and
+  19 independent reviewer controls passed. Focused spectrum-helper measurement
+  is 186/186 statements and 80/80 branches, zero exclusions. This is focused
+  evidence only. C3's earlier exact full passed all 2127 tests with 186 warnings
+  but FAILED coverage at 3338/3339 statements and 857/858 branches. The one
+  missing covariance inability is now exercised; global/full success must still
+  be verified on the final candidate. Actual failed receipt seals, logs, raw
+  coverage, JUnit, lifecycle records, artifacts and input identities are retained.
+- Human plots: [saved examples](../examples/spectrum-fitting/README.md) contain
+  eight scientific PNGs, a portable HTML page, compressed simulated/fitted data
+  and a hash/provenance manifest, 12 files total. All image/data bytes match the
+  original after-repair review; 21 relative links and 108 arrays were checked.
+  The 18 original real fits returned with zero numerical warnings; residual RMS
+  was 0.00915723–0.00968070 V for 0.01 V read noise. Default nm/m fitted-signal
+  difference was at most 4.71755e-10 V. Images and exact table cells were
+  inspected; browser CSS rendering remains unverified. These figures preserve
+  the C3 runtime results from preparation 1c72cad, before tests/docs-only changes;
+  they do not replace numerical acceptance or claim execution on later commits.
+- History: published backup `8351a7dddfa9e593a189de0ad251229de7655287`
+  remains incomplete. D2 rejected the earlier default metre fits; C3 passes the
+  accepted physical-unit regression cases. Cancelled CI runs 37381489582 and
+  37370536644, partial artifacts/logs, the initially misrouted covariance witness,
+  rejected test appendices and reviewer-harness failures remain retained.
+  The artificial 1e12-offset accuracy example stays outside R4; no such repair
+  occurred. The ten-task maintenance pilot is separate and remains incomplete.
+- Next: commit the accepted tests/plots/record, run canonical exact full,
+  obtain fresh D3, publish the exact passing candidate and open the requested PR.
+  Require exact 100% owned statements/branches globally and per file, with zero
+  failures/errors/skips/exclusions. Complete the actual PR's Python 3.10
+  Linux/macOS/Windows matrix and retain all platform evidence. GitHub readiness
+  confirms unchanged `codex-main` base a835a490 and required strict `ci-required`.
+  No PR was open at preparation; no merge/release is authorized.
 - Environment/limits: disposable non-Conda CPython 3.12.14 with applicable hashed
   pins and real nested tools/imports/child measurement. Python 3.8 and native
   wider-than-float64 remain unverified; shell-hook coverage is unsupported.
-  Earlier failed/interrupted/rejected attempts and actual evidence are retained.
-- Metrics: 33 scenarios; 296 accepted test cases; baseline 290 pass / six product
-  failures. A/B completed launches 15/11; physical-unit window accepted/closed
-  at 1/2; initial C one; repairs 3/3 used, C3 completed; D1/D2 rejected. No fixed execution budget
-  cap. Start observation 2026-10-05 16:56:58 UTC. Actual role usage/logs remain
-  outside Git; cached input is part of input and all prior spending is retained.
+  Role reports, failed attempts, usage and final results remain outside Git.
+- Metrics through B14: 33 scenarios; 297 accepted cases; A/B launches 18/14;
+  current correction window accepted/closed 3/3. Earlier closed windows
+  2/2, 1/2, 1/2, 1/2, 2/2, 2/2, 1/2, 1/2 stay counted. Initial C one;
+  repairs 3/3 spent, C3 completed; D1/D2 rejected. No fixed execution cap.
+  Start observation 2026-10-05 16:56:58 UTC. Completed CLI roles consumed
+  46,836,797 input tokens, including 43,884,416 cached;
+  735,905 output, including 280,724 reasoning.
+  Parent/helper and exact billing metering is unavailable. No allowance or
+  spending resets; no further test rewrite or product repair is authorized.

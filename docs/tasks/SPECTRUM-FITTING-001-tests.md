@@ -2981,3 +2981,254 @@ two repairs remain counted. Open physical-unit B window stays 0/2. The handoff i
 an **unreviewed proposed 296-case checkpoint** for fresh B to review the combined
 nine physical-unit cases. Additional C authority is still pending. Full verification,
 coverage, publication, and merge are outside this A15 task.
+
+
+## A18 — caller-warning preservation correction (R4), round 3/3
+
+This replaces only the rejected appendix after the approved 296-case checkpoint.
+It retains one genuine smallest-positive-width custom Levenberg-Marquardt (LM)
+case: **296 accepted + 1 replacement = 297 spectrum cases**, with **the same 33
+approved scenarios**. This is a post-implementation numerical-robustness test
+correction. The A16/B12 and A17/B13 attempts and nonacceptances remain retained.
+The owner-authorized additional round is **round 3/3 of the SAME correction
+window**, with no reset or further rewrite authority.
+
+The [approved public resolution](/private/tmp/dphtools-spectrum-delivery/diagnostic-correction-public-resolution.md)
+resolves [B13's public diagnosis](/private/tmp/dphtools-spectrum-B17-sqf9i07c/review.md).
+The rejected English substring matcher admitted display-only warnings and
+rejected conventional numerical errors. A18 removes that matcher. The real
+caller's adapter now emits an applicable numerical warning after its successful
+solve; the test requires that caller-owned warning's category/message to survive.
+Numerical-output correctness remains separately checked. No new product message,
+warning category or internal algorithm is required.
+
+### Fresh frozen expectations, scope and scenario mapping
+
+[Fresh expectations](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/expectations-frozen.md),
+SHA256 `c1129145314f8f2dbd8c359172651f57090cdc44ef68159bf0151561ac756a17`,
+were frozen before all new probes. [Freeze metadata](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/freeze-metadata.json)
+records 2026-10-06 05:45:27 UTC; the first observer probe began at 05:47:01 UTC.
+This records chronology, not tamper-proof attestation. Expectations derive from
+public R4, independent model/precision mathematics and the approved resolution.
+They were not selected from candidate output.
+
+| Existing scenario | Public-entry-point mapping | Expectation basis |
+|---|---|---|
+| S31 and R4 numerical robustness/covariance warnings | `test_s29_s31_smallest_positive_gaussian_width_real_custom_lm`: real custom LM, physical residual/initial/bounds/result protocol, forwarded evaluation limit, caller-warning preservation, honest uncertainty or numerical failure | R4 custom callable, least-squares objective, warning preservation and independent identifiability |
+| S29, supported by R4 numerical-robustness text | Same single case preserves caller inputs and records a numerical-inability outcome | R4 failure/input rules; S29's literal exhaustion/nonconvergence row remains unchanged |
+| S01–S28, S30, S32–S33; earlier S29/S31 cases | All 296 accepted cases and their existing mappings remain exact | Approved prefix expectations and tolerances |
+
+The accepted default smallest-width checks and representative resolved physical
+spectra remain exact. This replacement adds neither an accurate unresolved-width
+recovery requirement nor the excluded artificial 1e12-background accuracy
+requirement. Its units are abstract sample/coordinate units for robustness.
+
+Sources are the [R4 public contract](/Users/davidhoffman/.codex/worktrees/spectrum-fitting/dphtools/docs/tasks/SPECTRUM-FITTING-001-contract.md),
+[corrected public gap](/private/tmp/dphtools-spectrum-delivery/steps-boundary-corrected-public-gap.md),
+approved resolution and independent mathematics below. Opened primary references:
+[SciPy least_squares](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.least_squares.html)
+documents LM's lack of explicit bounds, linear least-squares objective and
+zero-residual termination.
+[SciPy covariance](https://docs.scipy.org/doc/scipy-1.15.3/reference/generated/scipy.optimize.curve_fit.html)
+documents approximate covariance, variance diagonals and covariance-estimation
+warnings. R4 governs the covariance convention; curve_fit's specific rank
+handling is not imposed.
+
+### Retained independent mathematical proof and tolerances
+
+Use 81 coordinates from -1 to 1 coordinate units, height 1 sample unit, center 0,
+Gaussian sigma `nextafter(0,1)=2^-1074` coordinate units and background 0.5 sample
+units. The central/offcenter data are binary-exact 1.5/0.5 sample units.
+R4's point-sampled model is `b+a*exp(-0.5*((x-c)/sigma)^2)`.
+
+The nearest offcenter distance is about 0.025 coordinate units (>0.024). Even
+for twice sigma its ratio to width exceeds 2.4e321, so offcenter Gaussian samples
+round to zero, while the central profile is one. Two distinct positive widths
+produce identical represented samples. The unchanged independent accepted
+stable-narrow helper avoids overflowing division and confirms zero represented
+scaled center/width sensitivity. Height/background columns are independent:
+represented local rank 2 among 4 parameters. Positive residual degrees of freedom
+`81-4=77` do not restore missing information. Residual sum of squares (RSS) zero
+is a global minimum of a nonnegative squared objective; it does not establish
+finite individual center/width uncertainty. [Executed math evidence](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/oracle-controls-final-diagnostics.json)
+independently verifies these claims.
+
+The adapter receives physical `[height,center,sigma,background]`, lower bounds
+`[0,-inf,0,-inf]`, upper bounds `[inf,inf,inf,inf]` and `max_nfev=1000`.
+It applies log/exp only to its own positive coordinates, calls actual SciPy
+`least_squares(...,method="lm")` on the supplied residual and returns the actual
+solver solution transformed to physical coordinates. No fixture truth supplies
+the optimizer output. Every evaluation checks finite parameters, positive
+height/width and the independent physical residual. Solver convergence and
+nonincreasing RSS within roundoff are required. Background initialization and
+exact solver evaluation counts remain delegated.
+
+Float64 epsilon is `2^-52`. The unchanged precision allowance is
+`64*eps*1.5 = 3*2^-47 = 2.1316282072803006e-14` sample units.
+Objective-growth allowance is `81*(3*2^-47)^2 = 729*2^-94`
+`= 3.6805094393991527e-26` sample units squared. This conservative 64-epsilon
+bound covers elementary transforms, model addition and residual subtraction;
+the formula is independent of observed output. The A17 written decimal erratum
+is retained; neither its executed formula nor this tolerance changed.
+
+| Check | Relative tolerance | Absolute tolerance | Rationale |
+|---|---:|---:|---|
+| Supplied residual versus independent physical model | 0 | 2.1316282072803006e-14 sample units | 64-epsilon arithmetic allowance |
+| Sampled fitted data | 0 | 2e-7 sample units | Unchanged `MODEL_ATOL`; 2e-7 of unit height |
+| Fitted versus returned physical model | 2e-10 | 2e-10 sample units | Conservative model roundoff |
+| Residual versus data minus fitted | 2e-12 | 2e-12 sample units | Conservative subtraction consistency |
+| Covariance versus transpose | 2e-10 | 2e-12 in each compared covariance entry's units | Unchanged symmetry allowance, matching NaNs permitted |
+
+No absolute covariance-accuracy bound or accurate center/width-recovery bound
+is imposed on this unresolved boundary.
+
+### Warning preservation and informative-error review
+
+After its real successful solve, the adapter emits a genuine caller-owned
+`OptimizeWarning`: "Caller LM solve reached the sampled minimum; center/width
+uncertainty is unavailable." Its numerical applicability comes from the
+independent sampled-identifiability proof. The exact **caller-owned** category
+and message must survive on both allowed outcomes. This tests upstream warning
+preservation under R4. It fixes neither the product's own text nor its category.
+
+On success, retain all separate checks: real finite correctly shaped positive
+physical parameters; sampled accuracy; model/residual consistency; physical
+parameter equality to the real optimizer output; real symmetric 4-by-4
+covariance; every variance NaN or nonnegative; center/width variances NaN or
+positive infinity; input preservation and returned-storage independence.
+Partial/all NaNs, positive infinity and mixed uncertainty alternatives remain
+allowed. Negative finite/-infinite variances, fabricated finite zero
+center/width uncertainty, inaccurate/incoherent output and silent None fail.
+
+On RuntimeError, the automated helper checks only class and nonempty text.
+**This minimum is not informative-error acceptance.** B/D must independently
+assess the actual caught error and retained numerical warnings against the
+witness. A nonempty display error still fails that substantive review criterion.
+No arbitrary English token matcher remains.
+
+The actual caught error was **"Spectrum covariance differences are not
+representable"**, after a genuine successful zero-RSS solve. This identifies
+covariance-difference representability as the unavailable numerical operation.
+Its relevance is supported by the independent smallest-width/identifiability
+proof and seven retained overflow warnings. A successful sampled objective can
+coexist with unavailable local uncertainty. This is numerical-relevance evidence
+for B14/D, rather than a requirement for this exact wording or difference
+algorithm. [Structured actual observations and explicit assessment](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/observations-diagnostics.json)
+retain the error and each warning's category/message/file/line.
+
+"Singular matrix" and "SVD did not converge" also describe applicable
+linear-algebra inability in this numerical call. "Fit legend unavailable" and
+"Optimizer progress display failed" describe display failures and supply no
+numerical-inability diagnosis. These are explicit review distinctions, not a
+new automated wording whitelist. Numerical warnings alone cannot stand in for
+a separately emitted controlled caller warning; failure of that preservation
+check does not reject their numerical relevance.
+
+### Independently frozen discrimination controls
+
+[Observer script](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/oracle-controls.py)
+and [final-candidate results](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/oracle-controls-final-diagnostics.json)
+retain **7 good/15 bad numerical-output controls**, all with preselected outcomes.
+The seven good controls cover partial/all NaNs, all positive infinity, mixed
+NaN/infinity, infinite diagonal, indistinguishable doubled width and a coherent
+1e-7 sample-unit background offset. Good controls include the caller warning
+alongside the original applicable diagnostics. Bad numerical-output controls
+also include it, so preserved warnings cannot mask invalid output. The fifteen
+bad controls retain negative variances, warning absence/empty/unrelated/
+success/progress-only cases, fabricated zero covariance, asymmetry/complexity,
+coherent 5e-7 sample-unit error, inconsistent residual/model and None.
+
+**20 warning-preservation controls** adapt the original nine diagnosis examples
+and add B13's display/numerical examples and controlled-warning presence/absence.
+Display-only messages fail even with coherent numerical output. "Singular
+matrix" and "SVD did not converge" pass with the caller warning; alone they
+fail preservation of the distinct upstream warning. The caller warning alone,
+or with either display message, passes; altered caller category or text fails.
+Controls use genuine captured warnings and the actual appended success oracle.
+
+**12 error-minimum controls** confirm that seven meaningful numerical messages
+and both display messages satisfy only the class/nonempty minimum, while empty,
+whitespace and wrong-class examples fail. Separate explicit review labels mark
+the display messages inapplicable. Thus the controls expose the minimum's limit
+instead of claiming it supplies semantic acceptance. All **54** preselected
+controls matched. They call no product, supply no fake optimizer solution and
+manufacture no product-red evidence. Controls passed before the first new
+product call and were rerun after formatting on the final test bytes.
+
+### Actual statuses, classification and exposure
+
+The [corrected-case invocation](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/corrected-case-invocation.json)
+and [pytest diagnostics](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/corrected-case-diagnostics.json)
+record 1 collected/passed, 0 failures/skips, process/pytest exit 0.
+Actual real LM success was True, initial/final RSS zero; its observed physical
+solution was `[1,0,2^-1074,0.5]`. All seven observed physical evaluations were
+finite and positive in constrained coordinates; reported `nfev=1` is evidence,
+not a test requirement. The fitter raised the numerical covariance-inability
+RuntimeError and preserved inputs. Seven overflow RuntimeWarnings and the
+genuine caller OptimizeWarning were preserved.
+[Source-free stdout](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/corrected-case.stdout.log)
+and [source-free warnings](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/corrected-case.stderr.log)
+retain actual diagnostics without source snippets or tracebacks.
+
+The [one-file spectrum regression invocation](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/spectrum297-invocation.json)
+and [structured results](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/spectrum297-diagnostics.json)
+record **297 collected/passed, 0 failed/skipped, process/pytest exit 0**.
+The preserved representative physical controls passed alongside the replacement.
+[Black99 check](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/black99-check-invocation.json)
+exited 0 and left the test file unchanged. Formatting beforehand also exited 0;
+the full accepted prefix survived it exactly.
+
+Classification: B13's findings are test-oracle defects, resolved by this
+authorized tests-only proposal. The supplied gap is post-implementation test-gap
+evidence. The observed RuntimeError is a permitted numerical-inability outcome,
+not a failed pytest or product-red observation. All harnesses and checks passed;
+expected bad-control rejections are observer evidence. A18 observed no product
+defect, unresolved requirement or environment/tooling failure. No product repair
+was performed or authorized.
+
+No accidental implementation/source/private-helper/history/diff/raw-coverage,
+PROJECT/task-state/LESSONS/private-role/event/conversation exposure was observed.
+Permitted test helpers/public packets were read; public imports/calls stayed
+opaque. Diagnostic filenames/line numbers remained opaque. Report bytes before
+199983 were never decoded. The prescribed source-free renderer, clean
+interpreter, environment and fresh own diagnostics destination preceded every
+probe/test/Black run. Full stdout/stderr and actual statuses are retained.
+Optional memory interfaces, delegation and Superpowers were not used. A18
+performed only the two authorized tracked appendix replacements and own
+temporary evidence writes. No other suites/full/coverage, instructions/tooling/
+configuration/workflow/product edits, installs, commits/pushes/PR, merge or
+release actions occurred. Other concurrent work was not inspected or modified.
+
+### Exact identities and retained allowances
+
+| Protected artifact | Bytes | SHA256 | Proof |
+|---|---:|---|---|
+| Approved 296-case test prefix | 84331 | `b3fe64dc5da2bdb40e4af19832f39684507b77957ac7361dc789431af09069d0` | Exact approved-copy bytes; all 91 top-level Abstract Syntax Tree (AST) nodes including locations equal the parsed prefix and first 91 candidate nodes |
+| Approved report prefix | 199983 | `f345641c2d7697ff064ac73c59ec0478f216183b469243331e0791211db6ee0d` | Exact hash; never decoded |
+
+The corrected test file has 92473 bytes and 95 top-level AST nodes: 91 accepted
+nodes plus three appendix helpers and one single-case test. Prefix proofs before
+and after Black99 are retained. Final complete candidate hashes, suffix equality
+and exact AST/report proofs are outside the tracked candidate in
+[final-prefix proof](/private/tmp/dphtools-spectrum-A18-SdGfZtGB/prefix-final-diagnostics.json).
+The rejected A17 test/report suffixes were retained in this evidence directory,
+alongside the original permitted A17 packet; earlier rejected attempts remain
+retained by the coordinator. Accepted report bytes and test helpers/cases/
+tolerances were untouched.
+
+Metrics: **33 scenarios; 296 accepted + 1 replacement = 297 cases; author A18
+launch 18; no reviewer/delegate launched by A18; A16/B12 round 1/2 and A17/B13
+round 2/2 rejected and retained; A18/B14 round 3/3 SAME correction window.**
+Prior closed windows **2/2,1/2,1/2,1/2,2/2,2/2,1/2,1/2** remain retained.
+Initial C plus three repairs remain **3/3 spent**, with no product-edit
+authority. All attempts/durations/statuses are retained in own invocation
+records. No fixed execution cap was supplied; token/billing totals are
+unavailable. No further review, rewrite or repair allowance is inferred.
+
+Confidence is high in prefix preservation, numerical-output discrimination and
+controlled-warning preservation. Informative-error acceptance still requires
+B14's independent assessment of the actual recorded numerical evidence.
+B14 must review this identified correction at round 3/3 before coordinator
+commitment. Exact coverage-gap closure, full verification, D and required
+platform acceptance remain separate coordinator obligations; A18 did not
+inspect or establish them.

@@ -1971,3 +1971,179 @@ def test_s01_s02_s03_s07_s09_s30_resolved_linear_voltage_nm_to_m(fit, family):
         rtol=0,
         atol=invariance_covariance_bound,
     )
+
+
+def _check_s29_s31_caller_warning_preserved(diagnostics, caller_warning):
+    """Check known caller provenance; do not classify arbitrary English text."""
+    assert any(
+        item.category is type(caller_warning) and str(item.message) == str(caller_warning)
+        for item in diagnostics
+    ), "The caller's applicable numerical warning must be preserved"
+
+
+def _check_s29_s31_runtime_error_minimum(failure):
+    """Only a minimum; B/D assess the actual error's numerical relevance."""
+    assert isinstance(failure, RuntimeError)
+    assert str(failure).strip(), "Numerical inability needs nonempty RuntimeError text"
+
+
+def _check_s29_s31_smallest_width_success(result, x, data, diagnostics, caller_warning):
+    """R4 sampled-model/uncertainty oracle; no width-recovery requirement."""
+    assert result is not None, "A numerical failure must not silently return None"
+    peaks = np.asarray(result.peak_parameters)
+    background = np.asarray(result.background_parameters)
+    fitted, residuals = np.asarray(result.fitted), np.asarray(result.residuals)
+    covariance = np.asarray(result.covariance)
+    assert peaks.shape == (1, 3) and background.shape == (1,)
+    assert fitted.shape == residuals.shape == data.shape
+    for values in (peaks, background, fitted, residuals):
+        assert np.isrealobj(values) and np.all(np.isfinite(values))
+    assert np.all(peaks[:, [0, 2]] > 0)
+    model, _ = _stable_narrow_component(x, peaks[0], "gauss")
+    assert_allclose(fitted, model + background[0], rtol=2e-10, atol=2e-10)
+    assert_allclose(fitted, data, rtol=0, atol=MODEL_ATOL)
+    assert_allclose(residuals, data - fitted, rtol=2e-12, atol=2e-12)
+    assert covariance.shape == (4, 4) and np.isrealobj(covariance)
+    assert_allclose(covariance, covariance.T, rtol=2e-10, atol=2e-12, equal_nan=True)
+    diagonal = np.diag(covariance)
+    # Variances are squared uncertainties: -inf is invalid, as is any negative.
+    assert np.all(np.isnan(diagonal) | (diagonal >= 0))
+    unavailable = diagonal[[1, 2]]
+    assert np.all(np.isnan(unavailable) | np.isposinf(unavailable))
+    _check_s29_s31_caller_warning_preserved(diagnostics, caller_warning)
+    return peaks, background, fitted, residuals, covariance
+
+
+def test_s29_s31_smallest_positive_gaussian_width_real_custom_lm(fit):
+    from scipy.optimize import OptimizeWarning
+
+    # R4 numerical robustness only. This boundary is not a resolved physical fit.
+    x = np.linspace(-1.0, 1.0, 81)
+    width = np.nextafter(0.0, 1.0)
+    guesses = np.array([[1.0, 0.0, width]])
+    data = np.full(x.size, 0.5)
+    data[x == 0.0] += 1.0
+    initial_model, sensitivity = _stable_narrow_component(x, guesses[0], "gauss")
+    assert_array_equal(initial_model + 0.5, data)
+    wider = guesses[0].copy()
+    wider[2] *= 2
+    assert_array_equal(_stable_narrow_component(x, wider, "gauss")[0] + 0.5, data)
+    assert_array_equal(sensitivity[:, 1:], np.zeros((len(x), 2)))
+    assert np.linalg.matrix_rank(np.column_stack((sensitivity, np.ones(len(x))))) == 2
+    assert len(x) - 4 == 77
+    snapshots = [values.copy() for values in (data, x, guesses)]
+    roundoff = 64 * np.finfo(float).eps * max(1.0, np.max(np.abs(data)))
+    calls = []
+    caller_warning = OptimizeWarning(
+        "Caller LM solve reached the sampled minimum; center/width uncertainty is unavailable."
+    )
+
+    def real_optimizer(residual, initial, *, bounds, max_nfev):
+        initial = np.asarray(initial)
+        assert initial.shape == (4,) and np.isrealobj(initial)
+        assert np.all(np.isfinite(initial))
+        assert_array_equal(initial[:3], guesses.ravel())
+        assert_array_equal(bounds[0], [0, -np.inf, 0, -np.inf])
+        assert_array_equal(bounds[1], [np.inf, np.inf, np.inf, np.inf])
+        assert max_nfev == 1000
+        positive = np.isfinite(bounds[0])
+        evaluations = []
+
+        def physical(transformed):
+            parameters = np.array(transformed, copy=True)
+            parameters[positive] = np.exp(parameters[positive])
+            return parameters
+
+        def evaluate(parameters):
+            assert parameters.shape == (4,) and np.isrealobj(parameters)
+            assert np.all(np.isfinite(parameters))
+            assert np.all(parameters[positive] > 0)
+            observed = np.asarray(residual(parameters))
+            assert observed.shape == data.shape and np.isrealobj(observed)
+            assert np.all(np.isfinite(observed))
+            model, _ = _stable_narrow_component(x, parameters[:3], "gauss")
+            assert_allclose(observed, data - (model + parameters[3]), rtol=0, atol=roundoff)
+            evaluations.append(parameters.copy())
+            return observed
+
+        before = evaluate(initial)
+        transformed_start = initial.copy()
+        transformed_start[positive] = np.log(transformed_start[positive])
+        # LM minimizes the supplied residual in the adapter's own coordinates.
+        solved = least_squares(
+            lambda transformed: evaluate(physical(transformed)),
+            transformed_start,
+            method="lm",
+            max_nfev=max_nfev,
+        )
+        final = physical(solved.x)
+        after = evaluate(final)
+        initial_rss, final_rss = float(before @ before), float(after @ after)
+        assert bool(solved.success), "The real boundary-witness optimizer must converge"
+        assert final_rss <= initial_rss + len(data) * roundoff**2
+        calls.append(
+            dict(
+                method="lm",
+                success=bool(solved.success),
+                nfev=int(solved.nfev),
+                physical_evaluations=len(evaluations),
+                all_domain_valid=all(
+                    np.all(np.isfinite(values)) and np.all(values[positive] > 0)
+                    for values in evaluations
+                ),
+                initial_rss=initial_rss,
+                final_rss=final_rss,
+                final=final.tolist(),
+            )
+        )
+        # The independent sampled-model proof establishes this caller diagnosis.
+        warnings.warn(caller_warning)
+        # Return actual solver output in physical units, never the fixture truth.
+        return SimpleNamespace(x=final, success=bool(solved.success), message=solved.message)
+
+    result = None
+    with warnings.catch_warnings(record=True) as diagnostics:
+        warnings.simplefilter("always")
+        try:
+            result = _preserving_call(
+                fit,
+                data,
+                x,
+                peak_type="gauss",
+                guesses=guesses,
+                background="constant",
+                optimizer=real_optimizer,
+                max_nfev=1000,
+            )
+        except RuntimeError as failure:
+            _check_s29_s31_runtime_error_minimum(failure)
+            print(f"Smallest-width real custom LM: RuntimeError: {failure}")
+        else:
+            assert result is not None, "A numerical failure must not silently return None"
+        finally:
+            for diagnostic in diagnostics:
+                print(
+                    warnings.formatwarning(
+                        diagnostic.message,
+                        diagnostic.category,
+                        diagnostic.filename,
+                        diagnostic.lineno,
+                        line="",
+                    ),
+                    file=sys.stderr,
+                    end="",
+                )
+            print("Smallest-width real SciPy solve:", json.dumps(calls, sort_keys=True))
+    assert calls, "The actual configured SciPy LM solver must run"
+    _check_s29_s31_caller_warning_preserved(diagnostics, caller_warning)
+    if result is None:
+        return
+    arrays = _check_s29_s31_smallest_width_success(result, x, data, diagnostics, caller_warning)
+    assert_array_equal(arrays[0].ravel(), calls[0]["final"][:3])
+    assert_array_equal(arrays[1], calls[0]["final"][3:])
+    print("Smallest-width real custom LM: verified fit with unavailable uncertainty")
+    for values in arrays:
+        if values.flags.writeable:
+            values.flat[0] = 0
+    for values, snapshot in zip((data, x, guesses), snapshots):
+        assert_array_equal(values, snapshot)
