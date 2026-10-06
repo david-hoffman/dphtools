@@ -16,7 +16,7 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   `a835a490373835fa01e4460ce2159365150d1946`. Prepare this task pointer before
   final verification. The final candidate's own identity and actual local,
   independent-review and platform results belong outside its tracked tree.
-- Published candidate: `f63ebf2de3fc65c047b00a3631f84b8bf0c68437`, with unchanged
+- Earlier candidate: `f63ebf2de3fc65c047b00a3631f84b8bf0c68437`, with unchanged
   C2 runtime `820e17dc31d9121b7b1ff2f5c839c0e77d8ad70f`. Normal commit/push fast
   checks passed and GitHub readback matched. Its exact canonical full passed
   2118 tests, 186 retained warnings, 3333/3333 statements and 856/856 branches
@@ -42,9 +42,16 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   full covariance and unit conversion. Baseline: 290 passed, six valid
   default-metre product failures, exit 1, no skips/expected failures. Five fits
   return unfinished parameters; Gaussian with a line raises RuntimeError.
-  Mathematical controls and Black 99 pass. Failed metre cases leave later
-  covariance/invariance/storage outcomes unproved. This revision is an
-  explicitly incomplete backup checkpoint, not a passing product candidate.
+  Mathematical controls and Black 99 pass. This checkpoint was published as
+  incomplete backup `8351a7dddfa9e593a189de0ad251229de7655287`, with normal
+  fast hooks and exact GitHub readback. No PR was open.
+- C3 completed: product commit `f3a655709920f6c7f13a392c5c6265ae8d2f045e`.
+  Only the additive spectrum helper changed: private center/width coordinates
+  use the observed x span, with equivalent line-slope conditioning. Intensities,
+  physical outputs/covariance and custom callable parameters remain unchanged.
+  Frozen spectrum suite: 296 passed, zero failures/skips/expected failures;
+  fast and normal commit hooks passed. Tests/report hashes stayed exact.
+  Focused/fast success does not establish full or platform acceptance.
 - CI run 37381489582 attempt 1 for the published candidate completed/cancelled
   after D2. Three collections succeeded; six shards cancelled. Aggregate and
   `ci-required` failures followed cancellation. All 12 partial artifacts and
@@ -56,14 +63,14 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   still required. Neither scope correction erased attempts or spending.
 - Allowances: initial C and both earlier authorized repairs remain counted.
   The owner's request to fix the demonstrated unit bug is accepted as the
-  previously requested one-repair extension: repairs 2/3 used, one C3 available.
+  previously requested one-repair extension: C3 completed, repairs 3/3 used.
   The owner then asked about mean-zero/unit-variance preprocessing. The narrow
-  repair will condition coordinates and optimizer parameters internally while
+  repair conditions coordinates and optimizer parameters internally while
   preserving physical intensities, public outputs and the custom protocol.
   R4 already delegates internal transforms. Prior B windows 2/2, 1/2, 1/2,
   1/2, 2/2, 2/2, 1/2, 1/2 remain closed and counted. No tests change.
-- Next: fresh C3 against the accepted checkpoint, exact unchanged canonical
-  full, fresh D and complete Linux/macOS/Windows Python 3.10 verification.
+- Next: exact unchanged canonical full, fresh D3 and complete
+  Linux/macOS/Windows Python 3.10 verification.
   Require exact 100% owned statements/branches globally and per file and zero
   failures/errors/skips/exclusions. Prepare the task pointer before verification;
   final candidate identity and actual final results belong in the conversation.
@@ -75,6 +82,6 @@ This scientific task is separate from the routine-maintenance ten-task pilot.
   Earlier failed/interrupted/rejected attempts and actual evidence are retained.
 - Metrics: 33 scenarios; 296 accepted test cases; baseline 290 pass / six product
   failures. A/B completed launches 15/11; physical-unit window accepted/closed
-  at 1/2; initial C one; repairs 2/3 used, C3 scheduled; D1/D2 rejected. No fixed execution budget
+  at 1/2; initial C one; repairs 3/3 used, C3 completed; D1/D2 rejected. No fixed execution budget
   cap. Start observation 2026-10-05 16:56:58 UTC. Actual role usage/logs remain
   outside Git; cached input is part of input and all prior spending is retained.
