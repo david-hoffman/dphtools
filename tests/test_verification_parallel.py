@@ -87,6 +87,11 @@ def test_local_workers_overlap_with_private_temp_and_real_child_coverage(tmp_pat
     assert max(item["start"] for item in observations) < min(item["end"] for item in observations)
     for field in ("basetemp", "temporary", "coverage"):
         assert len({item[field] for item in observations}) == 2
+    for item in observations:
+        for field in ("basetemp", "temporary"):
+            temporary = Path(item[field]).resolve()
+            assert not temporary.is_relative_to(command.root.resolve())
+            assert not temporary.exists()
     coverage = json.loads((command.report / "coverage.json").read_text())
     assert coverage["files"]["dphtools/child.py"]["executed_lines"] == [2]
     cases = list(ElementTree.parse(command.report / "pytest.xml").iter("testcase"))
@@ -100,10 +105,15 @@ def test_local_workers_overlap_with_private_temp_and_real_child_coverage(tmp_pat
 @pytest.mark.parametrize("behavior", ["skip", "failure"])
 def test_local_worker_failure_retains_fresh_diagnostic_coverage(tmp_path, behavior):
     command = ParallelCommand(tmp_path)
+    temporary_record = tmp_path / "worker-temporary.json"
+    command.env["PARALLEL_FAILURE_TEMP"] = str(temporary_record)
     test = command.root / "tests/test_real.py"
     test.write_text(
-        "import pytest, dphtools.child\n"
-        "def test_behavior():\n"
+        "import json, os, tempfile, pytest, dphtools.child\n"
+        "from pathlib import Path\n"
+        "def test_behavior(tmp_path):\n"
+        "    Path(os.environ['PARALLEL_FAILURE_TEMP']).write_text(json.dumps(\n"
+        "        {'basetemp': str(tmp_path), 'temporary': tempfile.gettempdir()}))\n"
         + ("    pytest.skip('visible skip')\n" if behavior == "skip" else "    assert False\n")
         + "def test_success():\n    assert dphtools.child.VALUE == 17\n"
     )
@@ -113,6 +123,10 @@ def test_local_worker_failure_retains_fresh_diagnostic_coverage(tmp_path, behavi
     assert next(step for step in receipt["steps"] if step["name"] == "tests")["state"] == "failed"
     assert (command.report / "coverage.json").is_file()
     assert (command.report / "pytest.xml").is_file()
+    for temporary in json.loads(temporary_record.read_text()).values():
+        temporary = Path(temporary).resolve()
+        assert not temporary.is_relative_to(command.root.resolve())
+        assert not temporary.exists()
 
 
 def test_failed_collection_starts_no_workers(tmp_path):
@@ -299,8 +313,39 @@ def test_serial_worker_preserves_original_command_path(tmp_path, monkeypatch):
     run.module("coverage-erase", ["coverage", "erase"], dependencies=())
     parallel_test_step(run, 1)
     assert run.finish() == 0
-    assert [step["name"] for step in run.steps] == ["coverage-erase", "tests"]
+    assert [step["name"] for step in run.steps] == ["coverage-erase", "tests", "tests-validation"]
     assert not list(run.directory.glob("worker-*"))
+
+
+def test_serial_worker_rejects_a_node_removed_after_recorded_collection(tmp_path):
+    command = ParallelCommand(tmp_path)
+    (command.root / "tests/test_real.py").write_text(
+        "import dphtools.child\n"
+        "def test_parent():\n    assert dphtools.child.VALUE == 17\n"
+        "def test_child():\n    assert dphtools.child.VALUE == 17\n"
+    )
+    (command.root / "tests/conftest.py").write_text(
+        "import pytest\n"
+        "@pytest.hookimpl(hookwrapper=True, tryfirst=True)\n"
+        "def pytest_collection_modifyitems(items):\n"
+        "    yield\n"
+        "    items[:] = [item for item in items if not item.nodeid.endswith('::test_child')]\n"
+    )
+    result = command.parallel(workers=1)
+    assert result.returncode == 1, result.stdout + result.stderr
+    receipt = json.loads((command.report / "checks.json").read_text())
+    assert next(step for step in receipt["steps"] if step["name"] == "tests")["state"] == "passed"
+    assert (
+        next(step for step in receipt["steps"] if step["name"] == "tests-validation")["state"]
+        == "failed"
+    )
+    assert "Missing or duplicate node execution" in result.stdout
+    execution = json.loads((command.report / "tests.json").read_text())
+    assert len(execution["nodes"]) == 3
+    assert len(execution["executions"]) == 6
+    assert len(list(ElementTree.parse(command.report / "pytest.xml").iter("testcase"))) == 2
+    assert (command.report / "coverage.json").is_file()
+    assert not list(command.report.glob("worker-*"))
 
 
 @pytest.mark.parametrize(

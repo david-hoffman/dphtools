@@ -121,6 +121,10 @@ jobs:
             reports/verification/shard/*.xml
             reports/verification/shard/*.log
             reports/verification/shard/.coverage*
+            reports/verification/shard/worker-*/*.json
+            reports/verification/shard/worker-*/*.xml
+            reports/verification/shard/worker-*/*.log
+            reports/verification/shard/worker-*/.coverage*
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14

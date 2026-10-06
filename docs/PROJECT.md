@@ -43,6 +43,8 @@ The invocation is `python tools/delivery doctor [--check]`; `PATH="$PWD/tools:$P
 
 Create an isolated environment with an appropriate installed Python (`python3.10 -m venv .venv-delivery` for the existing CI target), then invoke that environment's interpreter and install using `python -m pip install --require-hashes -r requirements-dev.lock`. Verify the selected interpreter and actual nested environment/install operation on the current host; old disposable prefixes are not portable commands. The universal lock carries interpreter/platform markers, including Windows-only dependencies. It is a verification lock, not a narrowing of the library's declared Python >=3.8 metadata.
 
+Use a dedicated Python installation, such as the CI setup-python runtime, for repeatable suite timings. Runtime reuse checks fingerprint both the selected environment and its base interpreter from fresh bytes; an ambient base installation with unrelated packages adds work even when the selected environment is isolated. Worker scratch files use the operating system's temporary location outside the checkout.
+
 Use the shared verifier locally and in CI. Routine PR opening/reopening (drafts included) and updates require meaningful focused checks and `fast` on the exact candidate. `full` is the local/reference path, useful for integration, diagnosis, and scientific/safety work when the approved risk/check plan requires it; it is not mandatory before every routine PR:
 
 ```sh

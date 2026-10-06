@@ -1,8 +1,10 @@
 """Run bounded local pytest workers and combine their fresh execution evidence."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from pathlib import Path
 import shutil
+import tempfile
 from xml.etree import ElementTree
 
 from verification_shards import (
@@ -71,6 +73,33 @@ def parallel_test_step(
     settings = dict(settings or {})
     if workers == 1:
         test_step(run, name, settings, dependencies=dependencies)
+
+        def validate_serial():
+            try:
+                record = read_json(run.directory / (name + ".json"))
+                check_seal(record)
+                nodes = record["nodes"]
+                require(bool(nodes) and nodes == sorted(set(nodes)), "Invalid serial collection")
+                require(nodes == settings.get("expected", nodes), "Serial collection differs")
+                selected = settings.get("assigned", nodes)
+                require(
+                    bool(selected)
+                    and len(selected) == len(set(selected))
+                    and set(selected) <= set(nodes),
+                    "Invalid serial node assignment",
+                )
+                observed = validate_execution(record, selected)
+                require(record["durations"] == observed, "Serial recorded durations differ")
+                junit = ElementTree.parse(run.directory / "pytest.xml")
+                require(
+                    len(list(junit.iter("testcase"))) == len(selected),
+                    "Serial JUnit node count differs",
+                )
+                return 0
+            except (KeyError, TypeError, IndexError, ElementTree.ParseError) as error:
+                raise ValueError(f"Invalid serial artifact: {error}") from error
+
+        run.run_step(name + "-validation", action=validate_serial, dependencies=(name,))
         return
     if "expected" not in settings:
         test_step(run, "collection", {}, dependencies=dependencies)
@@ -99,38 +128,51 @@ def parallel_test_step(
                 check_seal(record)
                 durations = record["durations"]
             assignments = partition(selected, durations, min(workers, len(selected)))
-            children = []
-            for index in range(len(assignments)):
-                child = VerificationRun(run.root, "test-worker", run.directory / f"worker-{index}")
-                temporary = child.directory.resolve() / "tmp"
-                temporary.mkdir()
-                child.env = dict(
-                    run.env,
-                    COVERAGE_FILE=str(child.directory.resolve() / ".coverage"),
-                    PYTHONDONTWRITEBYTECODE="1",
-                    MPLCONFIGDIR=str(child.directory.resolve() / "matplotlib"),
-                    TMPDIR=str(temporary),
-                    TEMP=str(temporary),
-                    TMP=str(temporary),
+            with ExitStack() as stack:
+                children = []
+                temporaries = []
+                for index in range(len(assignments)):
+                    child = VerificationRun(
+                        run.root, "test-worker", run.directory / f"worker-{index}"
+                    )
+                    temporary = Path(
+                        stack.enter_context(tempfile.TemporaryDirectory(prefix="dphtools-worker-"))
+                    ).resolve()
+                    system_temporary = temporary / "os"
+                    system_temporary.mkdir()
+                    child.env = dict(
+                        run.env,
+                        COVERAGE_FILE=str(child.directory.resolve() / ".coverage"),
+                        PYTHONDONTWRITEBYTECODE="1",
+                        MPLCONFIGDIR=str(child.directory.resolve() / "matplotlib"),
+                        TMPDIR=str(system_temporary),
+                        TEMP=str(system_temporary),
+                        TMP=str(system_temporary),
+                    )
+                    children.append(child)
+                    temporaries.append(temporary / "pytest")
+
+                def launch(index):
+                    child = children[index]
+                    test_step(
+                        child,
+                        name,
+                        dict(settings, expected=nodes, assigned=assignments[index]),
+                        temporary=temporaries[index],
+                    )
+                    return child.finish()
+
+                with ThreadPoolExecutor(max_workers=len(children)) as pool:
+                    list(pool.map(launch, range(len(children))))
+                merge_workers(
+                    run.directory,
+                    [child.directory for child in children],
+                    assignments,
+                    nodes,
+                    run.identity,
+                    name=name,
+                    selected=selected,
                 )
-                children.append(child)
-
-            def launch(index):
-                child = children[index]
-                test_step(child, name, dict(settings, expected=nodes, assigned=assignments[index]))
-                return child.finish()
-
-            with ThreadPoolExecutor(max_workers=len(children)) as pool:
-                list(pool.map(launch, range(len(children))))
-            merge_workers(
-                run.directory,
-                [child.directory for child in children],
-                assignments,
-                nodes,
-                run.identity,
-                name=name,
-                selected=selected,
-            )
             return 0
         except (KeyError, TypeError, IndexError, ElementTree.ParseError) as error:
             raise ValueError(f"Invalid worker artifact: {error}") from error

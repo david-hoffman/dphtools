@@ -65,6 +65,7 @@ real_coverage.__path__.insert(0, str(fixture_package))
 
 # Each module is a genuine child command. No import or monkeypatch of the verifier.
 TOOL = r"""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -96,6 +97,22 @@ def write(path, value):
 
 scenario = os.environ.get("VERIFICATION_TEST_REPORT", "valid")
 junit = option("--junitxml", "--junit-xml")
+if junit:
+    settings = json.loads(Path(os.environ["VERIFICATION_SHARD_CONFIG"]).read_text(encoding="utf-8"))
+    nodes = settings.get("expected", ["fixture::passes"])
+    assigned = settings.get("assigned", nodes)
+    label = name + (":" + args[0] if name == "coverage" and args else "")
+    execution = {
+        "nodes": nodes,
+        "executions": [{"node": node, "phase": phase, "outcome": "passed", "duration": 0.0}
+                       for node in assigned for phase in ("setup", "call", "teardown")],
+        "exitstatus": 23 if os.environ.get("VERIFICATION_TEST_FAIL", "") in (name, label) else 0,
+        "durations": {node: 0.0 for node in assigned},
+    }
+    execution["digest"] = hashlib.sha256(
+        json.dumps(execution, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    write(settings["output"], json.dumps(execution))
 if junit and scenario != "missing-tests":
     cases = {
         "valid": '<testsuite tests="1" failures="0" errors="0" skipped="0">'

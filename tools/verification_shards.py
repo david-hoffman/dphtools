@@ -212,7 +212,7 @@ def pytest_configure(config):
         )
 
 
-def test_step(run, name, settings, dependencies=()):
+def test_step(run, name, settings, dependencies=(), temporary=None):
     """Run real pytest collection/execution with a private recorder configuration."""
     settings = dict(settings, output=str(run.directory / (name + ".json")))
     configuration = run.directory / (name + "-config.json")
@@ -235,7 +235,8 @@ def test_step(run, name, settings, dependencies=()):
         arguments.append("--collect-only")
     else:
         arguments.append(f"--junitxml={run.directory / 'pytest.xml'}")
-        arguments.append(f"--basetemp={run.directory / 'temporary'}")
+        temporary = run.directory / "temporary" if temporary is None else temporary
+        arguments.append(f"--basetemp={temporary}")
         arguments = ["coverage", "run", "-m", *arguments]
     run.module(name, arguments, dependencies=dependencies, env=env)
 
