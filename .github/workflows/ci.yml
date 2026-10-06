@@ -16,7 +16,8 @@ env:
   CI_PYTHON_LINUX: '3.10.22'
   CI_PYTHON_MACOS_WINDOWS: '3.10.11'
 
-# Two test workers per platform. Each job has its own machine, checkout,
+# Four shard machines per platform, with four local test workers per shard.
+# Each job has its own machine, checkout,
 # interpreter, locked environment, install destinations and temporary directories.
 # Collection and aggregation never pool coverage from different platforms.
 jobs:
@@ -56,6 +57,7 @@ jobs:
           --report-dir reports/verification/collect
           --manifest reports/verification/collect/manifest.json
           --durations tools/verification-durations.json
+          --shard-count 4
       - name: Retain collection proof and immutable build artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -78,7 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
-        index: [0, 1]
+        index: [0, 1, 2, 3]
     defaults:
       run:
         shell: bash
@@ -102,7 +104,19 @@ jobs:
         with:
           name: collection-${{ matrix.os }}
           path: reports/incoming/collection
-      - name: Run only this worker's assigned tests with real child measurement
+      - name: Report runner CPU capacity
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          try:
+              affinity_cpu_count = len(os.sched_getaffinity(0))
+          except (AttributeError, OSError):
+              affinity_cpu_count = None
+          print(json.dumps({"cpu_count": os.cpu_count(), "affinity_cpu_count": affinity_cpu_count}))
+          PY
+      - name: Run this machine's assigned tests with four local workers and real child measurement
         env:
           PIP_NO_INDEX: '1'
           PIP_FIND_LINKS: ${{ runner.temp }}/verification-wheels
@@ -110,7 +124,7 @@ jobs:
           python tools/verification.py shard
           --report-dir reports/verification/shard
           --manifest reports/incoming/collection/manifest.json
-          --shard-index ${{ matrix.index }} --shard-count 2
+          --shard-index ${{ matrix.index }} --shard-count 4 --workers 4
       - name: Retain raw parent and child coverage and execution proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -169,7 +183,12 @@ jobs:
           python tools/verification.py aggregate
           --report-dir reports/verification/aggregate
           --manifest reports/incoming/collection/manifest.json
-          --shards reports/incoming/shards/shard-${{ matrix.os }}-0 reports/incoming/shards/shard-${{ matrix.os }}-1
+          --shard-count 4
+          --shards
+          reports/incoming/shards/shard-${{ matrix.os }}-0
+          reports/incoming/shards/shard-${{ matrix.os }}-1
+          reports/incoming/shards/shard-${{ matrix.os }}-2
+          reports/incoming/shards/shard-${{ matrix.os }}-3
       - name: Retain platform coverage and validation diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

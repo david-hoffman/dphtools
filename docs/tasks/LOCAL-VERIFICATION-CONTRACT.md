@@ -25,7 +25,7 @@ Identity binds source/test/configuration/lock bytes, interpreter executable and 
 
 ## Isolated CI commands
 
-Run collection once per required operating system, then run both assigned workers with separate checkouts, interpreters, installations, temporary paths, and empty report directories:
+Run collection once per required operating system, then run all assigned shards with separate checkouts, interpreters, installations, temporary paths, and empty report directories. The public CLI defaults to two shards:
 
 ```sh
 python tools/verification.py collect --report-dir reports/verification/collect --manifest reports/verification/collect/manifest.json
@@ -34,7 +34,9 @@ python tools/verification.py shard --manifest reports/incoming/collection/manife
 python tools/verification.py aggregate --manifest reports/incoming/collection/manifest.json --shards reports/incoming/shard-0 reports/incoming/shard-1 --report-dir reports/verification/aggregate
 ```
 
-Collection runs preflight and quality/build checks, freezes the real pytest/doctest node IDs, and assigns every node exactly once to two nonempty shards. Optional `--durations PATH [PATH ...]` uses validated retained duration records to balance assignments. Shards verify the frozen collection, install the retained wheel, and record each assigned test's completed setup/call/teardown and actual parent/child coverage. Aggregation rejects absent, duplicate, failed, partial, foreign-platform, mismatched, or changed evidence before combining coverage and applying the same exact owned-source/report gate as `full`. Immutable collection artifacts are copied between jobs; mutable installation environments are private. `shard --workers N` can subdivide its assigned nodes among at most eight local subprocesses without changing the two-machine manifest or pooling platforms.
+Collection runs preflight and quality/build checks, freezes the real pytest/doctest node IDs, and assigns every node exactly once to nonempty shards. `--shard-count` supports 2, 4 or 8; collection seals the count in its manifest, and shard/aggregate commands must request that same count. Optional `--durations PATH [PATH ...]` uses validated retained duration records to balance assignments. Shards verify the frozen collection, install the retained wheel, and record each assigned test's completed setup/call/teardown and actual parent/child coverage. Aggregation rejects absent, duplicate, failed, partial, foreign-platform, mismatched, or changed evidence before combining coverage and applying the same exact owned-source/report gate as `full`. Immutable collection artifacts are copied between jobs; mutable installation environments are private. `shard --workers N` can subdivide its assigned nodes among at most eight local subprocesses without changing its machine assignment or pooling platforms.
+
+The hosted workflow uses four machines per platform with four local test workers per machine. It passes `--shard-count 4` to collection, every shard and aggregation, and retains all four shard artifacts. Runner CPU capacity is recorded in the job log; hosted timing must measure the complete suite execution window rather than infer it from an individual worker's duration.
 
 ## Explicit evidence reuse
 

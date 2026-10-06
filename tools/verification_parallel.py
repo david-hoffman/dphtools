@@ -99,7 +99,8 @@ def parallel_test_step(
             except (KeyError, TypeError, IndexError, ElementTree.ParseError) as error:
                 raise ValueError(f"Invalid serial artifact: {error}") from error
 
-        run.run_step(name + "-validation", action=validate_serial, dependencies=(name,))
+        if run.steps[-1]["state"] == "passed":
+            run.run_step(name + "-validation", action=validate_serial, dependencies=(name,))
         return
     if "expected" not in settings:
         test_step(run, "collection", {}, dependencies=dependencies)

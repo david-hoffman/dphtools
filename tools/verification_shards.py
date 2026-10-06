@@ -266,7 +266,7 @@ def validate_execution(record, assigned):
     return durations
 
 
-def load_manifest(run, path):
+def load_manifest(run, path, count=SHARD_COUNT):
     """Validate retained collection gates, partition, wheel, and current identity."""
     manifest = read_json(path)
     check_seal(manifest)
@@ -274,8 +274,11 @@ def load_manifest(run, path):
         manifest["identity"] == portable_identity(run),
         "Manifest inputs/platform/current run differ",
     )
+    actual_count = manifest.get("count")
+    require(type(actual_count) is int and actual_count in (2, 4, 8), "Invalid shard count")
+    require(actual_count == count, "Manifest shard count differs from requested count")
     assignments = manifest["assignments"]
-    require(len(assignments) == SHARD_COUNT and all(assignments), "Invalid shard count")
+    require(len(assignments) == actual_count and all(assignments), "Invalid shard count")
     require(manifest["nodes"] == sorted(set(manifest["nodes"])), "Duplicate collection nodes")
     combined = [node for assignment in assignments for node in assignment]
     require(
@@ -312,6 +315,8 @@ def collect(run, arguments):
     def freeze():
         record = read_json(run.directory / "collection.json")
         require(record["exitstatus"] == 0, "Collection failed")
+        count = getattr(arguments, "shard_count", SHARD_COUNT)
+        require(type(count) is int and count in (2, 4, 8), "Invalid shard count")
         durations = {}
         for path in arguments.durations:
             previous = read_json(path)
@@ -330,8 +335,9 @@ def collect(run, arguments):
             sealed(
                 {
                     "identity": identity,
+                    "count": count,
                     "nodes": record["nodes"],
-                    "assignments": partition(record["nodes"], durations),
+                    "assignments": partition(record["nodes"], durations, count),
                     "quality": file_record(run.directory, run.directory / "quality.json"),
                     "wheel": file_record(run.directory, wheels[0]),
                 }
@@ -349,11 +355,18 @@ def shard(run, arguments):
     manifest = {}
 
     def inputs():
-        manifest.update(load_manifest(run, arguments.manifest))
+        loaded = load_manifest(
+            run, arguments.manifest, getattr(arguments, "shard_count", SHARD_COUNT)
+        )
+        require(
+            type(arguments.shard_index) is int and arguments.shard_index in range(loaded["count"]),
+            "Invalid shard index",
+        )
+        manifest.update(loaded)
         return 0
 
     run.run_step("shard-inputs", action=inputs)
-    assigned = manifest.get("assignments", [[], []])[arguments.shard_index]
+    assigned = manifest["assignments"][arguments.shard_index] if manifest else []
     test_step(
         run, "collection", {"expected": manifest.get("nodes", [])}, dependencies=("shard-inputs",)
     )
@@ -394,7 +407,7 @@ def shard(run, arguments):
                     "identity": manifest["identity"],
                     "manifest": manifest["digest"],
                     "index": arguments.shard_index,
-                    "count": SHARD_COUNT,
+                    "count": manifest["count"],
                     "nodes": assigned,
                     "durations": durations,
                     "steps": run.steps,
@@ -414,7 +427,9 @@ def aggregate(run, arguments):
     manifests = {}
 
     def inputs():
-        manifests.update(load_manifest(run, arguments.manifest))
+        manifests.update(
+            load_manifest(run, arguments.manifest, getattr(arguments, "shard_count", SHARD_COUNT))
+        )
         return 0
 
     run.run_step("aggregate-inputs", action=inputs)
@@ -426,7 +441,8 @@ def aggregate(run, arguments):
     )
 
     def merge():
-        require(len(arguments.shards) == SHARD_COUNT, "Missing or duplicate shards")
+        count = manifests["count"]
+        require(len(arguments.shards) == count, "Missing or duplicate shards")
         indices = set()
         executed = []
         suites = ElementTree.Element("testsuites")
@@ -441,9 +457,10 @@ def aggregate(run, arguments):
             index = receipt["index"]
             require(
                 type(index) is int
-                and index in range(SHARD_COUNT)
+                and index in range(count)
                 and index not in indices
-                and receipt["count"] == SHARD_COUNT,
+                and type(receipt["count"]) is int
+                and receipt["count"] == count,
                 "Duplicate or invalid shard index",
             )
             indices.add(index)

@@ -8,11 +8,11 @@ Routine test infrastructure maintenance. Preserve the numerical library, every e
 
 | Scenario | Required behavior |
 | --- | --- |
-| P1 | The complete original pytest/doctest collection executes exactly once. |
+| P1 | Every original pytest/doctest node executes exactly once in each platform's full suite. |
 | P2 | Bounded workers own their temporary paths, logs, receipts and fresh parent/child coverage. Failed, skipped, missing or duplicate execution fails verification and retains diagnostics. |
 | P3 | Runtime fingerprints read fresh bytes on every invocation and preserve the original identity, alias and startup-hook rules. |
 | P4 | Instrumentation covers owned modules at every depth and copied CLI helpers without tracing unrelated virtual-environment dependencies. No handwritten coverage exclusions are added. |
-| P5 | The canonical full verification command completes in at most 300 seconds on the measured host, with its existing quality, audit, build/install and exact coverage gates. Host measurements do not establish all-platform performance. |
+| P5 | The complete hosted full-suite execution window is at most 300 seconds, with quality, audit, build/install and exact coverage gates passing. Report local command time and total hosted workflow, setup, collection and aggregation time separately; runner limits and queueing must remain explicit. |
 
 ## Evidence
 
@@ -24,10 +24,12 @@ The first local full attempt stopped at an audit-cache write to a read-only home
 
 The first integrated parallel attempt exceeded the target and exposed a worker scratch directory inside the checkout, violating an existing installed-probe assertion. It was interrupted after that confirmed failure; its partial coverage is diagnostic evidence. The corrected workers keep scratch files outside the checkout. Final measurements use a dedicated CPython installation with the unchanged hashed dependency lock rather than the host's ambient base installation.
 
+The next complete local attempt took about 676 seconds and failed: an outer environment's locked tools were unavailable to real nested environments that inherit the base interpreter's packages, a new fixture changed duration inputs after freezing its identity, and serial validation added a blocked receipt step that violated an original hook expectation. Correct the environment setup and fixture ordering, and validate serial execution after successful tests while preserving the original hook assertion. This four-CPU host did not meet five minutes. The owner's request concerns the full suite; the earlier requirement that this specific host's entire verification command finish within 300 seconds was an author assumption. The hosted trial uses four machines per platform with bounded local workers and retains all gates; it needs actual timing evidence before any performance claim.
+
 ## Current state
 
 - Authorization and route: owner-authorized routine infrastructure work from PR #18; original product behavior and scientific assertions preserved.
 - Candidate pointer: this branch; final candidate identity and measured results will be recorded outside its tracked tree.
-- Checks: targeted instrumentation, worker and fingerprint regressions pass. Independent review identified worker artifact retention and serial lifecycle validation gaps; both corrections and the outside-checkout scratch repair are being verified. Final full verification and review are recorded outside the tracked candidate.
-- Next action: verify the final candidate against the five-minute target and obtain independent acceptance; keep hosted platform results explicit.
-- Metrics: five scenarios; author/helper launches 3; independent reviewer launches 1; no specialist rounds or repairs; no fixed owner budget or reliable dollar metering supplied.
+- Checks: targeted instrumentation, worker and fingerprint regressions pass. Earlier integrated full results remain failed diagnostics. Independent review found environment/fixture corrections, now being verified. Hosted distribution preserves the two-shard CLI default and adds strictly sealed counts; final full results and review are recorded outside the tracked candidate.
+- Next action: complete correction checks, verify the final candidate, measure the hosted suite against five minutes, and obtain independent acceptance.
+- Metrics: five scenarios; author/helper launches 4; independent reviewer launches 1; no specialist rounds or repairs; no fixed owner budget or reliable dollar metering supplied.

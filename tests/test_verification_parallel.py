@@ -196,19 +196,17 @@ def test_parallel_interface_keeps_full_collection_and_exact_phase_reports(
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
     from verification import VerificationRun
     from verification_parallel import parallel_test_step
-    from verification_shards import read_json, test_step, validate_execution
+    from verification_shards import read_json, sealed, test_step, validate_execution, write_json
 
     for key, value in command.env.items():
         monkeypatch.setenv(key, value)
+    write_json(command.root / "tools/verification-durations.json", sealed({"durations": {}}))
     run = VerificationRun(command.root, "test-interface", command.report)
     run.module("coverage-erase", ["coverage", "erase"], dependencies=())
     test_step(run, "collection", {}, dependencies=("coverage-erase",))
     nodes = read_json(run.directory / "collection.json")["nodes"]
     selected = [node for node in nodes if node.startswith("tests/")] if subset else nodes
     settings = {"expected": nodes, "assigned": selected} if subset else None
-    from verification_shards import sealed, write_json
-
-    write_json(command.root / "tools/verification-durations.json", sealed({"durations": {}}))
     parallel_test_step(
         run,
         2,

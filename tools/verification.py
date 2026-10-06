@@ -533,7 +533,7 @@ def main():
     parser.add_argument("--report-dir", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--shard-index", type=int)
-    parser.add_argument("--shard-count", type=int, choices=(2,), default=2)
+    parser.add_argument("--shard-count", type=int, choices=(2, 4, 8), default=2)
     parser.add_argument("--shards", nargs="+", type=Path)
     parser.add_argument("--durations", nargs="+", type=Path, default=[])
     parser.add_argument("--reuse", type=Path)
@@ -544,8 +544,8 @@ def main():
         parser.error("--reuse is allowed only for fast; full CI and release evidence run fresh")
     if mode in ("shard", "aggregate") and arguments.manifest is None:
         parser.error("--manifest is required")
-    if mode == "shard" and arguments.shard_index not in (0, 1):
-        parser.error("--shard-index must be 0 or 1")
+    if mode == "shard" and arguments.shard_index not in range(arguments.shard_count):
+        parser.error("--shard-index must be between zero and --shard-count minus one")
     if mode == "aggregate" and arguments.shards is None:
         parser.error("--shards is required")
     run = VerificationRun(Path(__file__).resolve().parents[1], mode, arguments.report_dir)
