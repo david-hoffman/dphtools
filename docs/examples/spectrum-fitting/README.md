@@ -2,7 +2,7 @@
 
 These simulated spectra and returned fits are visual gut checks, not acceptance tests. Open [spectrum-review.html](spectrum-review.html) locally for the eight figures and six parameter tables. The page uses relative asset links and needs no server.
 
-Each case contains one positive Gaussian, Lorentzian, or Voigt peak with a constant or linear background. The component peak height is 1.2 V; the background starts at 0.4 V at 500 nm. The linear background adds 0.015 V/nm. Samples span 500–510 nm at 0.05 nm intervals, with independent additive read noise of standard deviation 0.01 V.
+Each single-peak case below contains one positive Gaussian, Lorentzian, or Voigt peak with a constant or linear background. The component peak height is 1.2 V; the background starts at 0.4 V at 500 nm. The linear background adds 0.015 V/nm. Samples span 500–510 nm at 0.05 nm intervals, with independent additive read noise of standard deviation 0.01 V.
 
 The same simulated voltage samples and physically equivalent starting guesses were fitted with wavelength coordinates supplied in nanometres (nm) or metres (m). All plots and parameter tables display wavelengths and widths in nm, signals in V, and slopes in V/nm.
 
@@ -13,6 +13,12 @@ The same simulated voltage samples and physically equivalent starting guesses we
 - Green dotted: a configured custom solver using m coordinates, with SciPy's Trust Region Reflective method.
 
 Residuals are measured data minus returned fit. The black residual curve is noiseless truth minus returned fit. Shading at ±0.01 V is a read-noise reference, not a confidence band. Gaussian sigma is a standard deviation; Lorentzian gamma is a half width at half maximum; Voigt uses both widths.
+
+## More peaks and partial overlap
+
+[Multi-peak examples](MULTI-PEAK.md) show six Gaussian peaks found automatically, seven Lorentzian peaks fitted from center guesses, and eight Voigt peaks fitted from full parameter guesses. They include varied peak heights/widths, sloping backgrounds, individual fitted and true components, and residuals. The crowded Voigt pairs illustrate why a good total fit alone does not establish an accurate decomposition. Each fit uses the existing default optimizer and nm coordinates.
+
+![Multi-peak spectra, individual components and residuals](multi-peak-overview.png)
 
 ## Overviews
 
