@@ -76,9 +76,15 @@ def portable_identity(run):
     return identity
 
 
-def partition(nodes, durations):
-    """Assign every real node once to two deterministic duration-balanced shards."""
+def duration_weights(record, system):
+    """Select measured host costs, retaining universal duration records as fallback."""
+    return record.get("platform_durations", {}).get(system, record["durations"])
+
+
+def partition(nodes, durations, count=SHARD_COUNT, groups=()):
+    """Assign every real node once to deterministic duration-balanced workers."""
     require(bool(nodes) and nodes == sorted(set(nodes)), "Collection is empty or duplicate")
+    require(type(count) is int and 1 <= count <= len(nodes), "Invalid worker count")
     require(
         all(
             type(value) in (int, float) and math.isfinite(value) and value >= 0
@@ -86,15 +92,27 @@ def partition(nodes, durations):
         ),
         "Invalid recorded durations",
     )
-    assignments = [[], []]
-    totals = [0.0, 0.0]
-    for node in sorted(nodes, key=lambda node: (-durations.get(node, 1.0), node)):
+    pending = set(nodes)
+    batches = []
+    for group in groups:
+        batch = sorted(pending.intersection(group))
+        if batch:
+            batches.append(batch)
+            pending.difference_update(batch)
+    batches.extend([node] for node in sorted(pending))
+    # Advisory affinity cannot prevent the required number of nonempty workers.
+    if len(batches) < count:
+        batches = [[node] for node in nodes]
+    costs = {tuple(batch): sum(durations.get(node, 1.0) for node in batch) for batch in batches}
+    assignments = [[] for _ in range(count)]
+    totals = [0.0 for _ in range(count)]
+    for batch in sorted(batches, key=lambda batch: (-costs[tuple(batch)], batch)):
         index = min(
-            range(SHARD_COUNT), key=lambda index: (totals[index], len(assignments[index]), index)
+            range(count), key=lambda index: (totals[index], len(assignments[index]), index)
         )
-        assignments[index].append(node)
-        totals[index] += durations.get(node, 1.0)
-    require(all(assignments), "Not enough collected nodes for two nonempty shards")
+        assignments[index].extend(batch)
+        totals[index] += costs[tuple(batch)]
+    require(all(assignments), "Not enough collected nodes for nonempty workers")
     return [sorted(assignment) for assignment in assignments]
 
 
@@ -211,7 +229,7 @@ def pytest_configure(config):
         )
 
 
-def test_step(run, name, settings, dependencies=()):
+def test_step(run, name, settings, dependencies=(), temporary=None):
     """Run real pytest collection/execution with a private recorder configuration."""
     settings = dict(settings, output=str(run.directory / (name + ".json")))
     configuration = run.directory / (name + "-config.json")
@@ -229,12 +247,16 @@ def test_step(run, name, settings, dependencies=()):
         "dphtools",
         "tests",
         "-ra",
+        "-o",
+        f"cache_dir={run.directory.resolve() / 'pytest-cache'}",
     ]
     if name == "collection":
         arguments.append("--collect-only")
     else:
         arguments.append(f"--junitxml={run.directory / 'pytest.xml'}")
-        arguments.append(f"--basetemp={run.directory / 'temporary'}")
+        temporary = run.directory / "temporary" if temporary is None else temporary
+        env["DPHTOOLS_COVERAGE_TEMP"] = str(Path(temporary).resolve())
+        arguments.append(f"--basetemp={temporary}")
         arguments = ["coverage", "run", "-m", *arguments]
     run.module(name, arguments, dependencies=dependencies, env=env)
 
@@ -264,7 +286,7 @@ def validate_execution(record, assigned):
     return durations
 
 
-def load_manifest(run, path):
+def load_manifest(run, path, count=SHARD_COUNT):
     """Validate retained collection gates, partition, wheel, and current identity."""
     manifest = read_json(path)
     check_seal(manifest)
@@ -272,8 +294,13 @@ def load_manifest(run, path):
         manifest["identity"] == portable_identity(run),
         "Manifest inputs/platform/current run differ",
     )
+    actual_count = manifest.get("count")
+    require(
+        type(actual_count) is int and actual_count in (2, 4, 5, 7, 8, 10), "Invalid shard count"
+    )
+    require(actual_count == count, "Manifest shard count differs from requested count")
     assignments = manifest["assignments"]
-    require(len(assignments) == SHARD_COUNT and all(assignments), "Invalid shard count")
+    require(len(assignments) == actual_count and all(assignments), "Invalid shard count")
     require(manifest["nodes"] == sorted(set(manifest["nodes"])), "Duplicate collection nodes")
     combined = [node for assignment in assignments for node in assignment]
     require(
@@ -310,11 +337,15 @@ def collect(run, arguments):
     def freeze():
         record = read_json(run.directory / "collection.json")
         require(record["exitstatus"] == 0, "Collection failed")
+        count = getattr(arguments, "shard_count", SHARD_COUNT)
+        require(type(count) is int and count in (2, 4, 5, 7, 8, 10), "Invalid shard count")
         durations = {}
+        groups = []
         for path in arguments.durations:
             previous = read_json(path)
             check_seal(previous)
-            durations.update(previous["durations"])
+            durations.update(duration_weights(previous, run.identity["environment"]["system"]))
+            groups.extend(previous.get("groups", []))
         identity = portable_identity(run)
         quality = sealed({"identity": identity, "steps": run.steps})
         write_json(run.directory / "quality.json", quality)
@@ -328,8 +359,9 @@ def collect(run, arguments):
             sealed(
                 {
                     "identity": identity,
+                    "count": count,
                     "nodes": record["nodes"],
-                    "assignments": partition(record["nodes"], durations),
+                    "assignments": partition(record["nodes"], durations, count, groups),
                     "quality": file_record(run.directory, run.directory / "quality.json"),
                     "wheel": file_record(run.directory, wheels[0]),
                 }
@@ -342,14 +374,23 @@ def collect(run, arguments):
 
 def shard(run, arguments):
     """Verify full collection and execute only assigned nodes in private paths."""
+    from verification_parallel import parallel_test_step
+
     manifest = {}
 
     def inputs():
-        manifest.update(load_manifest(run, arguments.manifest))
+        loaded = load_manifest(
+            run, arguments.manifest, getattr(arguments, "shard_count", SHARD_COUNT)
+        )
+        require(
+            type(arguments.shard_index) is int and arguments.shard_index in range(loaded["count"]),
+            "Invalid shard index",
+        )
+        manifest.update(loaded)
         return 0
 
     run.run_step("shard-inputs", action=inputs)
-    assigned = manifest.get("assignments", [[], []])[arguments.shard_index]
+    assigned = manifest["assignments"][arguments.shard_index] if manifest else []
     test_step(
         run, "collection", {"expected": manifest.get("nodes", [])}, dependencies=("shard-inputs",)
     )
@@ -367,10 +408,11 @@ def shard(run, arguments):
         ],
         dependencies=("collection",),
     )
-    test_step(
+    parallel_test_step(
         run,
-        "execution",
-        {"expected": manifest.get("nodes", []), "assigned": assigned},
+        getattr(arguments, "workers", 1),
+        name="execution",
+        settings={"expected": manifest.get("nodes", []), "assigned": assigned},
         dependencies=("install",),
     )
 
@@ -389,7 +431,7 @@ def shard(run, arguments):
                     "identity": manifest["identity"],
                     "manifest": manifest["digest"],
                     "index": arguments.shard_index,
-                    "count": SHARD_COUNT,
+                    "count": manifest["count"],
                     "nodes": assigned,
                     "durations": durations,
                     "steps": run.steps,
@@ -409,7 +451,9 @@ def aggregate(run, arguments):
     manifests = {}
 
     def inputs():
-        manifests.update(load_manifest(run, arguments.manifest))
+        manifests.update(
+            load_manifest(run, arguments.manifest, getattr(arguments, "shard_count", SHARD_COUNT))
+        )
         return 0
 
     run.run_step("aggregate-inputs", action=inputs)
@@ -421,7 +465,8 @@ def aggregate(run, arguments):
     )
 
     def merge():
-        require(len(arguments.shards) == SHARD_COUNT, "Missing or duplicate shards")
+        count = manifests["count"]
+        require(len(arguments.shards) == count, "Missing or duplicate shards")
         indices = set()
         executed = []
         suites = ElementTree.Element("testsuites")
@@ -436,9 +481,10 @@ def aggregate(run, arguments):
             index = receipt["index"]
             require(
                 type(index) is int
-                and index in range(SHARD_COUNT)
+                and index in range(count)
                 and index not in indices
-                and receipt["count"] == SHARD_COUNT,
+                and type(receipt["count"]) is int
+                and receipt["count"] == count,
                 "Duplicate or invalid shard index",
             )
             indices.add(index)

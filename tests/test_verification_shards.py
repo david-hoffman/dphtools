@@ -23,7 +23,12 @@ class ShardedCommand:
         self.root = directory / "fixture repository"
         self.entry = self.root / "runner/verification.py"
         self.entry.parent.mkdir(parents=True)
-        for name in ("verification.py", "verification_inputs.py", "verification_shards.py"):
+        for name in (
+            "verification.py",
+            "verification_inputs.py",
+            "verification_shards.py",
+            "verification_parallel.py",
+        ):
             shutil.copy2(ROOT / "tools" / name, self.entry.parent)
         package = self.root / "dphtools"
         package.mkdir()
@@ -45,7 +50,7 @@ class ShardedCommand:
         )
         (self.root / "setup.cfg").write_text(
             "[coverage:run]\nbranch = True\nparallel = True\npatch = subprocess\n"
-            "include = */dphtools/**/*.py\nomit = dphtools/_version.py\n"
+            "include = dphtools/**/*.py\nomit = dphtools/_version.py\n"
             "[coverage:report]\nfail_under = 100\nexclude_lines =\n    (?!x)x\n"
             "partial_branches =\n    (?!x)x\n"
         )
@@ -86,6 +91,8 @@ class ShardedCommand:
         self.manifest = self.collect / "manifest.json"
 
     def run(self, mode, directory, *arguments):
+        if "--workers" not in arguments:
+            arguments = (*arguments, "--workers", "1")
         return subprocess.run(
             [sys.executable, str(self.entry), mode, "--report-dir", str(directory), *arguments],
             cwd=self.root.parent,

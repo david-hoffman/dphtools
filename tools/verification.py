@@ -149,6 +149,17 @@ class VerificationRun:
         self.sources = owned_sources(self.root)
         self.identity = input_identity(self.root, self.sources)
         self.env = dict(os.environ, MPLBACKEND="Agg", PYTHONHASHSEED="0")
+        for variable in (
+            "OPENBLAS_NUM_THREADS",
+            "OMP_NUM_THREADS",
+            "MKL_NUM_THREADS",
+            "VECLIB_MAXIMUM_THREADS",
+            "NUMEXPR_NUM_THREADS",
+            "BLIS_NUM_THREADS",
+        ):
+            self.env[variable] = "1"
+        self.env.setdefault("PIP_COMPILE", "0")
+        self.env["DPHTOOLS_COVERAGE_ROOT"] = str(self.root.resolve())
         self.env["COVERAGE_FILE"] = str(self.directory / ".coverage")
         self.env["COVERAGE_RCFILE"] = str(self.root / "setup.cfg")
         self.steps = []
@@ -422,7 +433,7 @@ def prepare_checks(run):
     return wheels, artifacts
 
 
-def full_checks(run):
+def full_checks(run, workers=1):
     """Build one wheel, install it, and test with fresh complete owned measurement."""
     wheels, artifacts = prepare_checks(run)
     run.module(
@@ -438,9 +449,9 @@ def full_checks(run):
         identity=dict(run.identity, git=git_identity(run.root), artifacts=artifacts),
     )
     run.module("coverage-erase", ["coverage", "erase"])
-    from verification_shards import test_step
+    from verification_parallel import parallel_test_step
 
-    test_step(run, "tests", {}, dependencies=("coverage-erase",))
+    parallel_test_step(run, workers)
     fresh = any(path.is_file() for path in run.directory.glob(".coverage*"))
     run.run_step(
         "coverage-data",
@@ -470,8 +481,11 @@ def fast_checks(run, reuse=None):
     """Run independent cheap tools even if another cheap check fails."""
     runtime_tools = [source for source in run.sources if source.startswith("tools/")]
     lint_paths = ["dphtools", "tests", *runtime_tools, "setup.py", "versioneer.py"]
-    run.module("format", ["black", "--check", "--line-length", "99", *lint_paths, "notebooks"])
-    run.module("lint", ["flake8", *lint_paths])
+    run.module(
+        "format",
+        ["black", "--check", "--line-length", "99", "--workers", "1", *lint_paths, "notebooks"],
+    )
+    run.module("lint", ["flake8", "--jobs", "1", *lint_paths])
     if run.mode != "fast":
         run.module("docstrings", ["pydocstyle", "--count", "dphtools"])
         return
@@ -522,18 +536,19 @@ def main():
     parser.add_argument("--report-dir", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--shard-index", type=int)
-    parser.add_argument("--shard-count", type=int, choices=(2,), default=2)
+    parser.add_argument("--shard-count", type=int, choices=(2, 4, 5, 7, 8, 10), default=2)
     parser.add_argument("--shards", nargs="+", type=Path)
     parser.add_argument("--durations", nargs="+", type=Path, default=[])
     parser.add_argument("--reuse", type=Path)
+    parser.add_argument("--workers", type=int, choices=range(1, 9), default=8)
     arguments = parser.parse_args()
     mode = arguments.mode
     if arguments.reuse is not None and mode != "fast":
         parser.error("--reuse is allowed only for fast; full CI and release evidence run fresh")
     if mode in ("shard", "aggregate") and arguments.manifest is None:
         parser.error("--manifest is required")
-    if mode == "shard" and arguments.shard_index not in (0, 1):
-        parser.error("--shard-index must be 0 or 1")
+    if mode == "shard" and arguments.shard_index not in range(arguments.shard_count):
+        parser.error("--shard-index must be between zero and --shard-count minus one")
     if mode == "aggregate" and arguments.shards is None:
         parser.error("--shards is required")
     run = VerificationRun(Path(__file__).resolve().parents[1], mode, arguments.report_dir)
@@ -549,7 +564,7 @@ def main():
     if mode in ("fast", "full"):
         fast_checks(run, arguments.reuse)
     if mode == "full":
-        full_checks(run)
+        full_checks(run, arguments.workers)
     if mode in ("collect", "shard", "aggregate"):
         from verification_shards import run_sharded
 

@@ -65,6 +65,7 @@ real_coverage.__path__.insert(0, str(fixture_package))
 
 # Each module is a genuine child command. No import or monkeypatch of the verifier.
 TOOL = r"""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -96,6 +97,22 @@ def write(path, value):
 
 scenario = os.environ.get("VERIFICATION_TEST_REPORT", "valid")
 junit = option("--junitxml", "--junit-xml")
+if junit:
+    settings = json.loads(Path(os.environ["VERIFICATION_SHARD_CONFIG"]).read_text(encoding="utf-8"))
+    nodes = settings.get("expected", ["fixture::passes"])
+    assigned = settings.get("assigned", nodes)
+    label = name + (":" + args[0] if name == "coverage" and args else "")
+    execution = {
+        "nodes": nodes,
+        "executions": [{"node": node, "phase": phase, "outcome": "passed", "duration": 0.0}
+                       for node in assigned for phase in ("setup", "call", "teardown")],
+        "exitstatus": 23 if os.environ.get("VERIFICATION_TEST_FAIL", "") in (name, label) else 0,
+        "durations": {node: 0.0 for node in assigned},
+    }
+    execution["digest"] = hashlib.sha256(
+        json.dumps(execution, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    write(settings["output"], json.dumps(execution))
 if junit and scenario != "missing-tests":
     cases = {
         "valid": '<testsuite tests="1" failures="0" errors="0" skipped="0">'
@@ -321,6 +338,7 @@ class VerificationCommand:
         shutil.copy2(ROOT / "tools" / "verification.py", self.entry)
         shutil.copy2(ROOT / "tools" / "verification_inputs.py", self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_shards.py", self.entry.parent)
+        shutil.copy2(ROOT / "tools" / "verification_parallel.py", self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_reuse.py", self.entry.parent)
         self.outside = tmp_path / "unrelated working directory"
         self.outside.mkdir()
@@ -386,7 +404,9 @@ class VerificationCommand:
             '#!/usr/bin/env python\n"""Owned delivery fixture."""\n', encoding="utf-8"
         )
 
-    def run(self, *args):
+    def run(self, *args, timeout=30):
+        if args and args[0] == "full":
+            args = (*args, "--workers", "1")
         if args and args[0] == "preflight":
             (self.repo / "venv.py").unlink(missing_ok=True)
         return subprocess.run(
@@ -397,7 +417,7 @@ class VerificationCommand:
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=30,
+            timeout=timeout,
             check=False,
         )
 
@@ -734,7 +754,9 @@ def test_real_coverage_reports_never_imported_owned_sources(verifier):
     _real_configuration(verifier)
     shutil.rmtree(verifier.modules / "coverage")
     verifier.env["VERIFICATION_TEST_REAL_COVERAGE"] = "1"
-    result = verifier.run("full")
+    # Real copied-venv provisioning and coverage reporting share the outer
+    # worker's CPU allocation; retain a finite integration-test deadline.
+    result = verifier.run("full", timeout=90)
     # Only the package initializer ran. Its unimported siblings must make this fail.
     assert result.returncode == 1, _detail(result)
     reports = verifier.reports()

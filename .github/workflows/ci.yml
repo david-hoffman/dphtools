@@ -10,7 +10,15 @@ on:
 permissions:
   contents: read
 
-# Two test workers per platform. Each job has its own machine, checkout,
+# Exact patches keep collection, workers and aggregation on the same interpreter.
+# The official runtime manifest has newer 3.10 builds for Linux than macOS ARM64/Windows.
+env:
+  CI_PYTHON_LINUX: '3.10.22'
+  CI_PYTHON_MACOS_WINDOWS: '3.10.11'
+
+# Seven Linux, five macOS and eight Windows machines fit twenty concurrent jobs.
+# Local workers are four on Linux and three on macOS/Windows.
+# Each job has its own machine, checkout,
 # interpreter, locked environment, install destinations and temporary directories.
 # Collection and aggregation never pool coverage from different platforms.
 jobs:
@@ -28,15 +36,32 @@ jobs:
     env:
       MPLBACKEND: Agg
       PYTHONHASHSEED: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PIP_COMPILE: '0'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: |
           python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
@@ -50,6 +75,7 @@ jobs:
           --report-dir reports/verification/collect
           --manifest reports/verification/collect/manifest.json
           --durations tools/verification-durations.json
+          --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }}
       - name: Retain collection proof and immutable build artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -63,31 +89,73 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  synchronize:
+    name: synchronize provisioned test machines
+    needs: collect
+    runs-on: ubuntu-24.04
+    permissions: {}
+    outputs:
+      start-at: ${{ steps.start.outputs.start-at }}
+    steps:
+      - name: Choose a common start after bounded runner provisioning
+        id: start
+        run: |
+          python - <<'PY_START' >> "$GITHUB_OUTPUT"
+          import time
+          print(f"start-at={time.time() + 180}")
+          PY_START
+
   shard:
     name: shard (${{ matrix.os }}, ${{ matrix.index }})
-    needs: collect
+    needs: [collect, synchronize]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-15, windows-2025]
-        index: [0, 1]
+        index: [0, 1, 2, 3]
+        include:
+          - {os: ubuntu-24.04, index: 4}
+          - {os: ubuntu-24.04, index: 5}
+          - {os: ubuntu-24.04, index: 6}
+          - {os: macos-15, index: 4}
+          - {os: windows-2025, index: 4}
+          - {os: windows-2025, index: 5}
+          - {os: windows-2025, index: 6}
+          - {os: windows-2025, index: 7}
     defaults:
       run:
         shell: bash
     env:
       MPLBACKEND: Agg
       PYTHONHASHSEED: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PIP_COMPILE: '0'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: |
           python -m pip download --require-hashes --only-binary=:all: -r requirements-dev.lock --dest "$RUNNER_TEMP/verification-wheels"
@@ -96,15 +164,210 @@ jobs:
         with:
           name: collection-${{ matrix.os }}
           path: reports/incoming/collection
-      - name: Run only this worker's assigned tests with real child measurement
+      - name: Report runner CPU and numerical backend environment
+        run: |
+          mkdir -p reports/diagnostics
+          python - <<'PY' > reports/diagnostics/environment.log 2>&1
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import tempfile
+          import numpy as np
+          import scipy
+
+          try:
+              affinity_cpu_count = len(os.sched_getaffinity(0))
+          except (AttributeError, OSError):
+              affinity_cpu_count = None
+          cpu_info = Path("/proc/cpuinfo")
+          cpu_models = sorted({line.split(":", 1)[1].strip()
+                               for line in cpu_info.read_text().splitlines()
+                               if line.startswith("model name")}) if cpu_info.is_file() else []
+          print(json.dumps({"cpu_count": os.cpu_count(), "affinity_cpu_count": affinity_cpu_count,
+                            "cpu_models": cpu_models, "processor": platform.processor(),
+                            "temporary_root": tempfile.gettempdir(),
+                            "runner_temporary_root": os.environ.get("RUNNER_TEMP"),
+                            "numpy_version": np.__version__, "scipy_version": scipy.__version__}))
+          np.show_config()
+          np.show_runtime()
+          PY
+          cat reports/diagnostics/environment.log
+      - name: Coordinate provisioned machines before timing complete test commands
+        env:
+          COMMON_START: ${{ needs.synchronize.outputs.start-at }}
+        run: |
+          python - <<'PY_WAIT'
+          import json
+          import os
+          import time
+
+          target = float(os.environ["COMMON_START"])
+          started = time.time()
+          while time.time() < target:
+              time.sleep(max(0, min(1, target - time.time())))
+          print(json.dumps({"provisioning_wait_seconds": time.time() - started,
+                            "scheduled_start": target, "actual_ready": time.time()}))
+          PY_WAIT
+      - name: Run this machine's assigned tests with bounded local workers and real child measurement
         env:
           PIP_NO_INDEX: '1'
           PIP_FIND_LINKS: ${{ runner.temp }}/verification-wheels
-        run: >-
-          python tools/verification.py shard
-          --report-dir reports/verification/shard
-          --manifest reports/incoming/collection/manifest.json
-          --shard-index ${{ matrix.index }} --shard-count 2
+        run: |
+          cat > "$RUNNER_TEMP/observe-fast-checks.py" <<'PY_OBSERVER'
+          """Retain diagnostic snapshots without changing verifier files or commands.
+          
+          Run before the shard command; create --stop-marker after that command returns.
+          Place --output outside the verifier's empty-required shard report directory.
+          Fully written JSON receipts include complete:false: those locate stalled steps.
+          Snapshots are diagnostic observations, never replacement gate/reuse evidence.
+          """
+          
+          import argparse
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          import tempfile
+          import time
+          
+          
+          def main():
+              parser = argparse.ArgumentParser(description=__doc__)
+              parser.add_argument("--output", required=True, type=Path)
+              parser.add_argument("--stop-marker", required=True, type=Path)
+              args = parser.parse_args()
+              output = args.output.resolve()
+              stop_marker = args.stop_marker.resolve()
+              temporary_root = Path(tempfile.gettempdir()).resolve()
+              pattern = "dphtools-worker-*/pytest/*/*/reports/verification/*"
+              started = time.monotonic()
+              cpu_started = time.process_time()
+              seen = {}
+              read_bytes = written_bytes = 0
+              try:
+                  snapshots = output / "snapshots"
+                  snapshots.mkdir(parents=True, exist_ok=True)
+                  events = (output / "events.jsonl").open("a", encoding="utf-8")
+              except OSError as error:
+                  print(json.dumps({"event": "io_error", "operation": "initialize",
+                                    "source_path": str(output), "error": str(error)}), file=sys.stderr)
+                  return 1
+          
+              def record(event, **details):
+                  item = dict(event=event, time_ns=time.time_ns(), monotonic_ns=time.monotonic_ns(),
+                              **details)
+                  line = json.dumps(item, sort_keys=True) + "\n"
+                  try:
+                      events.write(line)
+                      events.flush()
+                  except OSError as error:
+                      print(line.rstrip(), file=sys.stderr, flush=True)
+                      print(json.dumps({"event": "io_error", "operation": "record_event",
+                                        "error": str(error)}), file=sys.stderr, flush=True)
+          
+              def failure(operation, source, error):
+                  record("io_error", operation=operation, source_path=str(source),
+                         error_type=type(error).__name__, error=str(error))
+          
+              record("started", pid=os.getpid(), temporary_root=str(temporary_root), pattern=pattern,
+                     output=str(output), stop_marker=str(stop_marker), poll_interval_seconds=1)
+              try:
+                  while True:
+                      try:
+                          if stop_marker.exists():
+                              break
+                      except OSError as error:
+                          failure("check_stop_marker", stop_marker, error)
+                      next_poll = time.monotonic() + 1
+                      try:
+                          directories = sorted({path.resolve() for path in temporary_root.glob(pattern)})
+                      except OSError as error:
+                          failure("discover", temporary_root, error)
+                          directories = []
+                      for directory in directories:
+                          # Logs are checked independently, even when the receipt is unchanged.
+                          try:
+                              paths = sorted(directory.glob("*.log")) + [directory / "checks.json"]
+                          except OSError as error:
+                              failure("discover_logs", directory, error)
+                              continue
+                          for path in paths:
+                              name = path.name
+                              try:
+                                  if not path.is_file():
+                                      continue
+                                  raw = path.read_bytes()
+                                  read_bytes += len(raw)
+                              except OSError as error:
+                                  failure("read_snapshot", path, error)
+                                  continue
+                              hashed = hashlib.sha256(raw).hexdigest()
+                              if seen.get(str(path)) == hashed:
+                                  continue
+                              complete = None
+                              if name == "checks.json":
+                                  try:
+                                      receipt = json.loads(raw)
+                                      if isinstance(receipt, dict):
+                                          complete = receipt.get("complete")
+                                  except (ValueError, UnicodeError) as error:
+                                      record("receipt_not_complete_json", source_path=str(path),
+                                             sha256=hashed, byte_count=len(raw), error=str(error))
+                                      continue
+                              target = snapshots / (hashed + "-" + name)
+                              try:
+                                  if not target.is_file():
+                                      temporary = target.with_name(target.name + ".tmp")
+                                      temporary.write_bytes(raw)
+                                      temporary.replace(target)
+                                      written_bytes += len(raw)
+                              except OSError as error:
+                                  failure("write_snapshot", path, error)
+                                  continue
+                              seen[str(path)] = hashed
+                              record("snapshot", source_path=str(path), sha256=hashed,
+                                     snapshot_path=target.relative_to(output).as_posix(), byte_count=len(raw),
+                                     receipt_complete=complete)
+                      time.sleep(max(0, next_poll - time.monotonic()))
+                  record("stopped", tracked_files=len(seen), read_bytes=read_bytes,
+                         written_bytes=written_bytes, wall_seconds=time.monotonic() - started,
+                         cpu_seconds=time.process_time() - cpu_started)
+              finally:
+                  events.close()
+              return 0
+          
+          
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY_OBSERVER
+          observer_stop="$RUNNER_TEMP/observe-fast-checks.stop"
+          python "$RUNNER_TEMP/observe-fast-checks.py" --output reports/diagnostics/fast-checks --stop-marker "$observer_stop" &
+          observer_pid=$!
+          set +e
+          python tools/verification.py shard \
+            --report-dir reports/verification/shard \
+            --manifest reports/incoming/collection/manifest.json \
+            --shard-index ${{ matrix.index }} --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }} --workers ${{ matrix.os == 'ubuntu-24.04' && 4 || 3 }}
+          shard_status=$?
+          touch "$observer_stop"
+          wait "$observer_pid"
+          observer_status=$?
+          set -e
+          echo "Verification diagnostic observer exit: $observer_status; authoritative shard exit: $shard_status"
+          exit "$shard_status"
+      - name: Retain nested verification diagnostic observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fast-diagnostics-${{ matrix.os }}-${{ matrix.index }}
+          path: |
+            reports/diagnostics/fast-checks/
+            reports/diagnostics/environment.log
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
       - name: Retain raw parent and child coverage and execution proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -115,6 +378,10 @@ jobs:
             reports/verification/shard/*.xml
             reports/verification/shard/*.log
             reports/verification/shard/.coverage*
+            reports/verification/shard/worker-*/*.json
+            reports/verification/shard/worker-*/*.xml
+            reports/verification/shard/worker-*/*.log
+            reports/verification/shard/worker-*/.coverage*
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
@@ -135,15 +402,32 @@ jobs:
     env:
       MPLBACKEND: Agg
       PYTHONHASHSEED: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PIP_COMPILE: '0'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.os == 'ubuntu-24.04' && env.CI_PYTHON_LINUX || env.CI_PYTHON_MACOS_WINDOWS }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
+      - name: Use runner temporary storage for Windows disposable environments
+        if: ${{ matrix.os == 'windows-2025' }}
+        run: |
+          python - <<'PY_TEMP'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]).resolve()
+          root.mkdir(parents=True, exist_ok=True)
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as output:
+              for name in ("TMPDIR", "TEMP", "TMP"):
+                  output.write(f"{name}={root}\n")
+          print(json.dumps({"windows_disposable_temporary_root": str(root)}))
+          PY_TEMP
       - name: Install locked verification dependencies
         run: python -m pip install --require-hashes -r requirements-dev.lock
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -159,7 +443,9 @@ jobs:
           python tools/verification.py aggregate
           --report-dir reports/verification/aggregate
           --manifest reports/incoming/collection/manifest.json
-          --shards reports/incoming/shards/shard-${{ matrix.os }}-0 reports/incoming/shards/shard-${{ matrix.os }}-1
+          --shard-count ${{ matrix.os == 'ubuntu-24.04' && 7 || matrix.os == 'windows-2025' && 8 || 5 }}
+          --shards
+          reports/incoming/shards/shard-${{ matrix.os }}-*
       - name: Retain platform coverage and validation diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -176,7 +462,7 @@ jobs:
 
   ci-required:
     name: ci-required
-    needs: [collect, shard, aggregate]
+    needs: [collect, synchronize, shard, aggregate]
     if: always()
     runs-on: ubuntu-24.04
     permissions: {}
@@ -184,9 +470,11 @@ jobs:
       - name: Require every complete platform gate to succeed
         env:
           COLLECT_RESULT: ${{ needs.collect.result }}
+          SYNCHRONIZE_RESULT: ${{ needs.synchronize.result }}
           SHARD_RESULT: ${{ needs.shard.result }}
           AGGREGATE_RESULT: ${{ needs.aggregate.result }}
         run: |
           test "$COLLECT_RESULT" = success
+          test "$SYNCHRONIZE_RESULT" = success
           test "$SHARD_RESULT" = success
           test "$AGGREGATE_RESULT" = success
