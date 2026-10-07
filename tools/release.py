@@ -185,7 +185,7 @@ def verification(directory):
             "Missing canonical report fields",
         )
         require(
-            report["document_version"] == "1.0"
+            report["document_version"] in ("1.0", "2.0")
             and report["mode"] == "full"
             and isinstance(report["python"], str)
             and isinstance(report["platform"], str)
@@ -212,7 +212,74 @@ def verification(directory):
                 "Failed or malformed verification step",
             )
             names.append(step["name"])
-        require(sorted(names) == sorted(STEPS), "Missing or duplicate full verification step")
+        expected = set(STEPS)
+        if report["document_version"] == "2.0":
+            from verification import owned_sources, validate_reports
+            from verification_inputs import digest as record_digest, file_hash
+
+            scope = report["scope"]
+            environment = report["identity"]["environment"]
+            system = {"ubuntu-24.04": "Linux", "macos-15": "Darwin", "windows-2025": "Windows"}
+            require(
+                environment["system"] == system[platform]
+                and environment["platform"] == report["platform"]
+                and environment["executable"] == report["python"],
+                "Foreign or inconsistent platform evidence",
+            )
+            sources = owned_sources(Path(__file__).resolve().parents[1])
+            require(
+                report["complete"] is True
+                and report["outcome"] == "passed"
+                and report["coverage_complete"] is True
+                and scope["name"] == "full"
+                and scope["coverage_claim"] == "global"
+                and scope["domains"] == ["library", "doctor", "release", "verification"]
+                and scope["measured_sources"] == sources
+                and scope["unvalidated_sources"] == scope["unvalidated_test_paths"] == []
+                and report["identity"]["scope"] == scope,
+                "Release preparation requires complete fresh global coverage",
+            )
+            require(
+                report["identity_digest"] == record_digest(report["identity"]),
+                "Changed report identity",
+            )
+            require(
+                report["receipt_digest"]
+                == record_digest({k: v for k, v in report.items() if k != "receipt_digest"}),
+                "Changed report receipt",
+            )
+            for step in steps:
+                require(
+                    step["state"] == "passed"
+                    and step["input_digest"] == record_digest(step["input_identity"]),
+                    "Unexecuted or changed verification step",
+                )
+                log = (paths[0].parent / step["log"]["path"]).resolve()
+                require(
+                    log.is_relative_to(paths[0].parent.resolve())
+                    and file_hash(log) == step["log"]["sha256"],
+                    "Changed or absent verification log",
+                )
+            require(
+                validate_reports(paths[0].parent, sources) == 0,
+                "Incomplete retained global reports",
+            )
+            expected.update(
+                (
+                    "interpreter",
+                    "locked-dependencies",
+                    "imports",
+                    "venv",
+                    "nested-venv",
+                    "nested-pip",
+                    "nested-import",
+                    "preflight",
+                    "wheel-artifacts",
+                    "clean-install",
+                    "coverage-data",
+                )
+            )
+        require(sorted(names) == sorted(expected), "Missing or duplicate full verification step")
         result[platform] = digest(paths[0].read_bytes())
     return result
 

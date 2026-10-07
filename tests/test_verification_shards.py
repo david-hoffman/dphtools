@@ -14,16 +14,25 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import verification
 import verification_shards as shards_runtime
+from .test_verification import CLEAN_INSTALL_OBSERVER, NESTED_INTERPRETER, _executable
 
 
 class ShardedCommand:
     """Run the public verifier against a tiny real parent/child test package."""
 
-    def __init__(self, directory):
+    def __init__(self, directory, scoped=False):
         self.root = directory / "fixture repository"
         self.entry = self.root / "runner/verification.py"
         self.entry.parent.mkdir(parents=True)
-        for name in ("verification.py", "verification_inputs.py", "verification_shards.py"):
+        for name in (
+            "verification.py",
+            "verification_inputs.py",
+            "verification_shards.py",
+            "verification_scope.py",
+            "verification_install.py",
+            "release.py",
+            "release_probe.py",
+        ):
             shutil.copy2(ROOT / "tools" / name, self.entry.parent)
         package = self.root / "dphtools"
         package.mkdir()
@@ -53,23 +62,67 @@ class ShardedCommand:
             "coverage==" + __import__("coverage").__version__ + "\n"
         )
         (self.root / ".gitignore").write_text("reports/\n__pycache__/\n*.egg-info/\n")
+        if scoped:
+            with (package / "__init__.py").open("a") as stream:
+                stream.write("\ndef value():\n    return 42\n")
+            test = self.root / "tests/test_real.py"
+            test.write_text(
+                test.read_text().replace(
+                    "assert dphtools.VALUE == 42", "assert dphtools.value() == 42"
+                )
+            )
+            (self.root / "tools/verification-domains.json").write_text(
+                json.dumps(
+                    {
+                        "runtime": {
+                            "doctor": ["tools/delivery"],
+                            "release": [],
+                            "verification": [],
+                        },
+                        "tests": {
+                            "library": ["tests/test_real.py"],
+                            "doctor": [],
+                            "release": [],
+                            "verification": [],
+                        },
+                        "support": {},
+                        "shared_tests": {},
+                        "prose": [],
+                    }
+                )
+            )
         tools = directory / "controlled quality tools"
         tools.mkdir()
         for name in ("black", "flake8", "pydocstyle", "mypy", "pip_audit"):
             (tools / (name + ".py")).write_text("# Real child quality boundary.\n")
+        nested = _executable(tools / "controlled installation python", NESTED_INTERPRETER)
+        (tools / "sitecustomize.py").write_text(CLEAN_INSTALL_OBSERVER)
         (tools / "build.py").write_text(
-            "import pathlib, sys, zipfile\n"
+            "import pathlib, sys, zipfile, tarfile, io\n"
             "output = pathlib.Path(sys.argv[sys.argv.index('--outdir') + 1])\n"
             "output.mkdir(parents=True)\n"
             "with zipfile.ZipFile(output / 'dphtools-1.0-py3-none-any.whl', 'w') as wheel:\n"
             "    wheel.write('dphtools/__init__.py', 'dphtools/__init__.py')\n"
             "    wheel.writestr('dphtools-1.0.dist-info/METADATA', "
-            "'Metadata-Version: 2.1\\nName: dphtools\\nVersion: 1.0\\n')\n"
+            "'Metadata-Version: 2.1\\nName: dphtools\\nVersion: 1.0\\nRequires-Python: >=3.8\\nRequires-Dist: numpy\\nRequires-Dist: pandas\\nRequires-Dist: scipy\\nRequires-Dist: matplotlib\\nRequires-Dist: scikit-image\\n')\n"
             "    wheel.writestr('dphtools-1.0.dist-info/WHEEL', "
             "'Wheel-Version: 1.0\\nRoot-Is-Purelib: true\\nTag: py3-none-any\\n')\n"
             "    wheel.writestr('dphtools-1.0.dist-info/RECORD', '')\n"
         )
-        self.env = dict(os.environ, PYTHONPATH=str(tools), PYTHONDONTWRITEBYTECODE="1")
+        with (tools / "build.py").open("a") as stream:
+            stream.write(
+                "with zipfile.ZipFile(output / 'dphtools-1.0-py3-none-any.whl') as wheel:\n"
+                "    metadata = wheel.read('dphtools-1.0.dist-info/METADATA')\n"
+                "with tarfile.open(output / 'dphtools-1.0.tar.gz', 'w:gz') as archive:\n"
+                "    info = tarfile.TarInfo('dphtools-1.0/PKG-INFO'); info.size = len(metadata)\n"
+                "    archive.addfile(info, io.BytesIO(metadata))\n"
+            )
+        self.env = dict(
+            os.environ,
+            PYTHONPATH=str(tools),
+            PYTHONDONTWRITEBYTECODE="1",
+            VERIFICATION_TEST_NESTED_PYTHON=str(nested),
+        )
         self.env.pop("PYTEST_ADDOPTS", None)
         self.env.update(GITHUB_RUN_ID="fixture-run", GITHUB_RUN_ATTEMPT="1")
         for arguments in (
@@ -119,6 +172,72 @@ def completed_shards(tmp_path_factory):
         assert result.returncode == 0, result.stdout + result.stderr
         shards.append(directory)
     return command, shards
+
+
+def test_scoped_collection_and_both_real_workers_preserve_scope_and_complete_coverage(tmp_path):
+    command = ShardedCommand(tmp_path, scoped=True)
+    base = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=command.root, text=True
+    ).strip()
+    package = command.root / "dphtools/__init__.py"
+    package.write_text(
+        package.read_text().replace("return 42", "return 42  # Understood body comment.")
+    )
+    for arguments in (["add", "."], ["commit", "-m", "library body comment"]):
+        changed = subprocess.run(["git", *arguments], cwd=command.root, capture_output=True)
+        assert changed.returncode == 0, changed.stderr
+    result = command.run("collect", command.collect, "--base", base)
+    assert result.returncode == 0, result.stdout + result.stderr
+    manifest = json.loads(command.manifest.read_text())
+    selected = manifest["identity"]["scope"]
+    assert selected["name"] == "library" and selected["coverage_claim"] == "scoped"
+    assert selected["unvalidated_sources"] == ["tools/delivery"]
+    workers = []
+    for index in (0, 1):
+        directory, result = command.shard(index)
+        assert result.returncode == 0, result.stdout + result.stderr
+        workers.append(directory)
+        checks = json.loads((directory / "checks.json").read_text())
+        assert checks["scope"] == selected
+    aggregate = command.root / "reports/aggregate"
+    result = command.aggregate(aggregate, workers)
+    assert result.returncode == 0, result.stdout + result.stderr
+    checks = json.loads((aggregate / "checks.json").read_text())
+    assert checks["scope"] == selected and checks["coverage_complete"] is True
+    coverage = json.loads((aggregate / "coverage.json").read_text())
+    assert set(coverage["files"]) == set(selected["measured_sources"])
+    assert coverage["totals"]["missing_lines"] == coverage["totals"]["missing_branches"] == 0
+
+
+def test_production_cli_rejects_a_valid_manifest_from_another_source_tree(
+    completed_shards, tmp_path
+):
+    command, _ = completed_shards
+    report = tmp_path / "foreign-reports"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools/verification.py"),
+            "shard",
+            "--manifest",
+            str(command.manifest),
+            "--shard-index",
+            "0",
+            "--report-dir",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    checks = json.loads((report / "checks.json").read_text())
+    assert checks["scope"]["name"] == "full"
+    assert checks["coverage_complete"] is False
+    assert checks["steps"][0]["state"] == "failed"
+    assert (
+        "Manifest inputs/platform/current run differ"
+        in (report / checks["steps"][0]["log"]["path"]).read_text()
+    )
 
 
 def test_real_collection_is_partitioned_once_and_parent_child_coverage_aggregates(
@@ -627,6 +746,9 @@ def test_manifest_rejects_unclosed_collection_and_invalid_partitions(
 @pytest.mark.parametrize(
     "arguments",
     [
+        ("fast", "--base", "HEAD"),
+        ("fast", "--output", "plan.json"),
+        ("library", "--reuse", "checks.json"),
         ("shard",),
         ("aggregate",),
         ("shard", "--manifest", "missing.json"),

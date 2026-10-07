@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "runtime": {
+    "doctor": [
+      "tools/delivery"
+    ],
+    "release": [
+      "tools/release.py",
+      "tools/release_workflow.py",
+      "tools/release_probe.py"
+    ],
+    "verification": [
+      "tools/verification.py",
+      "tools/verification_inputs.py",
+      "tools/verification_install.py",
+      "tools/verification_metrics.py",
+      "tools/verification_reuse.py",
+      "tools/verification_scope.py",
+      "tools/verification_shards.py"
+    ]
+  },
+  "tests": {
+    "library": [
+      "tests/test_angles_contract.py",
+      "tests/test_beads_baseline.py",
+      "tests/test_display.py",
+      "tests/test_display_approved_policies.py",
+      "tests/test_display_baseline.py",
+      "tests/test_display_contracts.py",
+      "tests/test_drift_uncertainty_contract.py",
+      "tests/test_fitfuncs.py",
+      "tests/test_fitfuncs_baseline.py",
+      "tests/test_fitting_contracts.py",
+      "tests/test_histstats_baseline.py",
+      "tests/test_lm_baseline.py",
+      "tests/test_lpsvd_baseline.py",
+      "tests/test_lpsvd_default_contract.py",
+      "tests/test_lpsvd_hosted_boundary.py",
+      "tests/test_lpsvd_near_undamped.py",
+      "tests/test_lpsvd_numerical_boundaries.py",
+      "tests/test_lpsvd_paper.py",
+      "tests/test_lpsvd_unit_scaling.py",
+      "tests/test_make_lambda_contract.py",
+      "tests/test_powerlaw_common_invariants.py",
+      "tests/test_powerlaw_components_and_discrete_range.py",
+      "tests/test_powerlaw_cutoff_contract.py",
+      "tests/test_powerlaw_final_numerical.py",
+      "tests/test_powerlaw_numerical_boundaries.py",
+      "tests/test_powerlaw_offset_contract.py",
+      "tests/test_powerlaw_sampling_contract.py",
+      "tests/test_powerlaw_upper_contract.py",
+      "tests/test_powerlaw_upper_preservation.py",
+      "tests/test_public_boundaries.py",
+      "tests/test_registration_baseline.py",
+      "tests/test_registration_normalization_contract.py",
+      "tests/test_rolling_ball_baseline.py",
+      "tests/test_runtime_contracts.py",
+      "tests/test_utils.py",
+      "tests/test_utils_baseline.py",
+      "tests/test_ztnb_contract.py",
+      "tests/test_ztnb_histogram_contract.py",
+      "tests/test_ztnb_numerical_contract.py",
+      "tests/test_ztp_contract.py",
+      "tests/test_ztp_mean_kernel.py",
+      "tests/test_ztp_numerical_boundaries.py"
+    ],
+    "doctor": [
+      "tests/test_delivery.py"
+    ],
+    "release": [
+      "tests/test_release_bundle.py",
+      "tests/test_release_cli.py",
+      "tests/test_release_completion.py",
+      "tests/test_release_probe_measurement.py",
+      "tests/test_release_reconcile.py",
+      "tests/test_release_safety.py",
+      "tests/test_release_smoke.py",
+      "tests/test_release_support.py",
+      "tests/test_release_verification.py",
+      "tests/test_release_version.py",
+      "tests/test_release_workflow.py"
+    ],
+    "verification": [
+      "tests/test_verification.py",
+      "tests/test_verification_hooks.py",
+      "tests/test_verification_metrics.py",
+      "tests/test_verification_reuse.py",
+      "tests/test_verification_shards.py",
+      "tests/test_verification_scope.py",
+      "tests/test_verification_install.py"
+    ]
+  },
+  "support": {
+    "tests/__init__.py": "shared",
+    "tests/conftest.py": "shared",
+    "tests/release_probe_measurement_support.py": "release",
+    "tests/release_workflow_support.py": "release"
+  },
+  "shared_tests": {
+    "doctor": [
+      "tests/test_release_cli.py"
+    ],
+    "release": [
+      "tests/test_delivery.py"
+    ]
+  },
+  "prose": [
+    "docs/references/READING-NOTES.md",
+    "docs/references/README.md"
+  ],
+  "shared_inputs": [
+    "docs/agentic-software-delivery-v1.0/DOCTOR-PROMPT.md",
+    "tools/release.py",
+    "tools/release_probe.py",
+    "tests/test_release_smoke.py",
+    "tests/test_release_version.py",
+    "tests/test_release_support.py"
+  ],
+  "shared_dependency_reason": "The doctor prompt carries shared delivery/approval policy. Current-artifact installation uses release distributions/smoke/probe; verifier tests and shared conftest use the release artifact/worker fixtures. Whole-file changes conservatively require full."
+}

@@ -24,9 +24,12 @@ Each specialist slice has one checkpoint lineage; new contracts default to at mo
 five distinct scenarios in the task template's table. Request and record
 explicit owner approval for a larger slice. Independent tasks use separate worktrees; dependent
 slices wait for completed, integrated prerequisites. Each slice must meet the complete
-merge gate, including global 100% statements/branches and required platform CI.
-Routine PRs need meaningful focused and cheap checks; full local verification is the
-reference/diagnostic path and required when the risk/check plan calls for it.
+merge gate for the highest owner-approved project tier: exact 100% statements/branches
+in every required whole owned domain and complete required-platform CI. Canonical full
+and release preparation retain fresh global/per-package coverage. Without an approved
+scoped hierarchy, use full. Unknown/shared/build-input/spanning changes, add/delete/rename,
+or unavailable/changed comparison base require full. Routine PRs need meaningful focused
+checks plus the selected tier; full remains the reference/diagnostic path.
 Expose any infeasible legacy-baseline dependency
 before the owner chooses an adoption scope; do not promise failing-slice acceptance.
 Each expected result must follow approved behavior, an applicable primary reference,

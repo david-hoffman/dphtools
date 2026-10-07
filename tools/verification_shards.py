@@ -226,8 +226,7 @@ def test_step(run, name, settings, dependencies=()):
         "verification_shards",
         f"--rootdir={run.root}",
         "--doctest-modules",
-        "dphtools",
-        "tests",
+        *run.scope["selected_test_paths"],
         "-ra",
     ]
     if name == "collection":
@@ -295,17 +294,23 @@ def load_manifest(run, path):
     for step in quality["steps"]:
         artifact(path.parent, step["log"])
     artifact(path.parent, manifest["wheel"])
+    require(
+        "clean-install" in {step["name"] for step in quality["steps"]},
+        "Missing clean installations",
+    )
+    artifact(path.parent, manifest["sdist"])
     return manifest
 
 
 def collect(run, arguments):
     """Run quality/build once and freeze actual pytest/doctest collection."""
-    from verification import fast_checks, preflight, prepare_checks
+    from verification import clean_install, fast_checks, preflight, prepare_checks
 
     preflight(run)
     fast_checks(run)
-    wheels, _ = prepare_checks(run)
-    test_step(run, "collection", {}, dependencies=("wheel-artifacts",))
+    wheels, artifacts = prepare_checks(run)
+    clean_install(run, artifacts)
+    test_step(run, "collection", {}, dependencies=("clean-install",))
 
     def freeze():
         record = read_json(run.directory / "collection.json")
@@ -323,6 +328,10 @@ def collect(run, arguments):
             path.parent.resolve() == run.directory.resolve(),
             "Manifest must remain with its collection artifacts",
         )
+        source_artifact = {}
+        archives = list((run.directory / "dist").glob("*.tar.gz"))
+        require(len(archives) == 1, "Expected one fresh source distribution")
+        source_artifact["sdist"] = file_record(run.directory, archives[0])
         write_json(
             path,
             sealed(
@@ -332,6 +341,7 @@ def collect(run, arguments):
                     "assignments": partition(record["nodes"], durations),
                     "quality": file_record(run.directory, run.directory / "quality.json"),
                     "wheel": file_record(run.directory, wheels[0]),
+                    **source_artifact,
                 }
             ),
         )
