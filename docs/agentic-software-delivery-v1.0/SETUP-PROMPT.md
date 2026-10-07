@@ -11,7 +11,7 @@ Actions, and Git. Do not build a custom controller, separate control repository,
 GitHub App, immutable test store, permission enforcement, or agent swarm.
 Restrictions on editing reviewed tests/workflows and append-only lessons are prompts.
 
-Start read-only. Inventory existing failures, exact measured statement/branch coverage,
+Start read-only. Inventory existing failures, exact available coverage metrics and scope,
 environment/tooling problems, and unresolved behavior before proposing remediation.
 Identify the revision, environment, and commands; label stale evidence and blocked
 measurement. Use existing checks in an isolated usable environment without changing
@@ -25,7 +25,7 @@ Show the small setup plan and obtain approval. Separate delivery-tooling install
 from existing-product remediation, with effort, measurement gaps, and owner decisions.
 Installation approval does not authorize product repairs or resolve missing behavior.
 Expose legacy baseline dependencies that make small slices unable to pass the full
-gate, including global 100% coverage. Let the owner choose adoption scope case by case,
+gate, including approved coverage obligations. Let the owner choose adoption scope case by case,
 including an explicitly larger slice where needed; do not weaken readiness criteria.
 Adapt paths and instructions without creating two live specs or overwriting the
 product README. Create root LESSONS/ with a README.md format guide for one timestamped
@@ -38,7 +38,21 @@ native bridge only when required. Record actual launch and check commands.
 Infer languages/frameworks. Research suitable native formatting/lint/type/test tools.
 Create or adapt ordinary CI and minimal test infrastructure as authorized setup work.
 Prefer real end-to-end/public-entry-point tests, smaller tests only for useful gaps.
-Retain 100% measured statement/branch coverage and report unsupported measurement.
+Before formal test design, explain spec section 5.1's coverage choices and obtain my
+choice: approved behavior with risk review (recommended for ordinary application
+work), optionally supplemented by line, statement, branch, or combined measured targets.
+Lines and statements are distinct metrics; 100% is valid when explicitly selected.
+Record the choice, reason, approval, and each selected metric's tool/command, exact
+threshold, runtime/package/platform scope, aggregation, exclusions and reporting limits
+in docs/PROJECT.md. Tasks inherit this policy and add their relevant risks; reuse
+settled answers. Unless an explicitly approved scope says otherwise, selected metrics cover all
+instrumentable owned runtime globally and per package on each required platform,
+including never-imported files and relevant subprocess/server/browser code.
+Missing or unsupported required measurement blocks its selected gate; an unselected
+metric is advisory and cannot block acceptance solely on a percentage. Preserve an
+installed gate until an independently reviewed, owner-approved policy amendment and
+authorized infrastructure changes reconcile it. Explicitly migrate active tasks before
+using a changed policy; preserve their consumed budget and allowances.
 Use GITHUB-SETUP.md; apply settings only with permission or give exact owner actions.
 
 Implement delivery doctor as a thin invocation of review-work in doctor mode using
@@ -53,6 +67,17 @@ use separate worktrees; dependent slices wait for completed, integrated prerequi
 Keep the scenario/round/repair/spend line in Current state under section 9; preserve
 history and consumed budget/repairs when work is renamed or split.
 
+The author maps approved outcomes and relevant risks to evidence; the fresh reviewer
+independently audits omissions. Specialist A maps them and B audits before accepting
+tests; D checks the actual implementation for concrete omissions. Classify coverage
+findings under spec section 5.2 before correction: approved behavior/test gaps go to
+the authorized test owner, needless complexity to its author, new semantics to intake,
+measurement faults to authorized infrastructure, and unresolved selected-target
+conflicts to an owner policy decision. Specialist corrections use blind A/B through
+source-free public reproductions, without coverage-line maps or implementation reports.
+Preserve role ownership and remaining allowances. Do not cycle an unexplained gap
+through roles or invent internal guards/tests solely to improve a percentage.
+
 Demonstrate a routine author/fresh-independent-reviewer path using established
 contracts, meaningful focused checks, and cheap verification before PR opening,
 reopening (drafts included), or updates. Demonstrate separate A/B/C/D only for genuine
@@ -60,9 +85,9 @@ scientific/safety risk, including a reviewed checkpoint and its approved risk ch
 Full local verification is the reference/diagnostic path, required when the risk/check
 plan calls for it, rather than before every routine PR. Pre-PR pushes may back up
 incomplete checkpoints. Preserve fast generic hooks; no PR-state controller.
-Known failures, including known incomplete coverage, block readiness.
+Known failures, including an unmet selected coverage target, block readiness.
 Merge requires independent review of the unchanged candidate and complete platform
-CI with exact 100% owned statement/branch coverage. Verify actual native required
+CI satisfying approved behavior/risk obligations and every selected target. Verify actual native required
 ci-required protection on codex-main before relying on CI as the authoritative gate.
 Preserve production main protections and publication approval. Missing access or
 protection is a reported blocker, not verified enforcement. Inspect configuration

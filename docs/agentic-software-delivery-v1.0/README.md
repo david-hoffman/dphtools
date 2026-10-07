@@ -8,9 +8,11 @@
 
 **One monorepo, four skills, ordinary CI, and a learning log. No custom delivery platform.**
 
-First, inventory existing failures, measured coverage, environment problems, and unresolved behavior. Separate installing delivery tooling from repairing the product, including their cost and required decisions. Reuse approved architecture or clarify the missing decisions with the owner. Keep the 100% statement and branch coverage requirement; installation alone does not make the product ready.
+First, inventory existing failures, measured coverage, environment problems, and unresolved behavior. Separate installing delivery tooling from repairing the product, including their cost and required decisions. Reuse approved architecture or clarify the missing decisions with the owner. Installation alone does not make the product ready.
 
-Routine maintenance reuses established contracts and its existing task/PR record; no new document or specialist is required for every assertion. For new behavior or a large request, intake records necessary contracts/slices and obtains approval only for material decisions not already authorized. New contracts default to at most five distinct scenarios. Independent tasks may use separate worktrees; dependent slices wait for integrated prerequisites. A baseline preventing complete verification and exact 100% coverage is an adoption decision to expose up front, not an exception to the merge gate.
+Agree on coverage before formal test design: approved behavior with a risk audit, optionally supplemented by line, statement, branch, or combined measured targets. Behavior coverage is the recommendation for ordinary application work; 100% of a selected metric is also valid. Record the owner's choice and approval in `docs/PROJECT.md`; tasks inherit settled choices and add their relevant risks. Line and statement metrics are distinct. An installed coverage gate stays binding until an independently reviewed, explicitly approved policy amendment and any active-task migration.
+
+Routine maintenance reuses established contracts and its existing task/PR record; no new document or specialist is required for every assertion. For new behavior or a large request, intake records necessary contracts/slices and obtains approval only for material decisions not already authorized. New contracts default to at most five distinct scenarios. Independent tasks may use separate worktrees; dependent slices wait for integrated prerequisites. A baseline preventing complete verification or the approved coverage obligations is an adoption decision to expose up front, not an exception to the merge gate.
 
 For each approved slice:
 
@@ -19,7 +21,7 @@ Authorized routine task under established contracts
     → author changes code/tests/docs within scope
     → meaningful focused checks and cheap verification pass
     → open/update PR; one fresh independent reviewer checks the candidate
-    → full required platform CI, exact owned coverage, verified protection
+    → full required platform CI, approved coverage obligations, verified protection
     → normal owner-authorized merge of the unchanged reviewed candidate
 
 Genuine scientific or safety risk
@@ -30,7 +32,9 @@ Genuine scientific or safety risk
 
 Classify by changed behavior and lost proof, not patch size. New scientific contracts/custom correctness oracles, release/publication safety, or other material behavior/security risk use fresh specialist A–D sessions. All roles receive narrow packets and concrete completion conditions; reviewers never inherit the author's conversation or approve their own repair. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, primary references, or invariants. Existing-code tests may pass initially; no artificial red result or product mutation is required. A claimed bug still needs the intended failure.
 
-Routine PR opening/reopening (drafts included) and updates require focused and cheap checks. Full local verification remains useful as a reference, for diagnosis, and when the risk/check plan requires it. Known failures remain blockers; pending CI is not success. Merge needs complete Linux/macOS/Windows verification and exact 100% owned statement/branch coverage. Rely on `ci-required` as authoritative only after actual native protection on `codex-main` is read back and verified; missing protection is a reported blocker. Preserve production `main` and separate frozen-bundle publication approval. Before a PR exists, pushes may back up incomplete checkpoints without establishing readiness. Preserve fast generic hooks.
+Routine PR opening/reopening (drafts included) and updates require focused and cheap checks. Full local verification remains useful as a reference, for diagnosis, and when the risk/check plan requires it. Known failures remain blockers; pending CI is not success. Merge needs complete Linux/macOS/Windows verification, approved behavior/risk evidence, and every selected measured target. [Specification section 5.1](DELIVERY-SYSTEM-SPEC.md#51-agree-on-coverage-before-writing-tests) defines exact metrics, scope, reports, exclusions, and measurement limits. An unselected metric is advisory; an unmet selected target or missing required measurement blocks acceptance. Rely on `ci-required` as authoritative only after actual native protection on `codex-main` is read back and verified; missing protection is a reported blocker. Preserve production `main` and separate frozen-bundle publication approval. Before a PR exists, pushes may back up incomplete checkpoints without establishing readiness. Preserve fast generic hooks.
+
+The author maps tests to approved outcomes and relevant risks; the fresh independent reviewer audits omissions. On the specialist route, A supplies that mapping and B independently checks it before accepting the checkpoint; D inspects actual behavior for concrete omissions. An accepted suite is the agreed baseline, not proof of every possible behavior. [Classify coverage findings](DELIVERY-SYSTEM-SPEC.md#52-classify-coverage-findings-before-correction) before correction: missing approved behavior/risk to the authorized test owner, unnecessary code to its author, unresolved semantics to intake, measurement defects to authorized infrastructure work, and an irreducible target conflict to an explicit owner policy decision. Specialist test corrections preserve blind source-free A/B packets. Do not invent validation or brittle internal-state tests solely to improve a percentage.
 
 Classify failures before repair. On the specialist route, after two B nonacceptances, B diagnoses ambiguity or excessive scope before another rewrite. Keep specialist A/B rounds separate from C repairs and total budget. One Current state section records route, approvals, candidate, checks/review, blockers, and next action, with concise scenario/launch/round/repair/spend metrics. Renaming/splitting never resets used resources. Keep full logs outside Git; host-required progress updates remain mandatory and unavailable event-wait tools remain unavailable.
 
@@ -44,7 +48,7 @@ The agents are told not to change reviewed tests or workflows to make their work
 
 During setup, create root `LESSONS/` with a `README.md` format guide. Record each useful, evidence-linked discovery in its own timestamped Markdown file. Add corrections as new files referencing earlier entries; do not update a shared index. Only lesson entries require append-only treatment; Git preserves superseded task status.
 
-Once installed, run `delivery doctor` when experience reveals a gap; before installation, use [DOCTOR-PROMPT.md](DOCTOR-PROMPT.md). It distinguishes instruction gaps from execution errors and proposes edits to the existing specification/instructions. You review the diff before it is committed and merged.
+Once installed, run `delivery doctor` when experience reveals a gap; before installation, use [DOCTOR-PROMPT.md](DOCTOR-PROMPT.md). It distinguishes instruction gaps from execution errors and proposes edits to the existing specification/instructions. Policy amendments need independent review and explicit owner patch approval before activation. Active tasks keep their pinned gates unless explicitly migrated; migration preserves spent allowances.
 
 ## Start here
 

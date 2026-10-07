@@ -95,6 +95,23 @@ def write(path, value):
     path.write_text(value, encoding="utf-8")
 
 scenario = os.environ.get("VERIFICATION_TEST_REPORT", "valid")
+missing_line_details = {
+    "missing-statement": [2],
+    "malformed-missing-line": ["not a line number"],
+    "duplicate-missing-lines": [2, 2],
+    "overlapping-line-details": [1],
+    "malformed-executed-line": [2],
+}
+missing_branch_details = {
+    "missing-branch": [[1, 2]],
+    "missing-exit-branch": [[1, -2]],
+    "malformed-missing-branch": [None],
+    "malformed-branch-pair": [[1]],
+    "noninteger-branch-endpoint": [[1, True]],
+    "duplicate-missing-branches": [[1, 2], [1, 2]],
+    "overlapping-branch-details": [[1, 2]],
+    "malformed-executed-branch": [[1, 2]],
+}
 junit = option("--junitxml", "--junit-xml")
 if junit and scenario != "missing-tests":
     cases = {
@@ -165,18 +182,41 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
     elif scenario == "excluded-coverage":
         target["excluded_lines"] = [2]
         target["summary"]["excluded_lines"] = 1
-    elif scenario == "missing-statement":
-        target["missing_lines"] = [2]
-        target["summary"].update(covered_lines=9999, num_statements=10000,
-                                 missing_lines=1, percent_covered=99.99)
-    elif scenario == "missing-branch":
-        target["missing_branches"] = [[1, 2]]
-        target["summary"].update(num_branches=10000, covered_branches=9999,
-                                 missing_branches=1, num_partial_branches=1,
-                                 percent_covered=99.99)
+    elif scenario in missing_line_details:
+        target["missing_lines"] = missing_line_details[scenario]
+        missing = len(target["missing_lines"])
+        target["summary"].update(covered_lines=10000 - missing, num_statements=10000,
+                                 missing_lines=missing)
+        if scenario == "malformed-executed-line":
+            target["executed_lines"] = [None]
+    elif scenario in missing_branch_details:
+        target["missing_branches"] = missing_branch_details[scenario]
+        missing = len(target["missing_branches"])
+        target["summary"].update(num_branches=10000, covered_branches=10000 - missing,
+                                 missing_branches=missing, num_partial_branches=missing)
+        if scenario == "overlapping-branch-details":
+            target["executed_branches"] = [[1, 2]]
+        elif scenario == "malformed-executed-branch":
+            target["executed_branches"] = [["x", 2]]
+    elif scenario == "statement-count-mismatch":
+        target["summary"]["covered_lines"] = 0
+    elif scenario == "branch-count-mismatch":
+        target["summary"]["num_branches"] = 1
+    elif scenario == "unlisted-missing-line":
+        target["summary"].update(num_statements=2, missing_lines=1)
+    elif scenario == "unlisted-missing-branch":
+        target["summary"].update(num_branches=1, missing_branches=1)
+    for entry in files.values():
+        measured = entry["summary"]
+        measured["percent_covered"] = 100 * (
+            measured["covered_lines"] + measured["covered_branches"]
+        ) / (measured["num_statements"] + measured["num_branches"])
     totals = {key: sum(value["summary"][key] for value in files.values())
               for key in summary if not key.startswith("percent")}
-    totals.update(percent_covered=100.0, percent_covered_display="100")
+    percent = 100 * (totals["covered_lines"] + totals["covered_branches"]) / (
+        totals["num_statements"] + totals["num_branches"]
+    )
+    totals.update(percent_covered=percent, percent_covered_display=f"{percent:.0f}")
     if scenario == "negative-count":
         target["summary"]["num_statements"] = -1
     elif scenario == "noninteger-count":
@@ -198,14 +238,30 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
           "{" if scenario == "malformed-coverage" else json.dumps(data))
 if name == "coverage" and "xml" in args and scenario != "missing-coverage-xml":
     count = len(list(Path("dphtools").rglob("*.py"))) + len(list(Path("tools").rglob("*.py")))
-    branches = 'branches-valid="10000" branches-covered="9999"' if (
-        scenario == "xml-missing-branch"
-    ) else 'branches-valid="0" branches-covered="0"'
+    statements = count + (
+        9999 if scenario in missing_line_details else 1 if scenario == "unlisted-missing-line" else 0
+    )
+    covered_statements = statements - (
+        len(missing_line_details[scenario]) if scenario in missing_line_details else (
+            1 if scenario in ("statement-count-mismatch", "unlisted-missing-line") else 0
+        )
+    )
+    branches = 10000 if scenario in missing_branch_details or scenario == "xml-missing-branch" else (
+        1 if scenario in ("branch-count-mismatch", "unlisted-missing-branch") else 0
+    )
+    covered_branches = branches - (
+        len(missing_branch_details[scenario]) if scenario in missing_branch_details else (
+            1 if branches else 0
+        )
+    )
+    branch_rate = covered_branches / branches if branches else 1
+    line_rate = covered_statements / statements
     write(option("-o", "--output") or "coverage.xml",
           '<coverage broken' if scenario == "malformed-coverage-xml" else
           '<foreign/>' if scenario == "foreign-xml-root" else
-          f'<coverage branch-rate="1" line-rate="1" version="fixture" '
-          f'lines-valid="{count}" lines-covered="{count}" {branches}>'
+          f'<coverage branch-rate="{branch_rate}" line-rate="{line_rate}" version="fixture" '
+          f'lines-valid="{statements}" lines-covered="{covered_statements}" '
+          f'branches-valid="{branches}" branches-covered="{covered_branches}">'
           '<packages/></coverage>')
 
 failure = os.environ.get("VERIFICATION_TEST_FAIL", "")
@@ -476,6 +532,35 @@ def test_full_success_orders_tools_and_retains_reports(verifier):
     _assert_full_operations(verifier, calls)
 
 
+@pytest.mark.parametrize(
+    "scenario", ["missing-statement", "missing-branch", "missing-exit-branch"]
+)
+def test_full_accepts_honest_incomplete_coverage_and_retains_diagnostics(verifier, scenario):
+    """Missing measured counts are advisory while report integrity remains required."""
+    verifier.env["VERIFICATION_TEST_REPORT"] = scenario
+    result = verifier.run("full")
+    assert result.returncode == 0, _detail(result)
+    calls = verifier.calls()
+    assert _sequence(calls) == FULL_SEQUENCE, _detail(result)
+    coverage_calls = [
+        call for call in calls if call["tool"] == "coverage" and call["args"][0] == "report"
+    ]
+    assert len(coverage_calls) == 1
+    assert all("--fail-under=0" in call["args"] for call in coverage_calls), coverage_calls
+    report = _check_manifest(verifier, result, "full")
+    data = json.loads((report / "coverage.json").read_text(encoding="utf-8"))
+    key = "missing_lines" if scenario == "missing-statement" else "missing_branches"
+    assert data["files"]["dphtools/never_imported.py"]["summary"][key] == 1
+    assert data["totals"][key] == 1
+    assert data["totals"]["percent_covered"] < 100
+    # A rounded displayed percentage cannot erase the retained missing count.
+    assert data["totals"]["percent_covered_display"] == "100"
+    if scenario == "missing-exit-branch":
+        assert data["files"]["dphtools/never_imported.py"]["missing_branches"] == [[1, -2]]
+    assert (report / "coverage.xml").is_file()
+    _assert_full_operations(verifier, calls)
+
+
 def _assert_full_operations(verifier, calls):
     """Checking, building and installing must do work on the owned fixture inputs."""
     by_tool = {call["tool"]: call for call in calls}
@@ -526,6 +611,20 @@ def test_fast_attempts_later_tools_after_failure(verifier, failed):
         "noninteger-count",
         "hidden-missing-line",
         "hidden-missing-branch",
+        "statement-count-mismatch",
+        "branch-count-mismatch",
+        "unlisted-missing-line",
+        "unlisted-missing-branch",
+        "malformed-missing-line",
+        "malformed-missing-branch",
+        "malformed-branch-pair",
+        "noninteger-branch-endpoint",
+        "duplicate-missing-lines",
+        "duplicate-missing-branches",
+        "overlapping-line-details",
+        "overlapping-branch-details",
+        "malformed-executed-line",
+        "malformed-executed-branch",
         "empty-statements",
         "totals-mismatch",
         "foreign-xml-root",
@@ -540,8 +639,6 @@ def test_fast_attempts_later_tools_after_failure(verifier, failed):
         "absent-helper",
         "no-branches",
         "excluded-coverage",
-        "missing-statement",
-        "missing-branch",
         "missing-coverage-xml",
         "malformed-coverage-xml",
         "xml-missing-branch",
@@ -735,8 +832,8 @@ def test_real_coverage_reports_never_imported_owned_sources(verifier):
     shutil.rmtree(verifier.modules / "coverage")
     verifier.env["VERIFICATION_TEST_REAL_COVERAGE"] = "1"
     result = verifier.run("full")
-    # Only the package initializer ran. Its unimported siblings must make this fail.
-    assert result.returncode == 1, _detail(result)
+    # Only the package initializer ran. Missing counts stay visible without a gate.
+    assert result.returncode == 0, _detail(result)
     reports = verifier.reports()
     assert len(reports) == 1, _detail(result)
     data = json.loads((reports[0].parent / "coverage.json").read_text(encoding="utf-8"))
@@ -746,6 +843,8 @@ def test_real_coverage_reports_never_imported_owned_sources(verifier):
         assert name in files, f"Never-imported owned file absent from real measurement: {name}"
         assert files[name]["summary"]["missing_lines"] > 0
     assert "dphtools/_version.py" not in files
+    assert data["totals"]["missing_lines"] > 0
+    assert data["totals"]["percent_covered"] < 100
 
 
 def test_real_lint_configuration_retains_critical_errors(verifier):
@@ -880,6 +979,7 @@ Path(os.environ["VERIFICATION_TEST_EXECUTION_RECEIPT"]).write_text(
 """
     (verifier.modules / "pytest.py").write_text(execution + TOOL, encoding="utf-8")
     result = verifier.run("full")
+    assert result.returncode == 0, _detail(result)
     assert (
         receipt.is_file()
     ), f"Nested-module execution fixture did not complete: exit={result.returncode}"

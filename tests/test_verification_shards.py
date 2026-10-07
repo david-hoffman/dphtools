@@ -29,6 +29,7 @@ class ShardedCommand:
         package.mkdir()
         (package / "__init__.py").write_text(
             '"""Parent doctest.\n\n>>> VALUE\n42\n"""\nVALUE = 42\n'
+            "\ndef positive(value):\n    if value > 0:\n        return True\n    return False\n"
         )
         (package / "child.py").write_text('"""Child-only measured code."""\nVALUE = 17\n')
         (package / "_version.py").write_text(
@@ -39,14 +40,15 @@ class ShardedCommand:
         (self.root / "tests").mkdir()
         (self.root / "tests/test_real.py").write_text(
             "import os, subprocess, sys\nimport dphtools\n\n"
-            "def test_parent():\n    assert dphtools.VALUE == 42\n\n"
+            "def test_parent():\n    assert dphtools.VALUE == 42\n"
+            "    assert dphtools.positive(42) is True\n\n"
             "def test_child():\n    subprocess.run([sys.executable, '-c', "
             "'import dphtools.child; assert dphtools.child.VALUE == 17'], check=True)\n"
         )
         (self.root / "setup.cfg").write_text(
             "[coverage:run]\nbranch = True\nparallel = True\npatch = subprocess\n"
             "include = */dphtools/**/*.py\nomit = dphtools/_version.py\n"
-            "[coverage:report]\nfail_under = 100\nexclude_lines =\n    (?!x)x\n"
+            "[coverage:report]\nfail_under = 0\nexclude_lines =\n    (?!x)x\n"
             "partial_branches =\n    (?!x)x\n"
         )
         (self.root / "requirements-dev.lock").write_text(
@@ -141,7 +143,22 @@ def test_real_collection_is_partitioned_once_and_parent_child_coverage_aggregate
     assert result.returncode == 0, result.stdout + result.stderr
     coverage = json.loads((command.root / "reports/aggregate/coverage.json").read_text())
     assert coverage["files"]["dphtools/child.py"]["executed_lines"] == [2]
-    assert coverage["totals"]["missing_lines"] == 0
+    assert coverage["files"]["dphtools/__init__.py"]["summary"]["missing_lines"] > 0
+    assert coverage["files"]["dphtools/__init__.py"]["summary"]["missing_branches"] == 1
+    assert coverage["totals"]["missing_lines"] > 0
+    assert coverage["totals"]["missing_branches"] == 1
+    assert coverage["totals"]["percent_covered"] < 100
+    receipt = json.loads((command.root / "reports/aggregate/checks.json").read_text())
+    assert receipt["outcome"] == "passed"
+    reporting = [
+        step["command"]
+        for step in receipt["steps"]
+        if step["command"] is not None
+        and step["command"][1:3] == ["-m", "coverage"]
+        and step["command"][3] == "report"
+    ]
+    assert len(reporting) == 1
+    assert all("--fail-under=0" in command for command in reporting), reporting
 
 
 def test_collection_node_ids_remain_repository_relative_under_ancestor_configuration(tmp_path):

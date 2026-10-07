@@ -33,7 +33,7 @@ def require(condition, message):
 
 
 def validate_reports(directory, sources):
-    """Reject absent tests, skipped behavior, incomplete measurement, and omissions."""
+    """Reject failed tests and invalid reports without gating coverage percentages."""
     try:
         junit = ElementTree.parse(directory / "pytest.xml")
         suites = list(junit.iter("testsuite"))
@@ -74,18 +74,54 @@ def validate_reports(directory, sources):
             )
             require(counts["excluded_lines"] == 0, f"Excluded statements: {name}")
             require(
-                counts["covered_lines"] == counts["num_statements"]
-                and counts["missing_lines"] == 0,
-                f"Incomplete statement coverage: {name}",
+                counts["covered_lines"] + counts["missing_lines"] == counts["num_statements"],
+                f"Inconsistent statement counts: {name}",
             )
             require(
-                counts["covered_branches"] == counts["num_branches"]
-                and counts["missing_branches"] == 0,
-                f"Incomplete branch coverage: {name}",
+                counts["covered_branches"] + counts["missing_branches"] == counts["num_branches"],
+                f"Inconsistent branch counts: {name}",
+            )
+            for missing in ("missing_lines", "missing_branches"):
+                require(
+                    isinstance(result[missing], list) and len(result[missing]) == counts[missing],
+                    f"Coverage detail/count mismatch for {missing}: {name}",
+                )
+            for detail in ("executed_lines", "missing_lines"):
+                require(
+                    isinstance(result[detail], list)
+                    and all(type(line) is int and line > 0 for line in result[detail]),
+                    f"Invalid statement details in {detail}: {name}",
+                )
+            for detail in ("executed_branches", "missing_branches"):
+                require(
+                    isinstance(result[detail], list)
+                    and all(
+                        isinstance(branch, list)
+                        and len(branch) == 2
+                        and all(type(line) is int for line in branch)
+                        for branch in result[detail]
+                    ),
+                    f"Invalid branch details in {detail}: {name}",
+                )
+            missing_lines = set(result["missing_lines"])
+            require(
+                len(missing_lines) == counts["missing_lines"],
+                f"Duplicate missing statement details: {name}",
             )
             require(
-                not result["missing_lines"] and not result["missing_branches"],
-                f"Missing coverage: {name}",
+                missing_lines.isdisjoint(result["executed_lines"]),
+                f"Statements reported as both executed and missing: {name}",
+            )
+            missing_branches = {tuple(branch) for branch in result["missing_branches"]}
+            require(
+                len(missing_branches) == counts["missing_branches"],
+                f"Duplicate missing branch details: {name}",
+            )
+            require(
+                missing_branches.isdisjoint(
+                    tuple(branch) for branch in result["executed_branches"]
+                ),
+                f"Branches reported as both executed and missing: {name}",
             )
         totals = coverage["totals"]
         require(totals["num_statements"] > 0, "Empty statement measurement")
@@ -452,7 +488,7 @@ def full_checks(run):
 
 
 def process_coverage(run):
-    """Combine fresh parent/child data and enforce the exact owned-source gate."""
+    """Combine fresh diagnostics and validate reports without a numerical target."""
     run.module("coverage-combine", ["coverage", "combine"])
     run.module(
         "coverage-json",
@@ -462,7 +498,7 @@ def process_coverage(run):
         "coverage-xml",
         ["coverage", "xml", "-o", str(run.directory / "coverage.xml"), *run.sources],
     )
-    run.module("coverage-report", ["coverage", "report", "--fail-under=100", *run.sources])
+    run.module("coverage-report", ["coverage", "report", "--fail-under=0", *run.sources])
     run.run_step("report-validation", action=lambda: validate_reports(run.directory, run.sources))
 
 
