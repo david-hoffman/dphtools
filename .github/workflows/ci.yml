@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# Shard manifests bind the exact Python patch version per operating system.
+# Use the same available build throughout collection, execution, and aggregation.
+env:
+  CI_PYTHON_VERSIONS: '{"Linux":"3.10.22","macOS":"3.10.11","Windows":"3.10.11"}'
+
 # Two test workers per platform. Each job has its own machine, checkout,
 # interpreter, locked environment, install destinations and temporary directories.
 # Collection and aggregation never pool coverage from different platforms.
@@ -34,7 +39,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ fromJSON(env.CI_PYTHON_VERSIONS)[runner.os] }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
       - name: Install locked verification dependencies
@@ -85,7 +90,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ fromJSON(env.CI_PYTHON_VERSIONS)[runner.os] }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
       - name: Install locked verification dependencies
@@ -141,7 +146,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.10'
+          python-version: ${{ fromJSON(env.CI_PYTHON_VERSIONS)[runner.os] }}
           cache: pip
           cache-dependency-path: requirements-dev.lock
       - name: Install locked verification dependencies

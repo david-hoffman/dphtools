@@ -53,6 +53,8 @@ The local adoption is [ASD-COVERAGE-POLICY-001](tasks/ASD-COVERAGE-POLICY-001.md
 
 Create an isolated environment with an appropriate installed Python (`python3.10 -m venv .venv-delivery` for the existing CI target), then invoke that environment's interpreter and install using `python -m pip install --require-hashes -r requirements-dev.lock`. Verify the selected interpreter and actual nested environment/install operation on the current host; old disposable prefixes are not portable commands. The universal lock carries interpreter/platform markers, including Windows-only dependencies. It is a verification lock, not a narrowing of the library's declared Python >=3.8 metadata.
 
+On 2026-10-07 the owner approved pinning CI to Python 3.10.22 on Linux and 3.10.11 on macOS/Windows. The shared `CI_PYTHON_VERSIONS` map in `.github/workflows/ci.yml` supplies all collection, shard, and aggregation jobs. Each platform must use the same exact patch version throughout a run because its manifest binds that version. This repairs the evidenced runner-version drift in PR 20; identity validation remains binding. Selected builds match the supported runner architectures, including macOS ARM64.
+
 Use the shared verifier locally and in CI. Routine PR opening/reopening (drafts included) and updates require meaningful focused checks and `fast` on the exact candidate. `full` is the local/reference path, useful for integration, diagnosis, and scientific/safety work when the approved risk/check plan requires it; it is not mandatory before every routine PR:
 
 ```sh
