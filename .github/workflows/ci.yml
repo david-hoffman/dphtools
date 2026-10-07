@@ -154,7 +154,7 @@ jobs:
         with:
           pattern: shard-${{ matrix.os }}-*
           path: reports/incoming/shards
-      - name: Require complete matching shards and exact owned coverage for this platform
+      - name: Require complete matching shards and valid reports for this platform
         run: >-
           python tools/verification.py aggregate
           --report-dir reports/verification/aggregate
