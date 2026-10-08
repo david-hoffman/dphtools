@@ -11,7 +11,7 @@
 - R2: <observable requirement>
 - Inputs, outputs, errors, and permissions:
 - Expected-result sources: approved behavior, applicable primary references, or mathematical invariants; units, conventions, estimators, and any unresolved limits.
-- Allowed scope and applicable checks:
+- Allowed scope and applicable checks: highest approved verification tier, comparison base/candidate, complete owned domains/test closure, promotion reasons, and meaningful focused checks:
 - Route: routine author/fresh independent reviewer, or specialist A/B/C/D; justify genuine scientific/safety risk by changed behavior and lost proof. Reuse established contracts where applicable:
 - Release impact and draft release notes, including compatibility/migration needs; record none when applicable:
 - Preparation/execution budget within the plan, risk, and inherited review/repair allowances:
@@ -35,7 +35,7 @@ Use this section or a pointer to one current-state section in the linked PR/disc
 - Approved scope/scenarios, route and rationale; specialist test checkpoint where applicable, including parent/replaced task or checkpoint:
 - Author/independent-reviewer references and outcomes; specialist A/B/C/D references when applicable:
 - Exact candidate commit:
-- Latest applicable checks: command, candidate, environment, result, exact coverage, evidence/CI/PR links:
+- Latest applicable checks: selected tier/domains/test closure, base/candidate, command, environment/platform, result, exact required-domain coverage (global/per-package for full), and evidence/CI/PR links:
 - Baseline evidence: intended failure for a claimed bug/missing feature, or initially passing approved existing behavior; classified failures and observing role:
 - Metrics: scenarios=<count>; author/reviewer launches=<count>; specialist A/B rounds=<current/prior or not applicable>; C repairs=<used/remaining or not applicable>; task/plan budget=<used/remaining or unavailable>.
 - If review rounds restart, an accepted checkpoint reopens, or a slice splits: evidence and authorized reason, B's diagnosis/resolution where required, approval if behavior changed, prior rounds, scenario redistribution, and remaining budget/C repair allocation:
@@ -44,4 +44,4 @@ Use this section or a pointer to one current-state section in the linked PR/disc
 
 Replace superseded status here; Git preserves history. Link reports instead of repeating them. Material contract changes need approval; unchanged-scenario subdivision follows the plan's approval. Renamed work or revised checkpoints never erase attempts or spent budget. Specialist C repair use carries over; acceptance closes its A/B review window, and later authorized corrections/restarts follow specification section 9.
 
-Supply narrow packets to all roles; specialist A/B receive only approved behavior/public interfaces and necessary revision identifiers, not implementation details from this section or full conversations. Routine PRs require meaningful focused/cheap checks; full local verification follows the risk/check plan. Merge requires full required platform/coverage evidence, fresh independent review of an unchanged candidate, verified native required-check protection, and owner authorization. Keep logs outside Git and report host limitations honestly. Only lesson entries in `LESSONS/` are append-only; record discoveries there, not in a duplicate task log.
+Supply narrow packets to all roles; specialist A/B receive only approved behavior/public interfaces and necessary revision identifiers, not implementation details from this section or full conversations. Routine PRs require meaningful focused checks and the highest required project tier; uncertainty requires full. Merge requires complete required-platform evidence for the sealed selected plan and exact whole-domain coverage (fresh global/per-package for full), fresh independent review of an unchanged candidate, verified native required-check protection, and owner authorization. Keep logs outside Git and report host limitations honestly. Only lesson entries in `LESSONS/` are append-only; record discoveries there, not in a duplicate task log.

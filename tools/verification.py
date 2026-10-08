@@ -137,7 +137,7 @@ DEPENDENCIES = {
 class VerificationRun:
     """Execute dependency-aware steps and persist each completed receipt atomically."""
 
-    def __init__(self, root, mode, directory=None):
+    def __init__(self, root, mode, directory=None, scope=None):
         self.started = time.monotonic()
         self.root = Path(root)
         self.mode = mode
@@ -146,8 +146,22 @@ class VerificationRun:
         self.directory = Path(directory or tempfile.mkdtemp(prefix=f"{mode}-", dir=reports))
         self.directory.mkdir(parents=True, exist_ok=True)
         require(not any(self.directory.iterdir()), "Report directory must be empty")
-        self.sources = owned_sources(self.root)
-        self.identity = input_identity(self.root, self.sources)
+        all_sources = owned_sources(self.root)
+        quality_only = mode in ("fast", "preflight")
+        self.scope = scope or {
+            "version": "1.0",
+            "name": mode if quality_only else "full",
+            "tier": (1 if mode == "fast" else None) if quality_only else 5,
+            "domains": [] if quality_only else ["library", "doctor", "release", "verification"],
+            "coverage_claim": "none" if quality_only else "global",
+            "measured_sources": [] if quality_only else all_sources,
+            "unvalidated_sources": all_sources if quality_only else [],
+            "selected_test_paths": [] if quality_only else ["dphtools", "tests"],
+            "unvalidated_test_paths": ["dphtools", "tests"] if quality_only else [],
+            "classification": None,
+        }
+        self.sources = self.scope["measured_sources"]
+        self.identity = dict(input_identity(self.root, all_sources), scope=self.scope)
         self.env = dict(os.environ, MPLBACKEND="Agg", PYTHONHASHSEED="0")
         self.env["COVERAGE_FILE"] = str(self.directory / ".coverage")
         self.env["COVERAGE_RCFILE"] = str(self.root / "setup.cfg")
@@ -165,6 +179,12 @@ class VerificationRun:
         record = {
             "document_version": CHECK_VERSION,
             "mode": self.mode,
+            "scope": self.scope,
+            "coverage_complete": self.complete
+            and any(
+                step["name"] == "report-validation" and step["state"] == "passed"
+                for step in self.steps
+            ),
             "complete": self.complete,
             "duration_seconds": time.monotonic() - self.started,
             "outcome": (
@@ -400,7 +420,7 @@ def preflight(run):
 def prepare_checks(run):
     """Run quality gates and retain exactly one freshly built wheel."""
     distributions = run.directory / "dist"
-    runtime_tools = [source for source in run.sources if source.startswith("tools/")]
+    runtime_tools = [source for source in owned_sources(run.root) if source.startswith("tools/")]
     run.module("types", ["mypy", "--follow-untyped-imports", "dphtools", *runtime_tools])
     run.module("audit", ["pip_audit", "--require-hashes", "-r", "requirements-dev.lock"])
     build_identity = dict(run.identity, git=git_identity(run.root))
@@ -425,6 +445,7 @@ def prepare_checks(run):
 def full_checks(run):
     """Build one wheel, install it, and test with fresh complete owned measurement."""
     wheels, artifacts = prepare_checks(run)
+    clean_install(run, artifacts)
     run.module(
         "install",
         [
@@ -436,7 +457,57 @@ def full_checks(run):
             *map(str, wheels),
         ],
         identity=dict(run.identity, git=git_identity(run.root), artifacts=artifacts),
+        dependencies=("clean-install",),
     )
+    test_coverage(run)
+
+
+def clean_install(run, artifacts):
+    """Run fresh clean installations with this invocation's exact build bytes and lock."""
+    constraints = run.directory / "installation-constraints.txt"
+    constraints.write_text(
+        "".join(
+            f"{name}=={version}\n"
+            for name, version in run.identity["environment"]["dependencies"].items()
+        ),
+        encoding="utf-8",
+    )
+    run.run_step(
+        "clean-install",
+        [
+            sys.executable,
+            str(Path(__file__).resolve().with_name("verification_install.py")),
+            str(run.directory / "dist"),
+            str(constraints),
+        ],
+        dependencies=("wheel-artifacts",),
+        identity=dict(run.identity, artifacts=artifacts),
+    )
+
+
+def scoped_checks(run):
+    """Test complete selected domains after real current wheel/source installations."""
+    wheels, artifacts = prepare_checks(run)
+    clean_install(run, artifacts)
+    run.module(
+        "install",
+        [
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-build-isolation",
+            "--target",
+            str(run.directory / "install"),
+            *map(str, wheels),
+        ],
+        dependencies=("clean-install",),
+        identity=dict(run.identity, artifacts=artifacts),
+    )
+    test_coverage(run)
+
+
+def test_coverage(run):
+    """Run the complete selected suite and process only fresh parent/child data."""
     run.module("coverage-erase", ["coverage", "erase"])
     from verification_shards import test_step
 
@@ -468,7 +539,7 @@ def process_coverage(run):
 
 def fast_checks(run, reuse=None):
     """Run independent cheap tools even if another cheap check fails."""
-    runtime_tools = [source for source in run.sources if source.startswith("tools/")]
+    runtime_tools = [source for source in owned_sources(run.root) if source.startswith("tools/")]
     lint_paths = ["dphtools", "tests", *runtime_tools, "setup.py", "versioneer.py"]
     run.module("format", ["black", "--check", "--line-length", "99", *lint_paths, "notebooks"])
     run.module("lint", ["flake8", *lint_paths])
@@ -517,9 +588,24 @@ def main():
     """Run host checks or collect, execute, and aggregate isolated CI shards."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "mode", choices=("preflight", "fast", "full", "collect", "shard", "aggregate")
+        "mode",
+        choices=(
+            "preflight",
+            "fast",
+            "library",
+            "doctor",
+            "release",
+            "full",
+            "pr",
+            "classify",
+            "collect",
+            "shard",
+            "aggregate",
+        ),
     )
     parser.add_argument("--report-dir", type=Path)
+    parser.add_argument("--base")
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--shard-index", type=int)
     parser.add_argument("--shard-count", type=int, choices=(2,), default=2)
@@ -528,6 +614,10 @@ def main():
     parser.add_argument("--reuse", type=Path)
     arguments = parser.parse_args()
     mode = arguments.mode
+    if arguments.base is not None and mode not in ("pr", "classify", "collect"):
+        parser.error("--base is allowed only for pr, classify, or collect")
+    if arguments.output is not None and mode != "classify":
+        parser.error("--output is allowed only for classify")
     if arguments.reuse is not None and mode != "fast":
         parser.error("--reuse is allowed only for fast; full CI and release evidence run fresh")
     if mode in ("shard", "aggregate") and arguments.manifest is None:
@@ -536,7 +626,46 @@ def main():
         parser.error("--shard-index must be 0 or 1")
     if mode == "aggregate" and arguments.shards is None:
         parser.error("--shards is required")
-    run = VerificationRun(Path(__file__).resolve().parents[1], mode, arguments.report_dir)
+    root = Path(__file__).resolve().parents[1]
+    selected = None
+    try:
+        if mode in ("pr", "classify") or mode == "collect" and arguments.base is not None:
+            from verification_scope import classify
+
+            selected = classify(root, arguments.base)
+        elif mode in ("library", "doctor", "release"):
+            from verification_scope import scope
+
+            selected = scope(root, mode)
+        elif mode in ("shard", "aggregate"):
+            from verification_scope import scope
+
+            try:
+                manifest = json.loads(arguments.manifest.read_text(encoding="utf-8"))
+                inherited = manifest["identity"]["scope"]
+                selected = scope(root, inherited["name"], inherited["classification"])
+            except (OSError, ValueError, KeyError, TypeError):
+                # Let the existing dependency-aware input gate retain the failure.
+                selected = None
+        if mode == "classify":
+            payload = json.dumps(dict(selected, digest=digest(selected)), indent=2) + "\n"
+            if arguments.output:
+                arguments.output.parent.mkdir(parents=True, exist_ok=True)
+                arguments.output.write_text(payload, encoding="utf-8")
+            print(payload, end="")
+            return 0
+        if mode == "collect" and selected and selected["name"] == "fast":
+            parser.error("Tier 1 uses fast directly; there are no test shards to collect")
+        run = VerificationRun(root, mode, arguments.report_dir, selected)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"Verification scope failed: {error}", file=sys.stderr)
+        return 1
+    effective = run.scope["name"] if mode == "pr" else mode
+    print(
+        f"Verification scope: {run.scope['coverage_claim']}; domains={run.scope['domains']}; "
+        f"unvalidated tests={run.scope['unvalidated_test_paths']}",
+        flush=True,
+    )
     print(
         "Host verification only; CI verifies its operating-system matrix separately.", flush=True
     )
@@ -544,12 +673,18 @@ def main():
         "Measurement limit: coverage.py cannot measure Git shell-hook statements/branches.",
         flush=True,
     )
-    if mode in ("preflight", "full"):
+    if effective in ("preflight", "full", "library", "doctor", "release"):
         preflight(run)
-    if mode in ("fast", "full"):
+    if effective in ("fast", "full", "library", "doctor", "release"):
         fast_checks(run, arguments.reuse)
-    if mode == "full":
+    if (
+        effective == "full"
+        or mode in ("library", "doctor", "release")
+        and run.scope["name"] == "full"
+    ):
         full_checks(run)
+    elif effective in ("library", "doctor", "release"):
+        scoped_checks(run)
     if mode in ("collect", "shard", "aggregate"):
         from verification_shards import run_sharded
 

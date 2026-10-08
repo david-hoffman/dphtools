@@ -130,14 +130,25 @@ if name == "build" and not set(args) & {"--version", "-V", "--help", "-h"}:
     if Path(build_args.project).resolve() != Path.cwd():
         raise ValueError("Build must consume the fixture repository")
     output = option("--outdir", "-o") or "dist"
-    artifacts = [Path(output) / "fixture-1.0-py3-none-any.whl",
-                 Path(output) / "fixture-1.0.tar.gz"]
+    artifacts = [Path(output) / "dphtools-1.0-py3-none-any.whl",
+                 Path(output) / "dphtools-1.0.tar.gz"]
     if scenario == "absent-wheel":
         artifacts = artifacts[1:]
     elif scenario == "extra-wheel":
         artifacts.append(Path(output) / "extra-1.0-py3-none-any.whl")
+    import zipfile, tarfile
+    from io import BytesIO
+    metadata = "Metadata-Version: 2.1\nName: dphtools\nVersion: 1.0\nRequires-Python: >=3.8\n" + "".join("Requires-Dist: " + name + "\n" for name in ("numpy", "pandas", "scipy", "matplotlib", "scikit-image")) + "\n"
     for artifact in artifacts:
-        write(artifact, "controlled distribution from this build invocation")
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        if artifact.suffix == ".whl":
+            with zipfile.ZipFile(artifact, "w") as archive:
+                archive.writestr("dphtools-1.0.dist-info/METADATA", metadata)
+        else:
+            with tarfile.open(artifact, "w:gz") as archive:
+                info = tarfile.TarInfo("dphtools-1.0/PKG-INFO")
+                payload = metadata.encode(); info.size = len(payload)
+                archive.addfile(info, BytesIO(payload))
     write(os.environ["VERIFICATION_TEST_BUILD_ARTIFACTS"],
           json.dumps([str(artifact.resolve()) for artifact in artifacts]))
 
@@ -157,6 +168,9 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
         files[path.as_posix()] = {"executed_lines": [1], "summary": dict(summary),
                                  "missing_lines": [], "excluded_lines": [],
                                  "executed_branches": [], "missing_branches": []}
+    specified = {arg for arg in args if arg.endswith(".py") or arg == "tools/delivery"}
+    if specified:
+        files = {path: entry for path, entry in files.items() if path in specified}
     target = files["dphtools/never_imported.py"]
     if scenario == "absent-owned":
         del files["dphtools/never_imported.py"]
@@ -198,6 +212,9 @@ if name == "coverage" and "json" in args and scenario != "missing-coverage":
           "{" if scenario == "malformed-coverage" else json.dumps(data))
 if name == "coverage" and "xml" in args and scenario != "missing-coverage-xml":
     count = len(list(Path("dphtools").rglob("*.py"))) + len(list(Path("tools").rglob("*.py")))
+    specified = {arg for arg in args if arg.endswith(".py") or arg == "tools/delivery"}
+    if specified:
+        count = len(specified)
     branches = 'branches-valid="10000" branches-covered="9999"' if (
         scenario == "xml-missing-branch"
     ) else 'branches-valid="0" branches-covered="0"'
@@ -226,16 +243,38 @@ site.mkdir(exist_ok=True)
 sys.path.insert(0, str(site))
 sys.prefix = str(prefix)
 if sys.argv[1:3] == ["-m", "pip"]:
-    assert "install" in sys.argv and "--no-index" in sys.argv
-    with zipfile.ZipFile(sys.argv[-1]) as archive:
-        archive.extractall(site)
+    if "install" in sys.argv and sys.argv[-1].endswith(".whl"):
+        with zipfile.ZipFile(sys.argv[-1]) as archive:
+            archive.extractall(site)
     print("controlled child pip installed local wheel")
 elif sys.argv[1] == "-c":
     script = sys.argv[2]
     sys.argv = ["-c", *sys.argv[3:]]
     exec(compile(script, "<controlled child command>", "exec"))
+elif Path(sys.argv[1]).name == "release_probe.py":
+    # External interpreter stand-in for orchestration tests only. Real package
+    # origins, metadata, behavior and installs are checked by separate E2E tests.
+    assert sys.argv[2] == "1.0"
+    if __import__("os").environ.get("VERIFICATION_TEST_CLEAN_FAIL"):
+        raise SystemExit(23)
+    print("controlled installation interpreter observed the actual probe invocation")
 else:
     raise SystemExit("unsupported controlled child operation")
+"""
+
+CLEAN_INSTALL_OBSERVER = r"""
+import os
+from pathlib import Path
+import subprocess
+import sys
+original_popen = subprocess.Popen
+class ControlledEnvironment(original_popen):
+    def __init__(self, argv, *args, **kwargs):
+        if list(argv[:3]) == [sys.executable, "-m", "venv"]:
+            code = "import os,pathlib,shutil,sys; p=pathlib.Path(sys.argv[1])/('Scripts/python.exe' if os.name=='nt' else 'bin/python'); p.parent.mkdir(parents=True); shutil.copy2(sys.argv[2],p)"
+            argv = [sys.executable, "-c", code, argv[3], os.environ["VERIFICATION_TEST_NESTED_PYTHON"]]
+        super().__init__(argv, *args, **kwargs)
+subprocess.Popen = ControlledEnvironment
 """
 
 CONTROLLED_VENV = r"""
@@ -321,12 +360,17 @@ class VerificationCommand:
         shutil.copy2(ROOT / "tools" / "verification.py", self.entry)
         shutil.copy2(ROOT / "tools" / "verification_inputs.py", self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_shards.py", self.entry.parent)
+        shutil.copy2(ROOT / "tools" / "verification_scope.py", self.entry.parent)
+        for name in ("verification_install.py", "release.py", "release_probe.py"):
+            shutil.copy2(ROOT / "tools" / name, self.entry.parent)
         shutil.copy2(ROOT / "tools" / "verification_reuse.py", self.entry.parent)
         self.outside = tmp_path / "unrelated working directory"
         self.outside.mkdir()
         self.modules = tmp_path / "controlled tools"
         self.modules.mkdir()
-        (self.modules / "sitecustomize.py").write_text(SOURCEFREE, encoding="utf-8")
+        (self.modules / "sitecustomize.py").write_text(
+            SOURCEFREE + CLEAN_INSTALL_OBSERVER, encoding="utf-8"
+        )
         for name in (
             "black",
             "flake8",
@@ -474,6 +518,110 @@ def test_full_success_orders_tools_and_retains_reports(verifier):
     assert "dphtools/_version.py" not in coverage["files"]
     assert coverage["totals"]["num_branches"] == 0
     _assert_full_operations(verifier, calls)
+
+
+def test_current_artifact_install_failure_blocks_testing_and_complete_coverage(verifier):
+    verifier.env["VERIFICATION_TEST_CLEAN_FAIL"] = "1"
+    result = verifier.run("full")
+    assert result.returncode == 1, _detail(result)
+    report = _check_manifest(verifier, result, "full")
+    checks = json.loads((report / "checks.json").read_text())
+    steps = {step["name"]: step for step in checks["steps"]}
+    assert steps["wheel-artifacts"]["state"] == "passed"
+    assert steps["clean-install"]["state"] == "failed"
+    assert steps["clean-install"]["input_identity"]["artifacts"]
+    assert steps["install"]["state"] == steps["tests"]["state"] == "blocked"
+    assert checks["coverage_complete"] is False and checks["outcome"] == "failed"
+    assert not any(call["tool"] == "pip" for call in verifier.calls())
+
+
+def domain_inventory(verifier):
+    """Assign a tiny orchestration fixture; its tool reports are structural only."""
+    tests = {}
+    for domain in ("library", "doctor", "release", "verification"):
+        name = f"tests/test_{domain}.py"
+        path = verifier.repo / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("def test_case():\n    assert True\n")
+        tests[domain] = [name]
+    mapping = {
+        "runtime": {
+            "doctor": ["tools/delivery"],
+            "release": ["tools/release.py", "tools/release_probe.py"],
+            "verification": [
+                p.relative_to(verifier.repo).as_posix()
+                for p in verifier.entry.parent.glob("verification*.py")
+            ],
+        },
+        "tests": tests,
+        "support": {},
+        "shared_tests": {"doctor": tests["release"], "release": tests["doctor"]},
+        "prose": ["docs/notes.md"],
+    }
+    (verifier.repo / "tools/verification-domains.json").write_text(json.dumps(mapping))
+    return mapping
+
+
+@pytest.mark.parametrize("mode", ["library", "doctor", "release", "unknown-library"])
+def test_explicit_domain_commands_use_the_entire_closure_or_full_fallback(verifier, mode):
+    domain_inventory(verifier)
+    if mode == "unknown-library":
+        (verifier.repo / "tools/unknown.py").write_text("VALUE = 17\n")
+    result = verifier.run("library" if mode == "unknown-library" else mode)
+    assert result.returncode == 0, _detail(result)
+    report = _check_manifest(verifier, result, "library" if mode == "unknown-library" else mode)
+    checks = json.loads((report / "checks.json").read_text())
+    selected = checks["scope"]
+    assert selected["name"] == ("full" if mode == "unknown-library" else mode)
+    assert checks["coverage_complete"] is True
+    command = next(step["command"] for step in checks["steps"] if step["name"] == "tests")
+    assert all(path in command for path in selected["selected_test_paths"])
+    assert all(path not in command for path in selected["unvalidated_test_paths"])
+    covered = json.loads((report / "coverage.json").read_text())
+    assert set(covered["files"]) == set(selected["measured_sources"])
+    assert selected["coverage_claim"] == ("global" if mode == "unknown-library" else "scoped")
+    install = next(step for step in checks["steps"] if step["name"] == "clean-install")
+    assert install["state"] == "passed" and len(install["input_identity"]["artifacts"]) == 2
+
+
+def test_pr_runs_the_sealed_fast_plan_for_its_exact_clean_base_and_candidate(verifier):
+    domain_inventory(verifier)
+    (verifier.repo / ".gitignore").write_text("reports/\n__pycache__/\n.coverage*\n")
+    notes = verifier.repo / "docs/notes.md"
+    notes.parent.mkdir()
+    notes.write_text("Plain notes.\n")
+
+    def git(*args):
+        result = subprocess.run(["git", *args], cwd=verifier.repo, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        return result.stdout.strip()
+
+    git("init")
+    git("config", "user.name", "Verification fixture")
+    git("config", "user.email", "fixture@example.invalid")
+
+    def commit():
+        git("add", ".")
+        git(
+            "-c",
+            "core.hooksPath=" + str(verifier.repo / "absent-hooks"),
+            "commit",
+            "-m",
+            "fixture",
+        )
+        return git("rev-parse", "HEAD")
+
+    base = commit()
+    notes.write_text("Changed plain notes.\n")
+    head = commit()
+    result = verifier.run("pr", "--base", base)
+    assert result.returncode == 0, _detail(result)
+    report = _check_manifest(verifier, result, "pr")
+    checks = json.loads((report / "checks.json").read_text())
+    assert checks["scope"]["name"] == "fast" and checks["coverage_complete"] is False
+    assert checks["scope"]["classification"]["base_sha"] == base
+    assert checks["scope"]["classification"]["head_sha"] == head
+    assert _sequence(verifier.calls()) == ["black", "flake8", "pydocstyle"]
 
 
 def _assert_full_operations(verifier, calls):

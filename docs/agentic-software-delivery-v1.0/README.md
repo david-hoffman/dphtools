@@ -17,9 +17,9 @@ For each approved slice:
 ```text
 Authorized routine task under established contracts
     → author changes code/tests/docs within scope
-    → meaningful focused checks and cheap verification pass
+    → meaningful focused checks and highest approved verification tier pass
     → open/update PR; one fresh independent reviewer checks the candidate
-    → full required platform CI, exact owned coverage, verified protection
+    → complete selected-plan platform CI, exact required-domain coverage, verified protection
     → normal owner-authorized merge of the unchanged reviewed candidate
 
 Genuine scientific or safety risk
@@ -30,7 +30,7 @@ Genuine scientific or safety risk
 
 Classify by changed behavior and lost proof, not patch size. New scientific contracts/custom correctness oracles, release/publication safety, or other material behavior/security risk use fresh specialist A–D sessions. All roles receive narrow packets and concrete completion conditions; reviewers never inherit the author's conversation or approve their own repair. Tests focus on actual user behavior: browser journeys, commands, or public APIs. Expected results follow approved behavior, primary references, or invariants. Existing-code tests may pass initially; no artificial red result or product mutation is required. A claimed bug still needs the intended failure.
 
-Routine PR opening/reopening (drafts included) and updates require focused and cheap checks. Full local verification remains useful as a reference, for diagnosis, and when the risk/check plan requires it. Known failures remain blockers; pending CI is not success. Merge needs complete Linux/macOS/Windows verification and exact 100% owned statement/branch coverage. Rely on `ci-required` as authoritative only after actual native protection on `codex-main` is read back and verified; missing protection is a reported blocker. Preserve production `main` and separate frozen-bundle publication approval. Before a PR exists, pushes may back up incomplete checkpoints without establishing readiness. Preserve fast generic hooks.
+Routine PR opening/reopening (drafts included) and updates require focused checks and the highest owner-approved [verification tier](../tasks/LOCAL-VERIFICATION-CONTRACT.md#verification-hierarchy). Shared infrastructure/build inputs, spanning domains, add/delete/rename, changed/unavailable base, or uncertainty require full. Known failures remain blockers; pending CI is not success. Merge needs complete Linux/macOS/Windows verification of the sealed selected plan and exact 100% statements/branches in every required whole owned domain. Canonical full and release preparation retain fresh global/per-package 100% coverage; fast prose runs claim no runtime coverage. Rely on `ci-required` as authoritative only after actual native protection on `codex-main` is read back and verified; missing protection is a reported blocker. Preserve production `main` and separate frozen-bundle publication approval. Before a PR exists, pushes may back up incomplete checkpoints without establishing readiness. Preserve fast generic hooks.
 
 Classify failures before repair. On the specialist route, after two B nonacceptances, B diagnoses ambiguity or excessive scope before another rewrite. Keep specialist A/B rounds separate from C repairs and total budget. One Current state section records route, approvals, candidate, checks/review, blockers, and next action, with concise scenario/launch/round/repair/spend metrics. Renaming/splitting never resets used resources. Keep full logs outside Git; host-required progress updates remain mandatory and unavailable event-wait tools remain unavailable.
 

@@ -20,7 +20,10 @@ A green rerun does not prove a previous failure harmless. Hypotheses remain hypo
 Use the compact Current state metrics (scenario count, author/reviewer launches,
 specialist A/B rounds/C repairs when applicable, spend when known) to assess overhead.
 Check routine author/fresh-reviewer routing against genuine scientific/safety risk,
-focused/cheap PR checks, risk-based full local runs, and complete required platform CI.
+focused PR checks, the highest owner-approved tier, conservative base/candidate
+classification, whole-domain/test closure, fresh full when required, and complete
+required-platform evidence for the sealed selected plan. Check honest scope reporting
+and that ci-required always runs; omitted domains and cached results are not fresh proof.
 Workflow text cannot establish actual ci-required protection. An evidenced patch may propose tuning
 the default slice size; do not tune it autonomously, reset consumed budgets, or lower
 the verification/coverage merge gate. An authorized move of duplicated local work

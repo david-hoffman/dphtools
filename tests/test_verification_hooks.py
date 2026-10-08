@@ -325,6 +325,7 @@ def test_pre_push_full_only_failure_allows_real_local_backup(hook_repo):
     blocked = {
         "build",
         "wheel-artifacts",
+        "clean-install",
         "install",
         "coverage-erase",
         "tests",
@@ -342,7 +343,8 @@ def test_pre_push_full_only_failure_allows_real_local_backup(hook_repo):
     assert "audit" in steps["build"]["dependencies"]
     assert "audit: failed" in steps["build"]["blocking_reasons"]
     assert "build: blocked" in steps["wheel-artifacts"]["blocking_reasons"]
-    assert "wheel-artifacts: blocked" in steps["install"]["blocking_reasons"]
+    assert "wheel-artifacts: blocked" in steps["clean-install"]["blocking_reasons"]
+    assert "clean-install: blocked" in steps["install"]["blocking_reasons"]
     assert "coverage-erase: blocked" in steps["tests"]["blocking_reasons"]
     assert hook_repo.remote_refs() == ""
     assert hook_repo.python_calls() == [], "The full demonstration is separate from the hook"

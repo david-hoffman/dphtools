@@ -54,15 +54,21 @@ Keep the scenario/round/repair/spend line in Current state under section 9; pres
 history and consumed budget/repairs when work is renamed or split.
 
 Demonstrate a routine author/fresh-independent-reviewer path using established
-contracts, meaningful focused checks, and cheap verification before PR opening,
+contracts, meaningful focused checks, and the highest approved project tier before PR opening,
 reopening (drafts included), or updates. Demonstrate separate A/B/C/D only for genuine
 scientific/safety risk, including a reviewed checkpoint and its approved risk checks.
-Full local verification is the reference/diagnostic path, required when the risk/check
-plan calls for it, rather than before every routine PR. Pre-PR pushes may back up
+Install the owner-approved tier triggers, conservative base/candidate classifier,
+whole-owned-domain/test closure, and sealed CI scope. Unknown/shared/build-input/spanning
+changes, add/delete/rename, or unavailable/changed bases require full. Without approved
+scoped rules, use full. Full remains the reference/diagnostic path and retains fresh
+global/per-package coverage; release preparation always requires full. Pre-PR pushes may back up
 incomplete checkpoints. Preserve fast generic hooks; no PR-state controller.
 Known failures, including known incomplete coverage, block readiness.
 Merge requires independent review of the unchanged candidate and complete platform
-CI with exact 100% owned statement/branch coverage. Verify actual native required
+CI for the sealed selected plan with exact 100% required whole-domain coverage.
+The required aggregate always runs, including fast-only plans; summaries state scope
+honestly and every assigned test executes exactly once. No omitted domain or cache is
+fresh verification evidence. Verify actual native required
 ci-required protection on codex-main before relying on CI as the authoritative gate.
 Preserve production main protections and publication approval. Missing access or
 protection is a reported blocker, not verified enforcement. Inspect configuration
