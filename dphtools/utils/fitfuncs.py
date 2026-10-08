@@ -14,6 +14,7 @@ from scipy.signal import signaltools as sig
 from scipy.special import betaln, exprel, gammaln, zeta
 from scipy.stats import nbinom
 
+from ._spectrum_fit import spectrum_fit
 from .lm import curve_fit
 
 
