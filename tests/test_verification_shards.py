@@ -298,15 +298,26 @@ def test_aggregate_rejects_incomplete_foreign_and_changed_receipts(
         with artifact.open("ab") as stream:
             stream.write(b"tampered")
     else:
-        receipt = json.loads((shards[0] / "shard.json").read_text())
-        receipt["identity"]["run"]["id"] = "old" if fault == "run" else "fixture-run"
-        if fault == "platform":
-            receipt["identity"]["environment"]["system"] = "Foreign"
-        (shards[0] / "shard.json").write_text(json.dumps(receipt))
+
+        def foreign_identity(receipt):
+            if fault == "run":
+                receipt["identity"]["run"]["id"] = "old"
+            else:
+                receipt["identity"]["environment"]["system"] = "Foreign"
+
+        _reseal(shards[0] / "shard.json", foreign_identity)
     result = command.aggregate(tmp_path / "aggregate", shards)
     assert result.returncode == 1, result.stdout + result.stderr
     receipt = json.loads((tmp_path / "aggregate/checks.json").read_text())
     assert receipt["outcome"] == "failed"
+    if fault in ("run", "platform", "duplicate"):
+        expected = (
+            "Duplicate or invalid shard index"
+            if fault == "duplicate"
+            else "Shard inputs/platform/manifest/current run differ"
+        )
+        diagnostic = (tmp_path / "aggregate/coverage-data.log").read_text()
+        assert expected in diagnostic, diagnostic
     assert not (tmp_path / "aggregate/coverage.json").exists()
 
 
@@ -395,7 +406,6 @@ def _reseal(path, mutate):
         "foreign-manifest",
         "index-type",
         "index-range",
-        "index-duplicate",
         "count",
         "nodes",
         "missing-step",
@@ -528,9 +538,7 @@ def test_production_aggregate_rejects_semantic_receipt_faults(
     elif fault == "foreign-manifest":
         receipt["manifest"] = "foreign"
     elif fault.startswith("index-"):
-        receipt["index"] = {"index-type": "0", "index-range": 2, "index-duplicate": 1}[fault]
-        if fault == "index-duplicate":
-            receipt["nodes"] = json.loads(command.manifest.read_text())["assignments"][1]
+        receipt["index"] = {"index-type": "0", "index-range": 2}[fault]
     elif fault == "count":
         receipt["count"] = 3
     elif fault == "nodes":
