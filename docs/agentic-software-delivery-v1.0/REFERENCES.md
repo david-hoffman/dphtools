@@ -72,6 +72,8 @@ Apply these as judgment criteria. A meaningful correctness check need not use a 
 
 Do not import OpenClaw's implementation-reading audit, campaign, or landing workflows into blind A/B roles. Linked skills and commands were not read or installed. This source supplies no numerical-tolerance authority. The [inert archive](../references/openclaw/test-audit.source.txt) preserves the complete source with its [MIT notice](../references/licenses/openclaw-MIT.txt).
 
+The owner subsequently authorized the supporting [test-audit skill](../../.agents/skills/test-audit/SKILL.md) in [TEST-AUDIT-002](../tasks/TEST-AUDIT-002.md). It adapts routine implementation-reading discovery and separate repair/review to dphtools, while preserving blind specialist inputs, editing scope, and verification. Upstream text was reread at `e09f3ecd491db23f4fdc6e79b4349808d010f394`; the original archive and setup provenance above remain historical. OpenClaw campaign, runner, review, and landing commands remain uninstalled.
+
 ## Original articles and earlier supporting references
 
 The original four articles were revisited during setup. Their complete substantive prose was read, except that Symphony's embedded 1,363-line controller specification was deliberately excluded. The full narrative before and after that embed was read. OpenAI article bytes returned HTTP 403; the web tool supplied readable narrative text. No original-byte OpenAI article snapshot or article hash is claimed. Anthropic article bytes were retrieved and hashed, but full text is not republished without an identified redistribution license. [Reading notes](../references/READING-NOTES.md) distinguish the adopted ideas from excluded machinery.

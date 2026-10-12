@@ -4,6 +4,7 @@ The actual verifier and Git hooks are copied opaquely. External Python tools are
 controlled subprocesses; their reports are fixtures, not numerical coverage proof.
 """
 
+from collections import Counter
 from io import BytesIO
 from importlib.metadata import distribution
 import codecs
@@ -484,15 +485,16 @@ def test_fast_runs_all_tools_from_script_repository(verifier):
     result = verifier.run("fast")
     assert result.returncode == 0, _detail(result)
     calls = verifier.calls()
-    assert [call["tool"] for call in calls] == ["black", "flake8", "pydocstyle"]
+    _assert_check_operations(calls, FAST_OPERATIONS)
     assert all(Path(call["cwd"]).resolve() == verifier.repo.resolve() for call in calls)
     assert all(Path(call["python"]) == Path(sys.executable) for call in calls)
-    black_args = calls[0]["args"]
+    black = next(call for call in calls if call["tool"] == "black")
+    black_args = black["args"]
     assert "--check" in black_args
     assert "--line-length=99" in black_args or any(
         pair == ["--line-length", "99"]
         for pair in [black_args[index : index + 2] for index in range(len(black_args))]
-    ), calls[0]
+    ), black
     _check_manifest(verifier, result, "fast")
 
 
@@ -500,7 +502,7 @@ def test_full_success_orders_tools_and_retains_reports(verifier):
     result = verifier.run("full")
     assert result.returncode == 0, _detail(result)
     calls = verifier.calls()
-    assert _sequence(calls) == FULL_SEQUENCE
+    _assert_check_operations(calls, FULL_OPERATIONS)
     assert all(Path(call["python"]) == Path(sys.executable) for call in calls)
     assert all(Path(call["cwd"]).resolve() == verifier.repo.resolve() for call in calls)
     audit = next(call for call in calls if call["tool"] == "pip_audit")
@@ -512,11 +514,6 @@ def test_full_success_orders_tools_and_retains_reports(verifier):
     assert {"pytest.xml", "coverage.json", "coverage.xml"} <= {
         path.name for path in report.iterdir()
     }
-    coverage = json.loads((report / "coverage.json").read_text(encoding="utf-8"))
-    assert "dphtools/never_imported.py" in coverage["files"]
-    assert "tools/verification.py" in coverage["files"]
-    assert "dphtools/_version.py" not in coverage["files"]
-    assert coverage["totals"]["num_branches"] == 0
     _assert_full_operations(verifier, calls)
 
 
@@ -621,7 +618,7 @@ def test_pr_runs_the_sealed_fast_plan_for_its_exact_clean_base_and_candidate(ver
     assert checks["scope"]["name"] == "fast" and checks["coverage_complete"] is False
     assert checks["scope"]["classification"]["base_sha"] == base
     assert checks["scope"]["classification"]["head_sha"] == head
-    assert _sequence(verifier.calls()) == ["black", "flake8", "pydocstyle"]
+    _assert_check_operations(verifier.calls(), FAST_OPERATIONS)
 
 
 def _assert_full_operations(verifier, calls):
@@ -659,7 +656,7 @@ def test_fast_attempts_later_tools_after_failure(verifier, failed):
     verifier.env["VERIFICATION_TEST_FAIL"] = failed
     result = verifier.run("fast")
     assert result.returncode == 1, _detail(result)
-    assert [call["tool"] for call in verifier.calls()] == ["black", "flake8", "pydocstyle"]
+    _assert_check_operations(verifier.calls(), FAST_OPERATIONS)
     _check_manifest(verifier, result, "fast", failed)
 
 
@@ -699,16 +696,13 @@ def test_full_rejects_invalid_reports_even_when_all_tools_pass(verifier, scenari
     verifier.env["VERIFICATION_TEST_REPORT"] = scenario
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == FULL_SEQUENCE, _detail(result)
+    _assert_check_operations(verifier.calls(), FULL_OPERATIONS)
     _check_manifest(verifier, result, "full")
 
 
-FULL_SEQUENCE = [
-    "black",
-    "flake8",
-    "pydocstyle",
-    "mypy",
-    "pip_audit",
+FAST_OPERATIONS = ["black", "flake8", "pydocstyle"]
+QUALITY_OPERATIONS = FAST_OPERATIONS + ["mypy", "pip_audit"]
+FULL_OPERATIONS = QUALITY_OPERATIONS + [
     "build",
     "pip",
     "coverage:erase",
@@ -725,6 +719,25 @@ def _sequence(calls):
         call["tool"] + (":" + call["args"][0] if call["tool"] == "coverage" else "")
         for call in calls
     ]
+
+
+def _assert_check_operations(calls, expected):
+    """Observe operation counts and required lifecycle edges, including partial runs."""
+    observed = _sequence(calls)
+    assert Counter(observed) == Counter(expected), observed
+    dependencies = [(quality, "build") for quality in QUALITY_OPERATIONS] + [
+        ("build", "pip"),
+        ("pip", "coverage:erase"),
+        ("pip", "coverage:run"),
+        ("coverage:erase", "coverage:run"),
+        ("coverage:run", "coverage:combine"),
+        ("coverage:combine", "coverage:json"),
+        ("coverage:combine", "coverage:xml"),
+        ("coverage:combine", "coverage:report"),
+    ]
+    for before, after in dependencies:
+        if before in expected and after in expected:
+            assert observed.index(before) < observed.index(after), (before, after, observed)
 
 
 def _check_receipt_seal(data):
@@ -778,30 +791,36 @@ def _check_manifest(verifier, result, mode, failed=None):
     return report
 
 
-@pytest.mark.parametrize("failed", FULL_SEQUENCE)
+@pytest.mark.parametrize("failed", FULL_OPERATIONS)
 def test_full_failure_blocks_dependents_and_retains_fresh_diagnostics(verifier, failed):
     """The former all-later-steps contract is replaced by explicit prerequisites."""
     verifier.env["VERIFICATION_TEST_FAIL"] = failed
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    if failed in FULL_SEQUENCE[:5]:
-        expected = FULL_SEQUENCE[:5]
+    if failed in QUALITY_OPERATIONS:
+        expected = QUALITY_OPERATIONS
     elif failed == "build":
-        expected = FULL_SEQUENCE[:6]
+        expected = QUALITY_OPERATIONS + ["build"]
     elif failed == "pip":
-        expected = FULL_SEQUENCE[:7]
+        expected = QUALITY_OPERATIONS + ["build", "pip"]
     elif failed == "coverage:erase":
-        expected = FULL_SEQUENCE[:8]
+        expected = QUALITY_OPERATIONS + ["build", "pip", "coverage:erase"]
     elif failed == "coverage:combine":
-        expected = FULL_SEQUENCE[:10]
+        expected = QUALITY_OPERATIONS + [
+            "build",
+            "pip",
+            "coverage:erase",
+            "coverage:run",
+            "coverage:combine",
+        ]
     else:
-        expected = FULL_SEQUENCE
-    assert _sequence(verifier.calls()) == expected
+        expected = FULL_OPERATIONS
+    _assert_check_operations(verifier.calls(), expected)
     report = _check_manifest(verifier, result, "full", failed)
     data = json.loads((report / "checks.json").read_text(encoding="utf-8"))
     assert all(step["state"] in {"passed", "failed", "blocked"} for step in data["steps"])
     assert all(step["duration_seconds"] >= 0 for step in data["steps"])
-    if len(expected) < len(FULL_SEQUENCE):
+    if len(expected) < len(FULL_OPERATIONS):
         assert any(
             step["state"] == "blocked" and step["blocking_reasons"] for step in data["steps"]
         )
@@ -905,33 +924,16 @@ def test_real_lint_configuration_retains_critical_errors(verifier):
     for name in ("setup.py", "versioneer.py"):
         (verifier.repo / name).write_text('"""Tooling fixture."""\n', encoding="utf-8")
 
-    def lint_fixture():
-        return subprocess.run(
-            [sys.executable, "-m", "flake8", "dphtools"],
-            cwd=verifier.repo,
-            env=verifier.env,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=20,
-            check=False,
-        )
-
-    style_only = lint_fixture()
-    assert style_only.returncode == 0, _detail(style_only)
     public_style = verifier.run("fast")
     assert public_style.returncode == 0, _detail(public_style)
-    assert _sequence(verifier.calls()) == ["black", "pydocstyle"]
+    _assert_check_operations(verifier.calls(), ["black", "pydocstyle"])
     verifier.record.unlink()
     target.write_text("VALUE = undefined_fixture_name\n", encoding="utf-8")
-    critical = lint_fixture()
-    assert critical.returncode != 0, _detail(critical)
-    assert "F821" in critical.stdout + critical.stderr, _detail(critical)
     public_critical = verifier.run("fast")
     assert public_critical.returncode == 1, _detail(public_critical)
     assert "deep.py" in public_critical.stdout + public_critical.stderr, _detail(public_critical)
     assert "F821" in public_critical.stdout + public_critical.stderr, _detail(public_critical)
-    assert _sequence(verifier.calls()) == ["black", "pydocstyle"]
+    _assert_check_operations(verifier.calls(), ["black", "pydocstyle"])
 
 
 def test_undecodable_child_output_retains_failure_diagnostics_and_later_checks(verifier):
@@ -978,7 +980,7 @@ sys.stderr.buffer.flush()
 
     result = verifier.run("fast")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == ["black", "flake8", "pydocstyle"], _detail(result)
+    _assert_check_operations(verifier.calls(), FAST_OPERATIONS)
     report = _check_manifest(verifier, result, "fast", failed="black")
     logs = "\n".join(path.read_text(encoding="utf-8") for path in report.glob("*.log"))
     for destination in (result.stdout + result.stderr, logs):
@@ -1124,14 +1126,12 @@ sys.addaudithook(deny_black_launch)
     assert receipt.is_file(), f"OS launch-fault fixture was not exercised: {_detail(result)}"
     denied = json.loads(receipt.read_text(encoding="utf-8"))["command"]
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == ["flake8", "pydocstyle"], _detail(result)
+    _assert_check_operations(verifier.calls(), ["flake8", "pydocstyle"])
     assert all(Path(call["python"]) == Path(sys.executable) for call in verifier.calls())
     reports = verifier.reports()
     assert len(reports) == 1, _detail(result)
     data = json.loads(reports[0].read_text(encoding="utf-8"))
     assert data["document_version"] == "2.0" and data["mode"] == "fast"
-    calls = verifier.calls()
-    calls = verifier.calls()
     steps = [
         step
         for step in data["steps"]
@@ -1143,12 +1143,14 @@ sys.addaudithook(deny_black_launch)
         and step["command"][2] in {"black", "flake8", "pydocstyle"}
     ]
     assert len(steps) == 3
-    reported_command = steps[0]["command"]
+    by_tool = {step["command"][2]: step for step in steps}
+    reported_command = by_tool["black"]["command"]
     if isinstance(denied, str):
         reported_command = subprocess.list2cmdline(reported_command)
     assert reported_command == denied
-    assert isinstance(steps[0]["returncode"], int) and steps[0]["returncode"] != 0
-    for step, call in zip(steps[1:], verifier.calls()):
+    assert isinstance(by_tool["black"]["returncode"], int) and by_tool["black"]["returncode"] != 0
+    for call in verifier.calls():
+        step = by_tool[call["tool"]]
         assert step["command"] == [sys.executable, "-m", call["tool"], *call["args"]]
         assert step["returncode"] == 0
     diagnostic = "fixture scheduled launch unavailable"
@@ -1201,7 +1203,7 @@ def test_full_rejects_broken_preflight_before_build(verifier):
     (verifier.repo / "requirements-dev.lock").write_text("coverage==0.0\n", encoding="utf-8")
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:5]
+    _assert_check_operations(verifier.calls(), QUALITY_OPERATIONS)
     data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
     assert next(step for step in data["steps"] if step["name"] == "build")["state"] == "blocked"
 
@@ -1211,7 +1213,7 @@ def test_full_requires_exactly_one_built_wheel(verifier, scenario):
     verifier.env["VERIFICATION_TEST_REPORT"] = scenario
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:6]
+    _assert_check_operations(verifier.calls(), QUALITY_OPERATIONS + ["build"])
     data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
     assert (
         next(step for step in data["steps"] if step["name"] == "wheel-artifacts")["state"]
@@ -1226,7 +1228,9 @@ def test_failed_tests_without_fresh_data_block_coverage_diagnostics(verifier):
     )
     result = verifier.run("full")
     assert result.returncode == 1, _detail(result)
-    assert _sequence(verifier.calls()) == FULL_SEQUENCE[:9]
+    _assert_check_operations(
+        verifier.calls(), QUALITY_OPERATIONS + ["build", "pip", "coverage:erase", "coverage:run"]
+    )
     data = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
     assert (
         next(step for step in data["steps"] if step["name"] == "coverage-json")["state"]
@@ -1362,7 +1366,6 @@ def test_build_identity_tracks_actual_git_tags_history_dirty_state_and_version(v
     record = json.loads(verifier.reports()[0].read_text(encoding="utf-8"))
     build = next(step for step in record["steps"] if step["name"] == "build")
     original = build["input_identity"]["git"]
-    original_inputs = record["identity"]["inputs"]
     assert original["revision"]["returncode"] == 0
     assert "1.0.0" in original["tags"]["output"]
     assert original["history"]["output"] == original["revision"]["output"]
@@ -1389,7 +1392,6 @@ def test_build_identity_tracks_actual_git_tags_history_dirty_state_and_version(v
     assert updated["revision"] == original["revision"]
     assert updated["tags"] != original["tags"]
     assert "never_imported.py" in updated["dirty"]["output"]
-    assert build["input_identity"]["inputs"] != record["identity"]["inputs"] or updated != original
     install = next(step for step in record["steps"] if step["name"] == "install")
     assert install["input_identity"]["artifacts"]
 

@@ -1,6 +1,5 @@
 """Real Git hook entry points in isolated repositories, with local-only remotes."""
 
-from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -9,8 +8,8 @@ import subprocess
 
 import pytest
 
-from .test_verification import FULL_SEQUENCE, ROOT, VerificationCommand, _detail, _executable
-from .test_verification import _sequence
+from .test_verification import ROOT, VerificationCommand, _detail, _executable
+from .test_verification import FAST_OPERATIONS, QUALITY_OPERATIONS, _assert_check_operations
 from .test_verification import TOOL
 from .test_verification import _prove_executable_runtime
 from .test_verification import _check_manifest
@@ -158,7 +157,7 @@ def test_pre_commit_checks_staged_content_with_selected_interpreter(hook_repo, s
     before = hook_repo.git("write-tree").stdout
     result = hook_repo.hook()
     assert result.returncode == 0, _detail(result)
-    assert _sequence(hook_repo.calls()) == ["black", "flake8", "pydocstyle"]
+    _assert_check_operations(hook_repo.calls(), FAST_OPERATIONS)
     calls = hook_repo.python_calls()
     assert len(calls) == 1 and calls[0]["argv"][-1] == "fast", calls
     expected = hook_repo.selected_python if selection == "explicit" else hook_repo.default_python
@@ -186,7 +185,7 @@ def test_pre_commit_rejects_failed_fast_checks(hook_repo):
     hook_repo.env["VERIFICATION_TEST_FAIL"] = "black"
     result = hook_repo.hook()
     assert result.returncode != 0, _detail(result)
-    assert _sequence(hook_repo.calls()) == ["black", "flake8", "pydocstyle"]
+    _assert_check_operations(hook_repo.calls(), FAST_OPERATIONS)
 
 
 @pytest.mark.parametrize("selection", ["default", "explicit"])
@@ -211,27 +210,8 @@ def _assert_clean_head(hook_repo):
     assert hook_repo.git("status", "--porcelain", "--untracked-files=all").stdout == ""
 
 
-def _assert_check_operations(calls, mode):
-    observed = _sequence(calls)
-    expected = FULL_SEQUENCE if mode == "full" else ["black", "flake8", "pydocstyle"]
-    # Reuse the operation inventory, not its incidental total ordering.
-    assert Counter(observed) == Counter(expected), observed
-    if mode == "full":
-        dependencies = [
-            ("build", "pip"),
-            ("pip", "coverage:run"),
-            ("coverage:erase", "coverage:run"),
-            ("coverage:run", "coverage:combine"),
-            ("coverage:combine", "coverage:json"),
-            ("coverage:combine", "coverage:xml"),
-            ("coverage:combine", "coverage:report"),
-        ]
-        for before, after in dependencies:
-            assert observed.index(before) < observed.index(after), (before, after, observed)
-
-
 def _assert_fast_invocation(hook_repo, selection="default"):
-    _assert_check_operations(hook_repo.calls(), "fast")
+    _assert_check_operations(hook_repo.calls(), FAST_OPERATIONS)
     calls = hook_repo.python_calls()
     assert len(calls) == 1 and len(calls[0]["argv"]) == 2, calls
     assert calls[0]["argv"][1] == "fast", calls
@@ -312,7 +292,7 @@ def test_pre_push_full_only_failure_allows_real_local_backup(hook_repo):
     assert full.returncode == 1, _detail(full)
     # The former all-later-tools expectation is replaced by the authorized DAG:
     # audit failure preserves independent cheap results and blocks costly dependents.
-    assert _sequence(hook_repo.calls()) == ["black", "flake8", "pydocstyle", "mypy", "pip_audit"]
+    _assert_check_operations(hook_repo.calls(), QUALITY_OPERATIONS)
     full_report = _check_manifest(hook_repo, full, "full", "pip_audit")
     receipt = json.loads((full_report / "checks.json").read_text(encoding="utf-8"))
     assert receipt["complete"] is True and receipt["outcome"] == "failed"
@@ -441,16 +421,16 @@ def _arrange_state_change(hook_repo, mutation):
     return receipt, status
 
 
-def _assert_successful_check(hook_repo, mode, status):
+def _assert_successful_check(hook_repo, status):
     assert status.is_file(), "The real verifier did not finish through the interpreter fixture"
     assert status.read_text(encoding="utf-8") == "0", "Verifier failed before stale-state check"
     calls = hook_repo.python_calls()
-    assert len(calls) == 1 and calls[0]["argv"][-1] == mode, calls
-    _assert_check_operations(hook_repo.calls(), mode)
+    assert len(calls) == 1 and calls[0]["argv"][-1] == "fast", calls
+    _assert_check_operations(hook_repo.calls(), FAST_OPERATIONS)
     reports = hook_repo.reports()
     assert len(reports) == 1
     data = json.loads(reports[0].read_text(encoding="utf-8"))
-    assert data["mode"] == mode
+    assert data["mode"] == "fast"
     assert data["steps"] and all(step["returncode"] == 0 for step in data["steps"])
 
 
@@ -462,7 +442,7 @@ def test_pre_commit_rejects_content_changed_during_successful_checks(hook_repo, 
     receipt, status = _arrange_state_change(hook_repo, mutation)
     result = hook_repo.hook()
 
-    _assert_successful_check(hook_repo, "fast", status)
+    _assert_successful_check(hook_repo, status)
     change = json.loads(receipt.read_text(encoding="utf-8"))
     assert change["before"] == {"head": hook_repo.head, "index": index_before}
     assert change["after"]["head"] == hook_repo.head
@@ -485,7 +465,7 @@ def test_pre_push_rejects_state_changed_during_successful_checks(hook_repo, muta
     receipt, status = _arrange_state_change(hook_repo, mutation)
     result = hook_repo.push("HEAD:refs/heads/main")
 
-    _assert_successful_check(hook_repo, "fast", status)
+    _assert_successful_check(hook_repo, status)
     _assert_fast_invocation(hook_repo)
     change = json.loads(receipt.read_text(encoding="utf-8"))
     assert change["before"] == {"head": hook_repo.head, "index": index_before}
@@ -515,7 +495,7 @@ def test_pre_push_rejects_index_changed_during_successful_checks(hook_repo):
     receipt, status = _arrange_state_change(hook_repo, "staged")
     result = hook_repo.push("HEAD:refs/heads/main")
 
-    _assert_successful_check(hook_repo, "fast", status)
+    _assert_successful_check(hook_repo, status)
     _assert_fast_invocation(hook_repo)
     change = json.loads(receipt.read_text(encoding="utf-8"))
     assert change["before"] == {"head": hook_repo.head, "index": index_before}

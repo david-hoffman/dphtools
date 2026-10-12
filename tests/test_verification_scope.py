@@ -1,9 +1,7 @@
 """Approved trigger hierarchy through real Git and verifier entry points."""
 
 import json
-import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
@@ -206,8 +204,17 @@ def test_invalid_domain_inventory_falls_back_and_is_visible(repository, defect):
         repository.save_mapping()
     else:
         repository.write("tools/verification-domains.json", "invalid JSON")
+    repository.base = repository.commit()
+    repository.write("docs/notes.md", "Changed plain notes.\n")
     repository.commit()
-    assert repository.plan()["name"] == "full"
+    result = repository.plan()
+    assert result["name"] == "full"
+    expected = (
+        "Expecting value"
+        if defect == "invalid-json"
+        else "Test ownership is duplicate or names absent files"
+    )
+    assert any(expected in reason for reason in result["classification"]["reasons"]), result
 
 
 def test_explicit_scope_includes_nested_never_imported_sources_and_unknown_fallback(repository):
@@ -293,7 +300,7 @@ def test_body_identical_comment_edits_do_not_invent_changed_effects(repository):
 def test_unchanged_dynamic_helpers_or_import_hooks_require_full(repository, prefix):
     repository.write("dphtools/core.py", prefix + "def value():\n    return 42\n")
     repository.base = repository.commit()
-    repository.write("dphtools/core.py", prefix + "def value():\n    return helper()\n")
+    repository.write("dphtools/core.py", prefix + "def value():\n    return 43\n")
     repository.commit()
     assert repository.plan()["name"] == "full"
 
