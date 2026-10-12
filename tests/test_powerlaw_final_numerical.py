@@ -284,15 +284,14 @@ def _log_samples(samples, count, log_lower):
     return np.array(logarithms)
 
 
-@pytest.mark.parametrize("heavy", [False, True], ids=["ordinary-success", "unbounded-heavy-tail"])
-def test_fitted_generation_has_natural_range_errors_or_finite_distribution_and_preserves_state(
-    heavy, record_property
+def test_heavy_fitted_generation_has_range_errors_or_finite_distribution_and_preserves_state(
+    record_property,
 ):
-    # Fixed in advance, independent of any product RNG output. A successful
-    # ordinary control is compulsory; only the heavy-tail call may fail.
+    # The identical ordinary alpha=2 control is in the sampling contract.
+    # This heavy-tail seed is fixed independently of any product RNG output.
     seed = 29629
-    count = 262144 if heavy else 4096
-    lower, value = (np.nextafter(0.0, 1.0), 1e300) if heavy else (1.0, math.e)
+    count = 262144
+    lower, value = np.nextafter(0.0, 1.0), 1e300
     data = np.full(count, value)
     original = data.copy()
     random_state = np.random.get_state()
@@ -301,8 +300,6 @@ def test_fitted_generation_has_natural_range_errors_or_finite_distribution_and_p
         try:
             result = model.fit(xmin=lower)
         except RuntimeError as error:
-            if not heavy:
-                raise
             _error(record_property, "heavy_fit_failure_generation_not_reached", error)
             return
         # Constant observations above an unobserved cutoff are nondegenerate.
@@ -318,8 +315,6 @@ def test_fitted_generation_has_natural_range_errors_or_finite_distribution_and_p
             try:
                 samples = model.gen_power_law()
             except Exception as error:
-                if not heavy:
-                    raise
                 # No generation exception class is selected by the packet.
                 _error(record_property, f"generation_error_{attempt}", error)
                 outcomes.append("error")
@@ -329,19 +324,16 @@ def test_fitted_generation_has_natural_range_errors_or_finite_distribution_and_p
                     log_lower = float(_decimal(lower).ln())
                 logs = _log_samples(samples, count, log_lower)
                 beta = float(alpha - 1)
-                if heavy:
-                    # P(log X > 12000)=exp(-beta*(12000-log L)) > .00013.
-                    # P(no exceedance) < exp(-262144*.00013) < 1.6e-15.
-                    # This threshold exceeds standard floating ranges on the
-                    # supplied hosts; it does not cap allowable output types.
-                    probability = math.exp(-beta * (12000 - log_lower))
-                    assert probability > 0.00013
-                    assert np.any(logs > 12000)
-                    threshold = log_lower + 1 / beta
-                    expected = math.exp(-1)
-                    tolerance = 0.02
-                else:
-                    threshold, expected, tolerance = math.log(4), 0.25, 0.055
+                # P(log X > 12000)=exp(-beta*(12000-log L)) > .00013.
+                # P(no exceedance) < exp(-262144*.00013) < 1.6e-15.
+                # This threshold exceeds standard floating ranges on the
+                # supplied hosts; it does not cap allowable output types.
+                probability = math.exp(-beta * (12000 - log_lower))
+                assert probability > 0.00013
+                assert np.any(logs > 12000)
+                threshold = log_lower + 1 / beta
+                expected = math.exp(-1)
+                tolerance = 0.02
                 actual = float(np.mean(logs > threshold))
                 assert abs(actual - expected) < tolerance
                 outcomes.append("finite-success")

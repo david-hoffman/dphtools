@@ -178,13 +178,13 @@ def test_histograms_on_one_and_two_require_a_boundary_diagnosis(ones, record_pro
     record_property("exact_conditional_sample_mean", str(exact_mean))
     result = _component_call(counts, frequencies, record_property, allow_failure=True)
     assert result is _NUMERICAL_FAILURE, "No finite NB MLE exists for this histogram"
-
-
-def test_modest_boundary_histogram_has_an_expanded_public_control(record_property):
-    with pytest.raises(RuntimeError) as caught:
-        _public_call(np.repeat(np.array([1, 2]), [15, 1]))
-    assert str(caught.value).strip()
-    record_property("public_boundary_diagnosis", str(caught.value))
+    if ones == 15:
+        # The modest histogram also has a real public boundary control.
+        # Never expand the 2**54-observation resource-boundary case.
+        with pytest.raises(RuntimeError) as caught:
+            _public_call(np.repeat(counts, frequencies))
+        assert str(caught.value).strip()
+        record_property("public_boundary_diagnosis", str(caught.value))
 
 
 def test_huge_frequency_replication_returns_accurate_mle_or_numerical_diagnosis(record_property):

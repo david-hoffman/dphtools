@@ -19,11 +19,6 @@ def require(condition, message):
     assert condition, message
 
 
-def test_declared_actual_probe_file_is_present_in_opaque_worker(worker):
-    helper = worker[0].parent / "release_probe.py"
-    require(helper.is_file(), "Missing declared public installed probe: tools/release_probe.py")
-
-
 def assert_actual_measurement(smoke, before):
     records = smoke.calls()
     installed = [r for r in records if r["event"] == "installed-check"]

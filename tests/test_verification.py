@@ -495,10 +495,14 @@ def test_fast_runs_all_tools_from_script_repository(verifier):
         pair == ["--line-length", "99"]
         for pair in [black_args[index : index + 2] for index in range(len(black_args))]
     ), black
-    _check_manifest(verifier, result, "fast")
+    first_report = _check_manifest(verifier, result, "fast")
+    verifier.record.unlink()
+    second = verifier.run("fast")
+    assert second.returncode == 0, _detail(second)
+    assert _check_manifest(verifier, second, "fast") != first_report
 
 
-def test_full_success_orders_tools_and_retains_reports(verifier):
+def test_full_success_retains_reports_and_rejects_stale_results(verifier):
     result = verifier.run("full")
     assert result.returncode == 0, _detail(result)
     calls = verifier.calls()
@@ -515,6 +519,17 @@ def test_full_success_orders_tools_and_retains_reports(verifier):
         path.name for path in report.iterdir()
     }
     _assert_full_operations(verifier, calls)
+
+    before = {path.name: path.read_bytes() for path in report.iterdir() if path.is_file()}
+    verifier.record.unlink()
+    verifier.env["VERIFICATION_TEST_REPORT"] = "missing-tests"
+    second = verifier.run("full")
+    assert second.returncode == 1, _detail(second)
+    _assert_check_operations(verifier.calls(), FULL_OPERATIONS)
+    new = _check_manifest(verifier, second, "full")
+    assert new != report
+    assert not (new / "pytest.xml").exists()
+    assert {path.name: path.read_bytes() for path in report.iterdir() if path.is_file()} == before
 
 
 def test_current_artifact_install_failure_blocks_testing_and_complete_coverage(verifier):
@@ -678,7 +693,6 @@ def test_fast_attempts_later_tools_after_failure(verifier, failed):
         "failed-tests",
         "errored-tests",
         "malformed-tests",
-        "missing-tests",
         "missing-coverage",
         "malformed-coverage",
         "absent-owned",
@@ -824,31 +838,6 @@ def test_full_failure_blocks_dependents_and_retains_fresh_diagnostics(verifier, 
         assert any(
             step["state"] == "blocked" and step["blocking_reasons"] for step in data["steps"]
         )
-
-
-def test_full_cannot_reuse_previous_success_reports(verifier):
-    first = verifier.run("full")
-    assert first.returncode == 0, _detail(first)
-    old = _check_manifest(verifier, first, "full")
-    before = {path.name: path.read_bytes() for path in old.iterdir() if path.is_file()}
-    verifier.record.unlink()
-    verifier.env["VERIFICATION_TEST_REPORT"] = "missing-tests"
-    second = verifier.run("full")
-    assert second.returncode == 1, _detail(second)
-    new = _check_manifest(verifier, second, "full")
-    assert new != old
-    assert not (new / "pytest.xml").exists()
-    assert {path.name: path.read_bytes() for path in old.iterdir() if path.is_file()} == before
-
-
-def test_fast_invocations_have_distinct_report_directories(verifier):
-    directories = []
-    for _ in range(2):
-        result = verifier.run("fast")
-        assert result.returncode == 0, _detail(result)
-        directories.append(_check_manifest(verifier, result, "fast"))
-        verifier.record.unlink()
-    assert directories[0] != directories[1]
 
 
 def _real_configuration(verifier):

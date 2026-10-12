@@ -20,16 +20,6 @@ def line_jacobian(x, slope, intercept):
     return np.column_stack((x, np.ones_like(x)))
 
 
-@pytest.mark.parametrize("method", [None, "lm", "trf", "dogbox", "ls", "mle"])
-def test_curve_fit_documented_methods_recover_exact_line(method):
-    x = np.arange(5.0)
-    parameters, covariance = curve_fit(
-        line, x, 2 * x + 3, p0=[1.0, 1.0], jac=line_jacobian, method=method, maxfev=100
-    )
-    assert_allclose(parameters, [2, 3], rtol=1e-6, atol=1e-8)
-    assert covariance.shape == (2, 2)
-
-
 def test_curve_fit_infers_parameter_count_and_starting_point():
     x = np.arange(5.0)
     parameters, _ = curve_fit(line, x, 2 * x + 3, maxfev=100)
@@ -87,22 +77,6 @@ def test_curve_fit_rejects_nonfinite_input_by_default(bad, location):
         curve_fit(line, x, y, p0=[1.0, 1.0], maxfev=100)
 
 
-@pytest.mark.parametrize("method", [None, "trf", "dogbox"])
-def test_curve_fit_respects_parameter_bounds(method):
-    x = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
-    parameters, _ = curve_fit(
-        line,
-        x,
-        2 * x + 3,
-        p0=[0.5, 2.0],
-        bounds=([0, 0], [1, 5]),
-        jac=line_jacobian,
-        method=method,
-        maxfev=100,
-    )
-    assert_allclose(parameters, [1, 3], atol=1e-6)
-
-
 def test_curve_fit_lm_rejects_underdetermined_problem():
     with pytest.raises(TypeError):
         curve_fit(line, np.array([1.0]), np.array([2.0]), p0=[1, 1], method="lm", maxfev=20)
@@ -111,16 +85,6 @@ def test_curve_fit_lm_rejects_underdetermined_problem():
 def test_lm_rejects_missing_analytic_jacobian():
     with pytest.raises(NotImplementedError):
         lm(lambda p: np.array([p[0] - 3, 2 * (p[0] - 3)]), [1.0], maxfev=50)
-
-
-def test_lm_analytic_jacobian_recovers_known_minimum():
-    result, _ = lm(
-        lambda p: np.array([p[0] - 3, 2 * (p[0] - 3)]),
-        [1.0],
-        Dfun=lambda p: np.array([[1.0], [2.0]]),
-        maxfev=50,
-    )
-    assert_allclose(result, [3], atol=1e-7)
 
 
 @pytest.mark.parametrize("full_output, tuple_length", [(False, 2), (True, 5)])

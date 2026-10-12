@@ -20,9 +20,8 @@ FIELDS = ["amps", "freqs", "damps", "phase"]
     ],
     ids=["approved-single-cosine", "odd-two-separated-cosines"],
 )
-@pytest.mark.parametrize("evaluation", ["independent-coefficients", "public-reconstruction"])
 def test_default_automatic_fit_predicts_eight_exact_unseen_samples(
-    sample_count, components, evaluation, record_property
+    sample_count, components, record_property
 ):
     expected = np.array(
         [
@@ -43,46 +42,45 @@ def test_default_automatic_fit_predicts_eight_exact_unseen_samples(
     assert np.isrealobj(coefficients)
     assert np.isfinite(coefficients).all()
 
-    if evaluation == "independent-coefficients":
-        # Euler's identity gives Re[A exp(d*n + i*(2*pi*f*n + phase))].
-        # Every returned row participates; no automatic mode count is imposed.
-        actual = np.array(
-            [
-                math.fsum(
-                    amplitude * math.exp(damping * n) * math.cos(math.tau * frequency * n + phase)
-                    for amplitude, frequency, damping, phase in coefficients
-                )
-                for n in range(sample_count + 8)
-            ]
-        )
-    else:
-        original_fitted = fitted.copy(deep=True)
-        template = np.zeros(sample_count + 8, dtype=float)
-        try:
-            actual = reconstruct_signal(fitted, template)
-        finally:
-            assert_frame_equal(fitted, original_fitted)
-            assert_array_equal(template, np.zeros(sample_count + 8))
+    # Euler's identity gives Re[A exp(d*n + i*(2*pi*f*n + phase))].
+    # Every returned row participates; no automatic mode count is imposed.
+    evaluated = np.array(
+        [
+            math.fsum(
+                amplitude * math.exp(damping * n) * math.cos(math.tau * frequency * n + phase)
+                for amplitude, frequency, damping, phase in coefficients
+            )
+            for n in range(sample_count + 8)
+        ]
+    )
+    original_fitted = fitted.copy(deep=True)
+    template = np.zeros(sample_count + 8, dtype=float)
+    try:
+        reconstructed = reconstruct_signal(fitted, template)
+    finally:
+        assert_frame_equal(fitted, original_fitted)
+        assert_array_equal(template, np.zeros(sample_count + 8))
 
-    assert actual.shape == expected.shape
-    assert np.isfinite(actual).all()
     amplitude_scale = sum(component[0] for component in components)
-    record_property(
-        "absolute_prediction_errors",
-        {
-            "training": float(np.max(np.abs(actual[:sample_count] - expected[:sample_count]))),
-            "held_out": float(np.max(np.abs(actual[sample_count:] - expected[sample_count:]))),
-            "allowed": 1e-6 * amplitude_scale,
-        },
-    )
-    # The approved bound is absolute, including at cosine zero crossings.
-    # Sum of component amplitudes bounds the exact signal's envelope.
-    assert_allclose(
-        actual[:sample_count], expected[:sample_count], rtol=0, atol=1e-6 * amplitude_scale
-    )
-    assert_allclose(
-        actual[sample_count:], expected[sample_count:], rtol=0, atol=1e-6 * amplitude_scale
-    )
+    for label, actual in (("independent", evaluated), ("public", reconstructed)):
+        assert actual.shape == expected.shape
+        assert np.isfinite(actual).all()
+        record_property(
+            label + "_absolute_prediction_errors",
+            {
+                "training": float(np.max(np.abs(actual[:sample_count] - expected[:sample_count]))),
+                "held_out": float(np.max(np.abs(actual[sample_count:] - expected[sample_count:]))),
+                "allowed": 1e-6 * amplitude_scale,
+            },
+        )
+        # The approved bound is absolute, including at cosine zero crossings.
+        # Sum of component amplitudes bounds the exact signal's envelope.
+        assert_allclose(
+            actual[:sample_count], expected[:sample_count], rtol=0, atol=1e-6 * amplitude_scale
+        )
+        assert_allclose(
+            actual[sample_count:], expected[sample_count:], rtol=0, atol=1e-6 * amplitude_scale
+        )
 
 
 @pytest.mark.parametrize(

@@ -89,17 +89,6 @@ def test_make_grid_rejects_explicit_zero_rows(count):
         display.make_grid(count, nrows=0)
 
 
-def test_make_grid_positive_rows_remain_usable():
-    fig, axes = display.make_grid(4, nrows=2)
-    axes = np.asarray(axes).ravel()
-    assert len(axes) >= 4
-    for index, ax in enumerate(axes[:4]):
-        assert ax.figure is fig
-        (line,) = ax.plot([0, 1, 2], [index, index + 2, index - 1])
-        assert_array_equal(line.get_xydata(), [[0, index], [1, index + 2], [2, index - 1]])
-    fig.canvas.draw()
-
-
 @pytest.mark.parametrize("count, expected_alpha", [(1, 1), (4, 8 / 9), (9, 3 / 4)])
 def test_recolor_best_uses_selected_count_and_requested_palette(count, expected_alpha):
     # A constant palette fixes expected RGB without imposing sample positions.

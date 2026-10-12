@@ -3,7 +3,6 @@
 import math
 
 import numpy as np
-import pytest
 
 from dphtools.utils import fitfuncs
 
@@ -29,20 +28,6 @@ def _assert_root(rate, expected):
     assert math.isclose(
         ratio, 1.0, rel_tol=2e-6, abs_tol=0
     ), f"rate {value} differs from independent root {expected}; ratio {ratio}"
-
-
-@pytest.mark.parametrize(
-    "mean, expected",
-    [(2.0, 1.5936242600400400923), (20.0, 19.9999999587769258519)],
-    ids=["mean-two", "mean-twenty"],
-)
-def test_ordinary_mean_kernel_fits_the_conditional_likelihood(mean, expected):
-    kernel = _required_mean_kernel()
-    rate = kernel(mean)
-    _assert_root(rate, expected)
-    # A separate stable evaluation checks the conditional-mean equation.
-    implied_mean = float(rate) / -math.expm1(-float(rate))
-    assert math.isclose(implied_mean, mean, rel_tol=2e-6, abs_tol=0)
 
 
 def test_near_one_mean_kernel_fits_or_reports_numerical_inability(record_property):

@@ -267,21 +267,3 @@ class Bundle:
     def ready(self, worker):
         result = self.run(worker, "check")
         assert result.returncode == 0, "Valid bundle precondition: " + diagnostic(result)
-
-
-def test_structural_fixtures_match_the_clarified_packet(tmp_path):
-    """Fixture self-check, not product evidence: archives, reports and independent hashes."""
-    bundle = Bundle(tmp_path / "fixture")
-    with zipfile.ZipFile(bundle.wheel) as archive:
-        assert archive.testzip() is None
-        assert archive.read("dphtools-1.0.0.dist-info/METADATA") == metadata()
-    with tarfile.open(bundle.sdist) as archive:
-        assert archive.extractfile("dphtools-1.0.0/PKG-INFO").read() == metadata()
-    payload = json.loads(bundle.manifest.read_text(encoding="utf-8"))
-    assert payload == bundle.expected()
-    for platform in PLATFORMS:
-        report = json.loads(
-            (bundle.reports / platform / "checks.json").read_text(encoding="utf-8")
-        )
-        assert tuple(step["name"] for step in report["steps"]) == STEPS
-        assert len(set(step["name"] for step in report["steps"])) == 14

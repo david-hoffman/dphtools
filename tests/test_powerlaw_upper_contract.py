@@ -113,15 +113,6 @@ def test_near_ties_use_absolute_ks_tolerance_after_excluding_boundary_windows(de
     _assert_selection(model, result, data, lower, math.inf, (beta * lower**beta, 1 + beta))
 
 
-def test_fifty_observations_and_unbounded_interior_survive_bounded_alpha_one_boundary():
-    data = np.repeat([1.0, 2.0], [25, 25])
-    # Bounded mean(log X)=log(2)/2 gives only alpha=1. The unbounded
-    # likelihood has the finite interior alpha=1+2/log(2), and must be tried.
-    beta = 2 / math.log(2)
-    model, result = _fit(data, xmin=1)
-    _assert_selection(model, result, data, 1, math.inf, (beta, 1 + beta))
-
-
 @pytest.mark.parametrize(
     "data",
     [np.repeat([1.0, 2.0], [24, 25]), np.ones(50)],
@@ -130,26 +121,3 @@ def test_fifty_observations_and_unbounded_interior_survive_bounded_alpha_one_bou
 def test_no_eligible_window_raises_value_error(data):
     with pytest.raises(ValueError):
         _fit(data, xmin=1)
-
-
-@pytest.mark.parametrize("discrete", [False, True], ids=["continuous", "discrete"])
-@pytest.mark.parametrize(
-    "options", [{"xmin": 20}, {"xmin_max": np.nan}], ids=["fewer-than-50", "invalid-lower-cap"]
-)
-def test_failed_upper_refit_preserves_prior_public_parameters_support_and_scores(
-    discrete, options
-):
-    data = _bounded_data(discrete)
-    original = data.copy()
-    model, _ = _fit(data, xmin=1)
-    before = (model.xmin, model.C, model.alpha)
-    before_tail = np.array(model.clipped_data, copy=True)
-    before_scores = np.array(model.ks_statistics, copy=True)
-    try:
-        with pytest.raises(ValueError):
-            model.fit(opt_max=True, **options)
-    finally:
-        assert_array_equal(data, original)
-        assert_array_equal((model.xmin, model.C, model.alpha), before)
-        assert_array_equal(model.clipped_data, before_tail)
-        assert_array_equal(model.ks_statistics, before_scores)

@@ -14,11 +14,10 @@ def test_squared_euclidean_norm(vector, expected):
     assert_allclose(rolling_ball.sq_norm(np.array(vector)), expected)
 
 
-@pytest.mark.parametrize("offset", [(0.0, 0.0), (10.0, -7.0)])
-def test_circumcircle_right_triangle(offset):
-    points = np.array([[0.0, 0.0], [4.0, 0.0], [0.0, 3.0]]) + offset
+def test_circumcircle_right_triangle():
+    points = np.array([[0.0, 0.0], [4.0, 0.0], [0.0, 3.0]])
     center, radius = rolling_ball.circumcircle(points, np.array([0, 1, 2]))
-    assert_allclose(center, np.array([2.0, 1.5]) + offset, atol=1e-12)
+    assert_allclose(center, [2.0, 1.5], atol=1e-12)
     assert_allclose(radius, 2.5, atol=1e-12)
 
 

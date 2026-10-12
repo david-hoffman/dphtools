@@ -40,6 +40,8 @@ def test_constructed_registration_representation_preserves_inputs_and_subsequent
     assert_array_equal(moving, original_moving)
     reg(maxiters=100, dist_tol=1e-8)
     assert_allclose(reg.transform(original_moving), original_fixed, atol=1e-5)
+    assert isinstance(str(reg), str) and str(reg).strip()
+    assert isinstance(repr(reg), str) and repr(reg).strip()
     assert_array_equal(fixed, original_fixed)
     assert_array_equal(moving, original_moving)
 

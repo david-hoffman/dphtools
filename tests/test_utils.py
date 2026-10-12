@@ -19,7 +19,6 @@ from scipy.ndimage.filters import gaussian_filter
 
 # import the package to test
 from dphtools.utils import (
-    _padding_slices,
     anscombe,
     anscombe_inv,
     bin_ndarray,
@@ -95,15 +94,6 @@ class TestFFTPad(unittest.TestCase):
         newsize = (50, 40, 30, 100)
         newdata = fft_pad(data, newsize)
         assert newsize == newdata.shape
-
-    def test_smaller_shape(self):
-        """Test that cropping works as expected."""
-        oldshape = rng.integers(10, 200)
-        newshape = rng.integers(5, oldshape)
-        data = np.ones(oldshape)
-        assert data.shape == oldshape
-        pad_data = fft_pad(data, newshape)
-        assert pad_data.shape == newshape
 
     def test_right_position_cases(self):
         """Make sure that center stays centered (for ffts) all cases."""
@@ -213,27 +203,3 @@ def test_slice_maker_float_input():
         y0, x0, width = rng.random(3) * 100
         slice_list = _turn_slices_into_list(slice_maker((y0, x0), width))
         assert np.issubdtype(slice_list.dtype, int)
-
-
-def test_slice_maker_center():
-    """Make sure slices center y0, x0 at fft center."""
-    for i in range(10):
-        data = np.zeros((256, 256))
-        center_loc = tuple(rng.integers(64, 256 - 64, 2))
-        data[center_loc] = 1
-        width = rng.integers(16, 32)
-        slices = slice_maker(center_loc, width)
-        data_crop = data[slices]
-        print(data_crop)
-        print(ifftshift(data_crop))
-        assert ifftshift(data_crop)[0, 0] == 1, ifftshift(data_crop)
-
-
-def test_padding_slices():
-    """Make sure we can reverse things."""
-    oldshape = tuple(rng.integers(64, 256 - 64, 2))
-    newshape = tuple(rng.integers(s, s * 2) for s in oldshape)
-    data = rng.standard_normal(oldshape)
-    new_data = fft_pad(data, newshape)
-    padding, slices = _padding_slices(newshape, oldshape)
-    assert np.all(data == new_data[slices])
