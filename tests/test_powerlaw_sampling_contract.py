@@ -127,6 +127,12 @@ def test_generator_has_independent_model_probabilities_and_one_draw_per_retained
     np.random.seed(27091)
     try:
         samples = _draw(model, len(model.clipped_data), upper, discrete)
+        _assert_state(model, before)
+        # Replay the same public method after resetting only NumPy's stream.
+        # Python's random stream remains at the state left by the first draw.
+        np.random.seed(27091)
+        repeated = _draw(model, len(model.clipped_data), upper, discrete)
+        assert_array_equal(repeated, samples)
     finally:
         assert_array_equal(data, original)
         _assert_state(model, before)
@@ -158,22 +164,6 @@ def test_generator_has_independent_model_probabilities_and_one_draw_per_retained
     assert_allclose(joint, expected[0] ** 2, rtol=0, atol=0.085)
     if math.isinf(upper):
         assert np.max(samples) > np.max(data)  # Observed maxima do not cap support.
-
-
-@pytest.mark.parametrize("case", CASES)
-def test_resetting_only_numpy_seed_reproduces_draws_and_preserves_fitted_state(case):
-    model, data, upper, _, discrete = _model(case)
-    original, before = data.copy(), _snapshot(model)
-    try:
-        np.random.seed(11837)
-        first = _draw(model, len(model.clipped_data), upper, discrete)
-        # Python's random stream is deliberately not reset here.
-        np.random.seed(11837)
-        second = _draw(model, len(model.clipped_data), upper, discrete)
-        assert_array_equal(second, first)
-    finally:
-        assert_array_equal(data, original)
-        _assert_state(model, before)
 
 
 def _ks(samples, alpha, upper, discrete):

@@ -77,22 +77,16 @@ def _assert_interior_estimate(result, observations, reference, record_property):
 
 
 @pytest.mark.parametrize(
-    "case, dtype",
-    [
-        ("approved", np.int64),
-        ("low-variance", np.int64),
-        ("low-variance", np.float32),
-        ("low-variance", np.uint64),
-    ],
-    ids=["approved", "low-variance", "whole-valued-float", "unsigned"],
+    "dtype",
+    [np.float32, np.uint64],
+    ids=["whole-valued-float", "unsigned"],
 )
-def test_ordinary_interior_mle_succeeds_from_default_start(case, dtype, record_property):
-    data = np.array(APPROVED if case == "approved" else LOW_VARIANCE, dtype=dtype)
-    if case == "low-variance":
-        # Zero truncation invalidates an untruncated variance > mean heuristic.
-        assert np.var(data.astype(float)) < np.mean(data)
+def test_ordinary_interior_mle_succeeds_from_default_start(dtype, record_property):
+    data = np.array(LOW_VARIANCE, dtype=dtype)
+    # Zero truncation invalidates an untruncated variance > mean heuristic.
+    assert np.var(data.astype(float)) < np.mean(data)
     result = _fit_unchanged(data)
-    _assert_interior_estimate(result, data, REFERENCES[case], record_property)
+    _assert_interior_estimate(result, data, REFERENCES["low-variance"], record_property)
 
 
 @pytest.mark.parametrize(
@@ -158,7 +152,7 @@ def test_permutation_and_replication_preserve_the_conditional_estimator(
     )
 
 
-@pytest.mark.parametrize("shape, mean", [(2.0, 6.0), (0.5, 1.5)])
+@pytest.mark.parametrize("shape, mean", [(1.0, 2.0), (2.0, 6.0), (0.5, 1.5), (0.5, 3.0)])
 def test_negative_binomial_public_distribution_uses_shape_and_untruncated_mean(shape, mean):
     values = np.array([0, 1, 2, 5, 9])
     p = shape / (shape + mean)

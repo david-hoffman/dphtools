@@ -54,20 +54,10 @@ def assert_principal_rotation(angles, matrix):
 def test_calc_angles_recovers_ordinary_principal_angles(expected):
     matrix = rotation_xyz(*expected)
     original = matrix.copy()
-    angles = utils.calc_angles(matrix)
-    assert_array_equal(matrix, original)
-    assert_principal_rotation(angles, original)
-    assert_allclose(angles, expected, rtol=0, atol=ATOL)
-
-
-def test_positive_z_quarter_turn_maps_x_to_y_with_original_keyword_api():
-    matrix = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
-    original = matrix.copy()
     angles = utils.calc_angles(mat_b=matrix)
     assert_array_equal(matrix, original)
     assert_principal_rotation(angles, original)
-    assert_allclose(angles, (0, 0, np.pi / 2), rtol=0, atol=ATOL)
-    assert_allclose(rotation_xyz(*angles) @ [1, 0, 0], [0, 1, 0], rtol=0, atol=ATOL)
+    assert_allclose(angles, expected, rtol=0, atol=ATOL)
 
 
 @pytest.mark.parametrize(

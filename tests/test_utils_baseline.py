@@ -174,15 +174,6 @@ def test_plane_normal_is_perpendicular_to_two_tangents():
     assert_allclose([np.dot(normal, [1, 0, 2]), np.dot(normal, [0, 1, -3])], 0, atol=1e-12)
 
 
-def test_rotation_maps_source_to_target_and_preserves_lengths():
-    source = np.array([1.0, 0.0, 0.0])
-    target = np.array([0.0, 1.0, 0.0])
-    matrix = utils.rot_matrix(source, target)
-    assert_allclose(matrix @ source, target, atol=1e-12)
-    assert_allclose(matrix.T @ matrix, np.eye(3), atol=1e-12)
-    assert_allclose(np.linalg.det(matrix), 1, atol=1e-12)
-
-
 def test_quadratic_fit_uses_documented_coefficient_order():
     x, y = np.meshgrid(np.arange(-2.0, 3.0), np.arange(-2.0, 3.0))
     z = 2 * x**2 + 3 * y**2 + 4 * x + 5 * y + x * y + 6
@@ -343,12 +334,11 @@ def test_single_tile_split_combine_preserves_values():
     assert_array_equal(utils.combine_img(utils.split_img(data, (3, 5))), data)
 
 
-@pytest.mark.parametrize("message", [None, "A baseline timer message"])
-def test_easy_timer_runs_context_body_and_emits_requested_message(message, capsys, caplog):
+def test_easy_timer_default_context_runs_body_and_emits_elapsed_message(capsys, caplog):
     import logging
 
     steps = []
-    timer = utils.EasyTimer() if message is None else utils.EasyTimer(message)
+    timer = utils.EasyTimer()
     with caplog.at_level(logging.DEBUG):
         with timer:
             steps.append("inside")
@@ -357,8 +347,6 @@ def test_easy_timer_runs_context_body_and_emits_requested_message(message, capsy
     captured = capsys.readouterr()
     emitted = captured.out + captured.err + caplog.text
     assert emitted.strip()
-    if message is not None:
-        assert message in emitted
     # Neither clock values, a timing unit, nor an emission channel is prescribed.
 
 

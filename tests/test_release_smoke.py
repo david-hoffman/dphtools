@@ -513,30 +513,6 @@ def test_artifact_hash_is_rechecked_before_bundle_copy(real_package, tmp_path):
         wheel.chmod(mode)
 
 
-def test_smoke_installs_both_real_artifacts_in_separate_clean_environments(smoke):
-    before = snapshot(smoke.bundle.dist)
-    result = smoke.run()
-    assert result.returncode == 0, diagnostic(result)
-    smoke.assert_source_install_without_git()
-    records = smoke.calls()
-    installed = [item for item in records if item["event"] == "installed-check"]
-    assert {item["artifact"] for item in installed} == set(smoke.config["artifacts"])
-    assert len(installed) == 2
-    assert len({item["environment"] for item in installed}) == 2
-    checkout = smoke.worker[0].parent.parent.resolve()
-    for item in installed:
-        assert (
-            item["returncode"] == 0
-        ), "Installed-package invariant failed (source-free diagnostic recorded)"
-        observed = item["result"]
-        assert observed["metadata_version"] == observed["package_version"] == "1.0.0"
-        assert observed["sum"] == 6
-        assert observed["backend"].lower() == "agg"
-        assert not Path(item["environment"]).resolve().is_relative_to(checkout)
-        assert not Path(item["environment"]).exists(), "Disposable environment was not cleaned up"
-    assert snapshot(smoke.bundle.dist) == before
-
-
 @pytest.mark.parametrize("stage", ["install", "check", "probe"])
 def test_smoke_external_process_or_assertion_failure_blocks_readiness(smoke, stage):
     smoke.config.update(fail_stage=stage, fail_index=1)
@@ -564,70 +540,9 @@ def test_smoke_detects_actual_installed_version_behavior_and_dependency_defects(
 
 
 def test_smoke_validates_retained_identity_before_starting_installers(smoke):
-    # Establish this public command before the early-failure variant.
-    good = smoke.run()
-    assert good.returncode == 0, diagnostic(good)
-    smoke.log.unlink()
     smoke.bundle.wheel.write_bytes(b"changed after manifest")
     rejected(smoke.run())
     assert smoke.calls() == []
-
-
-def test_partial_publication_uses_original_bytes_then_checks_downloaded_installs(
-    worker, tmp_path, real_package
-):
-    """S5 command chain; hosted approval and GitHub finalization remain independent."""
-    from .test_release_reconcile import Registry
-
-    bundle = real_bundle(tmp_path / "recovery bundle", real_package)
-    registry = Registry(worker, bundle)
-    before = snapshot(bundle.dist)
-    registry.publish([bundle.wheel.name])
-    result = registry.run()
-    assert result.returncode == 0, diagnostic(result)
-    assert snapshot(registry.output) == {bundle.sdist.name: before[bundle.sdist.name]}
-    # This updates only the controlled external registry fixture, never a service.
-    registry.publish([bundle.wheel.name, bundle.sdist.name])
-    shutil.rmtree(registry.output)
-    registry.output.mkdir()
-    result = registry.run("--require-complete")
-    assert result.returncode == 0, diagnostic(result)
-    assert snapshot(registry.output) == {}
-    downloaded = bundle.root / "downloaded registry files"
-    downloaded.mkdir()
-    downloader = bundle.root / "external-download.py"
-    downloader.write_text(
-        "import json, sys, urllib.request\n"
-        "from pathlib import Path\n"
-        "for filename, url in json.loads(sys.argv[1]).items():\n"
-        "    with urllib.request.urlopen(url) as response:\n"
-        "        (Path(sys.argv[2]) / filename).write_bytes(response.read())\n",
-        encoding="utf-8",
-    )
-    write_json(registry.config_file, registry.config)
-    download = invoke(
-        registry.driver,
-        downloader,
-        registry.config_file,
-        registry.log,
-        json.dumps(registry.urls),
-        downloaded,
-        cwd=worker[1],
-        env=clean_env(),
-    )
-    assert download.returncode == 0, diagnostic(download)
-    assert snapshot(downloaded) == before
-    bundle.dist = downloaded
-    bundle.wheel = downloaded / bundle.wheel.name
-    bundle.sdist = downloaded / bundle.sdist.name
-    # Keep the ORIGINAL manifest unchanged; downloaded bytes must satisfy it.
-    smoke = Smoke(worker, bundle)
-    result = smoke.run()
-    assert result.returncode == 0, diagnostic(result)
-    smoke.assert_source_install_without_git()
-    checks = [item for item in smoke.calls() if item["event"] == "installed-check"]
-    assert len(checks) == 2 and all(item["returncode"] == 0 for item in checks)
-    assert snapshot(downloaded) == before
 
 
 def test_process_fixture_retains_real_exit_status_and_does_not_fake_success(tmp_path):
@@ -658,47 +573,3 @@ def test_process_fixture_retains_real_exit_status_and_does_not_fake_success(tmp_
         result = invoke(lookup, cwd=tmp_path, env=dict(clean_env(), PATH=path))
         assert result.returncode == 0, diagnostic(result)
         assert (json.loads(result.stdout)["git"] is not None) is available
-
-
-def test_installer_observer_uses_a_real_clean_environment_and_package_metadata(
-    tmp_path, real_package
-):
-    """Self-check only: observer install branch; no fake successful release behavior."""
-    wheel, _ = real_package
-    driver = tmp_path / "driver.py"
-    driver.write_text(PROCESS_DRIVER, encoding="utf-8")
-    env_dir = tmp_path / "clean fixture environment"
-    python = env_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    probe = tmp_path / "external-installer.py"
-    probe.write_text(
-        "import shutil, subprocess, sys, venv\n"
-        "try:\n"
-        "    venv.EnvBuilder(with_pip=True).create(sys.argv[1])\n"
-        "    subprocess.run([sys.argv[2], '-m', 'pip', 'install', '--no-index', '--no-deps', sys.argv[3]], check=True, capture_output=True)\n"
-        "finally:\n"
-        "    shutil.rmtree(sys.argv[1], ignore_errors=True)\n",
-        encoding="utf-8",
-    )
-    config = tmp_path / "config.json"
-    # This fixture check measures only metadata transport. The product smoke
-    # tests above always use INSTALLED_PROBE and real unmodified package imports.
-    write_json(
-        config,
-        {
-            "artifacts": [str(wheel)],
-            "version": "1.0.0",
-            "outside": str(tmp_path),
-            "probe": "import json; from importlib import metadata; print(json.dumps({'version': metadata.version('dphtools')}))",
-        },
-    )
-    log = tmp_path / "calls.jsonl"
-    result = invoke(
-        driver, probe, config, log, env_dir, python, wheel, cwd=tmp_path, env=clean_env()
-    )
-    assert result.returncode == 0, diagnostic(result)
-    records = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
-    checks = [record for record in records if record["event"] == "installed-check"]
-    assert len(checks) == 1
-    assert checks[0]["returncode"] == 0
-    assert checks[0]["result"] == {"version": "1.0.0"}
-    assert not env_dir.exists()

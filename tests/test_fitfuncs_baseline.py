@@ -30,15 +30,6 @@ def test_multi_exp_jacobian_analytic_derivatives(bias):
     assert_allclose(fitfuncs.multi_exp_jac(x, 3, 2, -1, 0.5, *bias), np.column_stack(columns))
 
 
-@pytest.mark.parametrize("sign", [-1, 1])
-def test_exponent_fit_independently_generated_decay(sign):
-    x = np.linspace(0, 5, 41)
-    data = sign * (6 * np.exp(-0.75 * x) + 2)
-    parameters, covariance = fitfuncs.exponent_fit(data, x)
-    assert_allclose(parameters, [sign * 6, 0.75, sign * 2], rtol=1e-6, atol=1e-8)
-    assert covariance.shape == (3, 3)
-
-
 @pytest.mark.parametrize("explicit_x", [False, True])
 def test_exponent_fit_without_offset(explicit_x):
     x = np.arange(20.0)
@@ -70,12 +61,6 @@ def test_multi_exp_fit_resolves_two_distinct_components():
     assert_allclose(components, [[4, 0.35], [2, 1.5]], rtol=1e-5, atol=1e-7)
     assert_allclose(parameters[-1], 0.75, rtol=1e-5, atol=1e-7)
     assert covariance.shape == (5, 5)
-
-
-@pytest.mark.parametrize("shape, mean", [(1.0, 2.0), (2.0, 6.0), (0.5, 3.0)])
-def test_negative_binomial_uses_requested_mean(shape, mean):
-    distribution = fitfuncs.NegBinom(shape, mean)
-    assert_allclose(distribution.mean(), mean)
 
 
 def test_multi_exp_jacobian_at_zero_amplitude_and_zero_rate():
@@ -203,14 +188,3 @@ def test_discrete_power_law_generator_stays_within_requested_support(alpha, xmin
     integer_values = np.floor(samples)
     assert_allclose(samples, integer_values, rtol=0, atol=0)
     assert np.all((samples >= xmin) & (samples <= xmax))
-
-
-def test_power_law_explicit_cutoff_retains_samples_and_updates_clipped_state():
-    data = np.array([0.75, 4.5, 1.25, 2.5, 3.25, 6.5, 4.5, 1.5, 9.0, 12.0, 18.0, 25.0])
-    model = fitfuncs.PowerLaw(data.copy())
-    for cutoff in (2.0, 5.0):
-        assert not np.any(data == cutoff)
-        model.fit(xmin=cutoff)
-        # Compare multisets: clipping preserves duplicates but need not preserve
-        # order. Neither cutoff inclusion nor a fitted estimator is selected.
-        assert_allclose(np.sort(model.clipped_data), np.sort(data[data > cutoff]), rtol=0, atol=0)

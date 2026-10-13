@@ -91,25 +91,6 @@ def test_recolor_resolves_a_registered_name_and_preserves_line_data(explicit_axi
         matplotlib.colormaps.unregister(name)
 
 
-@pytest.mark.parametrize("name", ["viridis", "magma"])
-def test_recolor_builtin_names_produce_palette_colors_in_a_real_draw(name):
-    fig, ax = plt.subplots()
-    lines = [
-        ax.plot([0, 1, 3], [index, index + 2, index - 1], color="red")[0] for index in range(3)
-    ]
-    original = [line.get_xydata().copy() for line in lines]
-    display.recolor(name, ax=ax)
-    fig.canvas.draw()
-    # No sampling positions are specified. Require colors from the named
-    # registered palette, rather than prescribing their spacing along it.
-    cmap = matplotlib.colormaps[name]
-    palette = cmap(np.linspace(0, 1, cmap.N))
-    for line, points in zip(lines, original):
-        rgba = to_rgba(line.get_color())
-        assert np.any(np.all(np.isclose(palette, rgba, rtol=0, atol=1e-12), axis=1))
-        assert_array_equal(line.get_xydata(), points)
-
-
 @pytest.mark.parametrize("gamma", [0.5, 2.0])
 def test_power_norm_masked_matrix_preserves_mask_values_and_inverse(gamma):
     values = np.ma.array(

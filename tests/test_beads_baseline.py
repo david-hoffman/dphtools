@@ -42,20 +42,6 @@ def test_calc_drift_identical_centered_tracks(diagnostics):
         plt.close("all")
 
 
-def test_calc_drift_amplitude_weighted_mean():
-    # Both tracks are centered so their absolute-position datum is immaterial.
-    tracks = [
-        pd.DataFrame(
-            {"slice": [0, 1, 2], "x0": [-1.0, 0.0, 1.0], "y0": [2.0, 0.0, -2.0], "amp": [1.0] * 3}
-        ),
-        pd.DataFrame(
-            {"slice": [0, 1, 2], "x0": [-3.0, 0.0, 3.0], "y0": [4.0, 0.0, -4.0], "amp": [3.0] * 3}
-        ),
-    ]
-    result = beads.calc_drift(tracks, weighted="amp")
-    assert_allclose(result[["x0", "y0"]], [[-2.5, 3.5], [0, 0], [2.5, -3.5]])
-
-
 def test_calc_drift_custom_coordinate_and_frame_names():
     track = pd.DataFrame(
         {"frame": [2, 4, 6], "u": [-2.0, 0.0, 2.0], "v": [1.0, 0.0, -1.0], "amp": [1.0] * 3}

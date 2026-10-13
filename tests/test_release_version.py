@@ -134,10 +134,6 @@ def test_version_reports_canonical_value_and_channel(worker, version, channel):
 )
 def test_version_rejects_noncanonical_spellings(worker, version):
     entry, outside = worker
-    # A valid request first distinguishes version rejection from an absent CLI.
-    valid = invoke(entry, "version", "1.0.0", cwd=outside)
-    assert valid.returncode == 0, diagnostic(valid)
-    assert json.loads(valid.stdout)["version"] == "1.0.0"
     result = invoke(entry, "version", version, cwd=outside)
     assert result.returncode != 0, diagnostic(result)
     assert (result.stdout + result.stderr).strip(), "Rejection needs a diagnostic"

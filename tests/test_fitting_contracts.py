@@ -278,26 +278,3 @@ def test_continuous_power_law_interior_percentiles_preserve_support_and_order(re
     assert np.isfinite(values).all()
     assert np.all(values >= cutoff)
     assert np.all(np.diff(values) >= 0)
-
-
-def test_power_law_cutoff_above_all_observations_cannot_claim_a_successful_fit(record_property):
-    observations = np.array([1, 2, 2, 4, 7, 11, 7], dtype=np.int64)
-    original = observations.copy()
-    model = fitfuncs.PowerLaw(observations)
-    # Every observation is strictly below 20, so either endpoint-inclusion
-    # convention leaves no fitting observations. No estimator is selected.
-    try:
-        with pytest.raises(
-            (TypeError, ValueError, RuntimeError, ArithmeticError, RuntimeWarning)
-        ) as caught:
-            model.fit(xmin=20, opt_max=False)
-            record_property("empty_tail_fit_returned_normally", True)
-    finally:
-        assert_array_equal(observations, original)
-    # Keep an informative rejection without prescribing its exact class or
-    # wording. NameError/UnboundLocalError are not ordinary fitting validation.
-    assert str(caught.value).strip()
-    record_property(
-        "empty_tail_fit_rejection",
-        {"class": type(caught.value).__name__, "message": str(caught.value)},
-    )

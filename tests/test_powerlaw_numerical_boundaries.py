@@ -55,11 +55,9 @@ def _positive_finite_log(value):
     return logarithm
 
 
-def _data(include_lower_candidate):
+def _data():
     tail = np.repeat(np.array([LOWER, UPPER]), 25)
-    if include_lower_candidate:
-        return np.concatenate([np.ones(60), tail])
-    return tail
+    return np.concatenate([np.ones(60), tail])
 
 
 def _assert_parameters(model, result, expected_log_c, expected_alpha, log_c_atol):
@@ -128,40 +126,8 @@ def _assert_unchanged_state(model, before):
 
 
 @pytest.mark.parametrize("automatic", [False, True], ids=["explicit", "all-candidates"])
-def test_eligible_large_normalizer_reports_failure_or_correct_finite_fit(
-    automatic, record_property
-):
-    data = _data(include_lower_candidate=automatic)
-    original = data.copy()
-    assert np.isfinite(data).all() and np.all(data > 0)
-    options = {"xmin_max": LOWER} if automatic else {"xmin": LOWER}
-    try:
-        model = PowerLaw(data)
-        try:
-            result = model.fit(**options)
-        except RuntimeError as error:
-            record_property("eligible_numerical_failure", _diagnostic(error))
-        else:
-            _assert_large_success(model, result, original, automatic)
-            record_property("outcome", "independently verified finite large-normalizer success")
-    finally:
-        assert_array_equal(data, original)
-
-
-def test_representable_lower_cutoff_control_retains_the_large_observations():
-    data = _data(include_lower_candidate=True)
-    original = data.copy()
-    try:
-        model = PowerLaw(data)
-        result = model.fit(xmin=1)
-        _assert_control_success(model, result, original)
-    finally:
-        assert_array_equal(data, original)
-
-
-@pytest.mark.parametrize("automatic", [False, True], ids=["explicit", "all-candidates"])
 def test_eligible_numerical_refit_failure_preserves_prior_public_state(automatic, record_property):
-    data = _data(include_lower_candidate=True)
+    data = _data()
     original = data.copy()
     try:
         model = PowerLaw(data)

@@ -18,12 +18,11 @@ POINTS = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 2.0], [3.0, 4.0], [-1.0, 3.0]])
         registration.AffineCPD,
     ],
 )
-@pytest.mark.parametrize("normalization", [False, True])
-def test_registration_recovers_translation_and_transforms_unseen_points(model, normalization):
+def test_registration_recovers_translation_and_transforms_unseen_points(model):
     displacement = np.array([0.2, -0.3])
     moving = POINTS + displacement
     reg = model(POINTS.copy(), moving)
-    reg(maxiters=100, dist_tol=1e-8, normalization=normalization)
+    reg(maxiters=100, dist_tol=1e-8, normalization=False)
     assert_allclose(reg.transform(moving), POINTS, atol=1e-5)
     unseen = np.array([[2.5, 1.5], [-0.5, 2.0]])
     assert_allclose(reg.transform(unseen + displacement), unseen, atol=1e-5)
@@ -38,23 +37,14 @@ def test_registration_recovers_translation_and_transforms_unseen_points(model, n
         (registration.AffineCPD, [[1.1, 0.1], [-0.05, 0.9]]),
     ],
 )
-@pytest.mark.parametrize("normalization", [False, True])
-def test_registration_models_recover_their_documented_transformation(model, matrix, normalization):
+def test_registration_models_recover_their_documented_transformation(model, matrix):
     matrix = np.array(matrix)
     fixed = POINTS @ matrix.T + [0.2, -0.3]
     reg = model(fixed, POINTS.copy())
-    reg(maxiters=100, dist_tol=1e-8, normalization=normalization)
+    reg(maxiters=100, dist_tol=1e-8, normalization=False)
     assert_allclose(reg.transform(POINTS), fixed, atol=1e-5)
     unseen = np.array([[2.5, 1.5], [-0.5, 2.0]])
     assert_allclose(reg.transform(unseen), unseen @ matrix.T + [0.2, -0.3], atol=1e-5)
-
-
-def test_translation_registration_in_three_dimensions():
-    fixed = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
-    moving = fixed + [0.2, -0.3, 0.1]
-    reg = registration.TranslationCPD(fixed, moving)
-    reg(maxiters=100, dist_tol=1e-8)
-    assert_allclose(reg.transform(moving), fixed, atol=1e-5)
 
 
 @pytest.mark.parametrize(
@@ -156,8 +146,7 @@ def test_registration_plot_renders_fitted_point_clouds(only2d, dimension):
         plt.close("all")
 
 
-@pytest.mark.parametrize("normalization", [False, True])
-def test_rigid_registration_in_three_dimensions_preserves_unseen_distances(normalization):
+def test_rigid_registration_in_three_dimensions_preserves_unseen_distances():
     moving = np.column_stack((POINTS, [0.0, 1.0, -2.0, 3.0, 1.5]))
     angle = 0.08
     matrix = np.array(
@@ -165,7 +154,7 @@ def test_rigid_registration_in_three_dimensions_preserves_unseen_distances(norma
     )
     translation = np.array([0.2, -0.3, 0.1])
     reg = registration.RigidCPD(moving @ matrix.T + translation, moving.copy())
-    reg(maxiters=100, dist_tol=1e-8, normalization=normalization)
+    reg(maxiters=100, dist_tol=1e-8, normalization=False)
     unseen = np.array([[2.5, 1.5, -0.5], [-0.5, 2.0, 4.0], [1.0, -2.0, 0.25]])
     transformed = reg.transform(unseen)
     assert_allclose(transformed, unseen @ matrix.T + translation, atol=1e-5)

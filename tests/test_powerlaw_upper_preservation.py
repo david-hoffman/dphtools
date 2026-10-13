@@ -94,14 +94,17 @@ def test_equal_count_fixed_lower_tie_chooses_unbounded_upper_through_fit_state()
         assert_array_equal(data, original)
 
 
-@pytest.mark.parametrize(
-    "bounded", [True, False], ids=["bounded-continuous", "unbounded-discrete"]
-)
-def test_failed_upper_refit_preserves_all_available_public_fit_fields(bounded, record_property):
-    if bounded:
+@pytest.mark.parametrize("case", ["bounded-continuous", "bounded-discrete", "unbounded-discrete"])
+def test_failed_upper_refit_preserves_all_available_public_fit_fields(case, record_property):
+    if case == "bounded-continuous":
         data = np.repeat([1.025, 1.08, 1.15, 1.25, 1.38, 1.55, 1.78, 2.12, 2.65, 3.5, 30.0], 10)
         parameters = (1.5246865836407402, 2.1746821314411457)
         retained = data[data <= 3.5]
+    elif case == "bounded-discrete":
+        data = np.repeat([1, 2, 3, 4, 5, 6, 20], [80, 20, 9, 5, 3, 2, 10])
+        # The existing upper-window oracle: the binary masses have alpha=2.
+        parameters = (0.8, 2.0)
+        retained = data[data <= 2]
     else:
         data = np.repeat([1, 2, 4, 20], [30, 12, 10, 10])
         parameters = (0.5183425136587252, 1.7698533438102164)
@@ -109,7 +112,7 @@ def test_failed_upper_refit_preserves_all_available_public_fit_fields(bounded, r
     original = data.copy()
     try:
         model = PowerLaw(data)
-        result = model.fit(xmin=1, opt_max=bounded)
+        result = model.fit(xmin=1, opt_max=case != "unbounded-discrete")
     finally:
         assert_array_equal(data, original)
     # A real, independently checked successful fit is required before the
@@ -120,16 +123,19 @@ def test_failed_upper_refit_preserves_all_available_public_fit_fields(bounded, r
         "positive_control_and_snapshot",
         {"fields": sorted(before), "fit": [float(value) for value in result]},
     )
-    try:
-        # Only ten samples remain above explicit L=20 in either fixture.
-        # Automatic upper selection requires at least fifty even for a
-        # fixed lower bound, so every possible window is ineligible.
-        with pytest.raises(ValueError) as caught:
-            model.fit(xmin=20, opt_max=True)
-        record_property("failed_refit", _diagnostic(caught.value))
-    finally:
-        assert_array_equal(data, original)
-        _assert_preserved(model, before)
+    for label, options in (
+        ("fewer-than-50", {"xmin": 20}),
+        ("invalid-lower-cap", {"xmin_max": np.nan}),
+    ):
+        try:
+            # Only ten samples remain above explicit L=20 in each fixture.
+            # Upper selection requires fifty even for a fixed lower bound.
+            with pytest.raises(ValueError) as caught:
+                model.fit(opt_max=True, **options)
+            record_property(label + "_failed_refit", _diagnostic(caught.value))
+        finally:
+            assert_array_equal(data, original)
+            _assert_preserved(model, before)
     record_property("preservation_assertions_completed", True)
 
 
