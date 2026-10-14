@@ -1,0 +1,474 @@
+{
+  "purpose": "Human visual examples, not acceptance tests or a new scientific contract",
+  "source_candidate": "576602a6497ce1b893c2adce61c8a0a56136a592",
+  "python": "3.12.14",
+  "numpy": "2.5.3",
+  "scipy": "1.18.1",
+  "matplotlib": "3.11.2",
+  "generator_sha256": "b05b9bcf908e46446132b65f4537016f50110b6391b5d0bb87149d23540bffef",
+  "runtime_sha256": {
+    "dphtools/utils/_spectrum_fit.py": "1080b1f806f9e7faf27ef64df56e1c525f3dd26a8993ad7ef8f3136c84c09587",
+    "dphtools/utils/fitfuncs.py": "c56a772ea0c2cd81d8225b3e6fec29b3106a10ba481b5d566f0561c5ee674421"
+  },
+  "coordinate_units": "nm",
+  "peak_height_units": "V",
+  "width_units": "nm",
+  "background_slope_units": "V/nm",
+  "covariance_parameter_order": "Flattened sorted peak rows, then b0 and b1; physical units",
+  "noise_model": "Independent additive Gaussian read noise, standard deviation 0.01 V",
+  "cases": [
+    {
+      "id": "gauss-six",
+      "title": "Six Gaussian peaks \u00b7 automatic detection",
+      "family": "gauss",
+      "mode": "automatic",
+      "seed": 260601,
+      "background": [
+        0.25,
+        0.009
+      ],
+      "peaks": [
+        [
+          1.2,
+          502.0,
+          0.25
+        ],
+        [
+          0.55,
+          506.0,
+          0.5
+        ],
+        [
+          0.9,
+          510.0,
+          0.35
+        ],
+        [
+          0.65,
+          514.0,
+          0.7
+        ],
+        [
+          1.45,
+          520.0,
+          0.4
+        ],
+        [
+          0.45,
+          526.0,
+          0.55
+        ]
+      ],
+      "controls": {
+        "prominence": 0.12,
+        "distance": 40
+      },
+      "input_x_unit": "nm",
+      "signal_unit": "V",
+      "samples": 1201,
+      "noise_standard_deviation_V": 0.01,
+      "sample_spacing_nm": 0.025,
+      "optimizer": "default Levenberg-Marquardt",
+      "options": {
+        "peak_type": "gauss",
+        "background": "linear",
+        "max_nfev": 10000,
+        "prominence": 0.12,
+        "distance": 40
+      },
+      "supplied_guesses": null,
+      "returned_components": 6,
+      "returned_peaks": [
+        [
+          1.2022628775779227,
+          501.999880395365,
+          0.250807683580589
+        ],
+        [
+          0.5481254720304749,
+          505.99989152504946,
+          0.5004570656946697
+        ],
+        [
+          0.9034708532399321,
+          509.99866245384334,
+          0.34925050477010433
+        ],
+        [
+          0.6528467500267656,
+          513.9996755745086,
+          0.7016933746538574
+        ],
+        [
+          1.4497051441375794,
+          519.9999918459664,
+          0.399442001702854
+        ],
+        [
+          0.44875396967205244,
+          525.9970388275431,
+          0.5484169192837036
+        ]
+      ],
+      "returned_background": [
+        0.2485049322328966,
+        0.009093081855434445
+      ],
+      "residual_rms_V": 0.010416617923019409,
+      "truth_minus_fit_rms_V": 0.001289187062303909,
+      "warnings": [],
+      "caller_inputs_preserved": true
+    },
+    {
+      "id": "lorentz-seven",
+      "title": "Seven Lorentzian peaks \u00b7 center guesses",
+      "family": "lorentz",
+      "mode": "centers",
+      "seed": 260602,
+      "background": [
+        0.3,
+        0.006
+      ],
+      "peaks": [
+        [
+          0.7,
+          501.8,
+          0.32
+        ],
+        [
+          1.2,
+          505.2,
+          0.5
+        ],
+        [
+          0.8,
+          508.4,
+          0.62
+        ],
+        [
+          0.5,
+          510.0,
+          0.55
+        ],
+        [
+          1.05,
+          515.5,
+          0.35
+        ],
+        [
+          0.7,
+          520.5,
+          0.6
+        ],
+        [
+          0.4,
+          526.2,
+          0.4
+        ]
+      ],
+      "center_offsets": [
+        0.12,
+        -0.1,
+        0.08,
+        -0.09,
+        0.1,
+        -0.12,
+        0.08
+      ],
+      "input_x_unit": "nm",
+      "signal_unit": "V",
+      "samples": 1201,
+      "noise_standard_deviation_V": 0.01,
+      "sample_spacing_nm": 0.025,
+      "optimizer": "default Levenberg-Marquardt",
+      "options": {
+        "peak_type": "lorentz",
+        "background": "linear",
+        "max_nfev": 10000
+      },
+      "supplied_guesses": [
+        501.92,
+        505.09999999999997,
+        508.47999999999996,
+        509.91,
+        515.6,
+        520.38,
+        526.2800000000001
+      ],
+      "returned_components": 7,
+      "returned_peaks": [
+        [
+          0.7070883532098078,
+          501.801842241305,
+          0.316856716123924
+        ],
+        [
+          1.1979357459431048,
+          505.19967291329993,
+          0.5022315051035935
+        ],
+        [
+          0.8008934691286242,
+          508.40050675296504,
+          0.6230489131768643
+        ],
+        [
+          0.5019230042716843,
+          510.0055108403805,
+          0.5505429048615464
+        ],
+        [
+          1.049287705101191,
+          515.5022318136972,
+          0.3521450025558068
+        ],
+        [
+          0.7010556706300601,
+          520.5005235726389,
+          0.6006175236200281
+        ],
+        [
+          0.4052540138032911,
+          526.202472851775,
+          0.3996151093348739
+        ]
+      ],
+      "returned_background": [
+        0.29872652420310697,
+        0.005993015211373636
+      ],
+      "residual_rms_V": 0.00972257715999709,
+      "truth_minus_fit_rms_V": 0.001521491001216011,
+      "warnings": [],
+      "caller_inputs_preserved": true
+    },
+    {
+      "id": "voigt-eight",
+      "title": "Eight Voigt peaks \u00b7 full guesses, overlapping pairs",
+      "family": "voigt",
+      "mode": "full",
+      "seed": 260603,
+      "background": [
+        0.22,
+        0.008
+      ],
+      "peaks": [
+        [
+          1.05,
+          502.0,
+          0.25,
+          0.15
+        ],
+        [
+          0.65,
+          506.0,
+          0.4,
+          0.22
+        ],
+        [
+          0.85,
+          509.7,
+          0.3,
+          0.24
+        ],
+        [
+          0.55,
+          510.45,
+          0.35,
+          0.2
+        ],
+        [
+          0.95,
+          516.0,
+          0.6,
+          0.22
+        ],
+        [
+          0.7,
+          520.2,
+          0.35,
+          0.18
+        ],
+        [
+          0.45,
+          521.0,
+          0.3,
+          0.2
+        ],
+        [
+          1.2,
+          526.0,
+          0.45,
+          0.25
+        ]
+      ],
+      "center_offsets": [
+        0.08,
+        -0.1,
+        -0.08,
+        0.1,
+        -0.1,
+        -0.08,
+        0.09,
+        0.1
+      ],
+      "height_factors": [
+        0.85,
+        1.1,
+        0.9,
+        1.15,
+        1.1,
+        0.85,
+        1.15,
+        0.9
+      ],
+      "sigma_factors": [
+        1.15,
+        0.85,
+        1.1,
+        0.9,
+        0.9,
+        1.1,
+        0.9,
+        1.15
+      ],
+      "gamma_factors": [
+        0.9,
+        1.1,
+        0.85,
+        1.15,
+        1.15,
+        0.9,
+        1.1,
+        0.85
+      ],
+      "input_x_unit": "nm",
+      "signal_unit": "V",
+      "samples": 1201,
+      "noise_standard_deviation_V": 0.01,
+      "sample_spacing_nm": 0.025,
+      "optimizer": "default Levenberg-Marquardt",
+      "options": {
+        "peak_type": "voigt",
+        "background": "linear",
+        "max_nfev": 10000
+      },
+      "supplied_guesses": [
+        [
+          0.8925,
+          502.08,
+          0.2875,
+          0.135
+        ],
+        [
+          0.7150000000000001,
+          505.9,
+          0.34,
+          0.24200000000000002
+        ],
+        [
+          0.765,
+          509.62,
+          0.33,
+          0.204
+        ],
+        [
+          0.6325,
+          510.55,
+          0.315,
+          0.22999999999999998
+        ],
+        [
+          1.045,
+          515.9,
+          0.54,
+          0.253
+        ],
+        [
+          0.595,
+          520.12,
+          0.385,
+          0.162
+        ],
+        [
+          0.5175,
+          521.09,
+          0.27,
+          0.22000000000000003
+        ],
+        [
+          1.08,
+          526.1,
+          0.5175,
+          0.2125
+        ]
+      ],
+      "returned_components": 8,
+      "returned_peaks": [
+        [
+          1.0492265117918926,
+          501.99801533874677,
+          0.2530009722334274,
+          0.14277601977990353
+        ],
+        [
+          0.6460528184388374,
+          506.00105261637975,
+          0.4082319992653057,
+          0.20731358782312012
+        ],
+        [
+          0.7709951631087569,
+          509.66560282153404,
+          0.27725692842776767,
+          0.2537522811887133
+        ],
+        [
+          0.6009652402625933,
+          510.37951165171484,
+          0.39745781243248696,
+          0.18083951900073553
+        ],
+        [
+          0.9471946735067823,
+          515.9988248783799,
+          0.608995355168404,
+          0.20654089199649794
+        ],
+        [
+          0.7015911486907269,
+          520.1955740868681,
+          0.3332203667405117,
+          0.19371160842665872
+        ],
+        [
+          0.4573706889872254,
+          520.9914194782311,
+          0.29214400061626855,
+          0.21389073066931463
+        ],
+        [
+          1.19684007042165,
+          525.998108045487,
+          0.4547518070513012,
+          0.24558944686237946
+        ]
+      ],
+      "returned_background": [
+        0.222477298534763,
+        0.007899813150747156
+      ],
+      "residual_rms_V": 0.00965401158746813,
+      "truth_minus_fit_rms_V": 0.0017443179940453675,
+      "warnings": [],
+      "caller_inputs_preserved": true
+    }
+  ],
+  "assets_sha256": {
+    "gauss-six.png": "67657f4518658c397734961215a581195cb517b2964c4cc823997e7dccd9f384",
+    "lorentz-seven.png": "bd2e8d33218e0e1a3ce60dec1d9a3f15e5c3e5129b36a02fc4a3d17ea41e79e4",
+    "multi-peak-data.npz": "e877ff23fc4df372203a86b348c56f4adb32affc4c6f380fbf0f2537f1c5a959",
+    "multi-peak-overview.png": "af41138fb6ed488d8f492978575ecef2e73fd50f675ea0448e8bfaf296fd0e38",
+    "voigt-eight.png": "33c8d902a9e6e34940dfc100c050bc822e0f17c4cde8df95d9e3d773a96647d9"
+  }
+}

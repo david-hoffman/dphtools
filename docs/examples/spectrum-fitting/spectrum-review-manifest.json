@@ -1,0 +1,196 @@
+{
+  "format_version": 1,
+  "scope": "Preserved visual examples, not acceptance tests; no execution against later candidates is claimed.",
+  "source_runtime_product_commit": "f3a655709920f6c7f13a392c5c6265ae8d2f045e",
+  "plot_preparation_commit": "1c72cadf8f31a7a5925b06eb7183aa5319e5fb52",
+  "plot_preparation_tree": "cde1d245966abe6f9c27d7f2be3354ff5159b270",
+  "preparation_test_checkpoint_sha256": "b3fe64dc5da2bdb40e4af19832f39684507b77957ac7361dc789431af09069d0",
+  "public_entry_point": "dphtools.utils.fitfuncs.spectrum_fit",
+  "runtime": {
+    "python": "CPython 3.12.14",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "matplotlib": "3.11.2"
+  },
+  "fixture": {
+    "case_count": 6,
+    "profiles": [
+      "Gaussian",
+      "Lorentzian",
+      "Voigt"
+    ],
+    "backgrounds": [
+      "constant",
+      "linear"
+    ],
+    "x_display_unit": "nm",
+    "x_input_units": [
+      "nm",
+      "m"
+    ],
+    "signal_unit": "V",
+    "slope_display_unit": "V/nm",
+    "x_range_nm": [
+      500,
+      510
+    ],
+    "sample_spacing_nm": 0.05,
+    "component_height_V": 1.2,
+    "background_at_500_nm_V": 0.4,
+    "linear_slope_V_per_nm": 0.015,
+    "additive_read_noise_standard_deviation_V": 0.01
+  },
+  "recorded_calls": {
+    "count": 18,
+    "returned_fits": 18,
+    "numerical_warning_count": 0,
+    "colors": {
+      "blue": "default LM, nm input",
+      "red": "default LM, m input",
+      "green": "configured custom Trust Region Reflective solver, m input"
+    }
+  },
+  "numerical_archive": {
+    "format": "NumPy compressed NPZ",
+    "array_count": 108,
+    "physical_covariance_arrays": 18,
+    "unit_notes": "Base fixtures and parameters_nm use V/nm display conventions. Covariance arrays retain physical parameter units of their original call: nm for lm_nm and m for lm_m/custom_m; slopes use V per input wavelength unit."
+  },
+  "cases": [
+    {
+      "key": "gauss_constant",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.7,
+        0.4
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.009216093329704933,
+        "lm_m": 0.009216093329702935,
+        "custom_m": 0.009216093329702935
+      }
+    },
+    {
+      "key": "lorentz_constant",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.7,
+        0.4
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.009680697963142887,
+        "lm_m": 0.009680697963143574,
+        "custom_m": 0.009680697963143583
+      }
+    },
+    {
+      "key": "voigt_constant",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.55,
+        0.3,
+        0.4
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.00946671278854328,
+        "lm_m": 0.00946671278854165,
+        "custom_m": 0.009466712788541644
+      }
+    },
+    {
+      "key": "gauss_linear",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.7,
+        0.4,
+        0.015
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.0091572258755378,
+        "lm_m": 0.009157225875535744,
+        "custom_m": 0.00915722587553518
+      }
+    },
+    {
+      "key": "lorentz_linear",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.7,
+        0.4,
+        0.015
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.009660429572419792,
+        "lm_m": 0.009660429572420469,
+        "custom_m": 0.009660429572420465
+      }
+    },
+    {
+      "key": "voigt_linear",
+      "truth_parameters_nm": [
+        1.2,
+        505.1,
+        0.55,
+        0.3,
+        0.4,
+        0.015
+      ],
+      "recorded_residual_rms_V": {
+        "lm_nm": 0.009462800888864384,
+        "lm_m": 0.009462800888862774,
+        "custom_m": 0.009462800888862786
+      }
+    }
+  ],
+  "assets": {
+    "README.md": {
+      "bytes": 3542,
+      "sha256": "1f6ebe96c83a9c53e22d7c0e8be225d201c98b6935c8da34be85754d54a9593a"
+    },
+    "constant-overview.png": {
+      "bytes": 484014,
+      "sha256": "1b6f631a6a0dc0b0d9c5a0a2184be2927512eebd7da9d38556824dbed8bdeecb"
+    },
+    "gauss_constant-detail.png": {
+      "bytes": 286873,
+      "sha256": "eb91db13a8839500c647a07e91aebcb4e0d73bc81bdad7283b72909995c2c218"
+    },
+    "gauss_linear-detail.png": {
+      "bytes": 295291,
+      "sha256": "1d60c33790f426edd39d20585dcc0a928488a8357745b6f30b8368ccd8e18210"
+    },
+    "linear-overview.png": {
+      "bytes": 485171,
+      "sha256": "be854b77f941b4075672c2d9f793910d228c5d2d0eb48ad7a81b4c10f5f3525a"
+    },
+    "lorentz_constant-detail.png": {
+      "bytes": 295453,
+      "sha256": "9ee5734b0c718834f1afaa10af4a4ac42d49711c9fdfd4d0d0674b520df50cf6"
+    },
+    "lorentz_linear-detail.png": {
+      "bytes": 295732,
+      "sha256": "38344c36d7b2770ae65de1a0bbe615c67123a358c7f426046a26944fcfad2377"
+    },
+    "spectrum-review-data.npz": {
+      "bytes": 114130,
+      "sha256": "8cd7acf84674a77386199e130826389b4c3bf9f4cdfa1fd5971ea049a5fe3b66"
+    },
+    "spectrum-review.html": {
+      "bytes": 15037,
+      "sha256": "79c7c41cc07e22455065ad06071c2b094e8d38a868001438bea9b759718a2d2f"
+    },
+    "voigt_constant-detail.png": {
+      "bytes": 297341,
+      "sha256": "4bffbf4f0004639f9f6fe7b4dcb3d4d9816b59e1d18356db1c52a00743fb5b7f"
+    },
+    "voigt_linear-detail.png": {
+      "bytes": 300483,
+      "sha256": "580fcceb53cd192c950bed1f0170322581985b36d74ba2ee140616c96117f678"
+    }
+  }
+}
